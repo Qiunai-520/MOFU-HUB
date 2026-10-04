@@ -1,0 +1,56 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}news{% endblock %}
+{% block title %}{{ news.title }} · 校园资讯 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<div class="news-detail-page">
+    <nav class="board-entry__crumb" aria-label="面包屑">
+        <a href="/news">校园资讯</a>
+        <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+        <span>{{ news.title }}</span>
+    </nav>
+
+    {% if news.is_hidden and canManage %}
+    <p class="form-alert" role="alert">
+        当前为「{{ news.status_label }}」状态，仅资讯管理员可见。<a href="{{ news.edit_url }}">去编辑</a>
+    </p>
+    {% endif %}
+
+    <article class="news-detail">
+        <header class="news-detail__head">
+            <div class="news-detail__chips">
+                {% if news.is_pinned %}<span class="meta-chip meta-chip--accent">置顶</span>{% endif %}
+                <span class="meta-chip">{{ news.category_label }}</span>
+                {% if news.is_hidden %}<span class="meta-chip meta-chip--warn">{{ news.status_label }}</span>{% endif %}
+            </div>
+            <h1 class="news-detail__title">{{ news.title }}</h1>
+            <div class="news-detail__meta">
+                <a href="{{ news.author.url }}">{{ news.author.nickname }}</a>
+                <time>{{ news.published_text }}</time>
+                <span class="news-detail__views">
+                    <span class="material-symbols-outlined" aria-hidden="true">visibility</span>{{ news.view_count }}
+                </span>
+            </div>
+        </header>
+
+        {% if news.cover_url is not empty %}
+        <div class="news-detail__cover">
+            <img src="{{ news.cover_url }}" alt="" loading="lazy" decoding="async">
+        </div>
+        {% endif %}
+
+        <div class="news-detail__content post-content post-content--lg">{{ news.content_html|raw }}</div>
+
+        <footer class="post-detail__foot">
+            <a class="post-action" href="/news">
+                <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span><span>返回列表</span>
+            </a>
+            <button class="post-action post-action--tail" type="button" data-action="share"
+                    data-share-url="/news/{{ news.id }}" aria-label="复制链接">
+                <span class="material-symbols-outlined" aria-hidden="true">share</span>
+            </button>
+        </footer>
+    </article>
+</div>
+{% endblock %}

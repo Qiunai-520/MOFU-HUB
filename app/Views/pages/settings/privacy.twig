@@ -1,0 +1,77 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}settings{% endblock %}
+{% block title %}隐私设置 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="settings-layout">
+    {{ include('components/settings-nav.twig') }}
+
+    <div class="settings-main" data-tabs-panel>
+        <h1 class="page-title">隐私设置</h1>
+
+        {% if saved %}
+        <div class="form-success" role="status">已保存</div>
+        {% endif %}
+
+        <form method="post" action="/settings/privacy" class="settings-form">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+            <div class="settings-group">
+                <h2 class="settings-group__title">谁能给我发私信</h2>
+                <div class="settings-card">
+                    <label class="settings-row" for="dm-policy-all">
+                        <span class="settings-row__text"><strong>所有人</strong>任何登录用户都可以给我发私信</span>
+                        <input type="radio" id="dm-policy-all" name="dm_policy" value="all" {{ prefs.dm_policy == 'all' ? 'checked' : '' }}>
+                    </label>
+                    <label class="settings-row" for="dm-policy-mutual">
+                        <span class="settings-row__text"><strong>仅互相关注的人</strong>需要双方互相关注才能私信我</span>
+                        <input type="radio" id="dm-policy-mutual" name="dm_policy" value="mutual" {{ prefs.dm_policy == 'mutual' ? 'checked' : '' }}>
+                    </label>
+                    <label class="settings-row" for="dm-policy-none">
+                        <span class="settings-row__text"><strong>不接收私信</strong>任何人都无法给我发私信（已有会话仍可查看历史）</span>
+                        <input type="radio" id="dm-policy-none" name="dm_policy" value="none" {{ prefs.dm_policy == 'none' ? 'checked' : '' }}>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h2 class="settings-group__title">关注与粉丝列表可见性</h2>
+                <div class="settings-card">
+                    <label class="settings-row">
+                        <span class="settings-row__text"><strong>所有人可见</strong>其他人可以浏览我的关注与粉丝列表</span>
+                        <input type="radio" name="connections_visibility" value="public" {{ prefs.connections_visibility == 'public' ? 'checked' : '' }}>
+                    </label>
+                    <label class="settings-row">
+                        <span class="settings-row__text"><strong>仅自己可见</strong>关注与粉丝列表只对我自己展示</span>
+                        <input type="radio" name="connections_visibility" value="self" {{ prefs.connections_visibility == 'self' ? 'checked' : '' }}>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-form__foot">
+                <button class="filled-btn" type="submit">保存设置</button>
+            </div>
+        </form>
+
+        <div class="settings-group">
+            <h2 class="settings-group__title">拉黑名单</h2>
+            <div class="settings-card">
+                <div class="blocked-list">
+                    {% for user in blockedUsers %}
+                    {% embed 'components/user-row.twig' with { user: user, meta: '@' ~ user.username, avatar_size: 'sm', border: true, row_attrs: 'data-blocked-user="' ~ user.id ~ '"' } %}
+                        {% block actions %}
+                        <button class="text-btn text-btn--sm" type="button"
+                                data-action="toggle-block" data-user-id="{{ user.id }}" data-from="settings">解除拉黑</button>
+                        {% endblock %}
+                    {% endembed %}
+                    {% else %}
+                    <p class="settings-hint">还没有拉黑任何人</p>
+                    {% endfor %}
+                </div>
+            </div>
+            <p class="settings-hint">拉黑后双方无法互相关注或私信，已有的关注关系会自动解除。</p>
+        </div>
+    </div>
+</section>
+{% endblock %}

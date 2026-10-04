@@ -1,0 +1,38 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}boards{% endblock %}
+{% block title %}社区板块 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="boards-page">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">社区板块</h1>
+            <p class="page-subtitle">论坛、问答、互助、学习、失物招领与二手交易</p>
+        </div>
+    </header>
+
+    <div class="board-grid">
+        {% for board in boards %}
+        <a class="card board-card" href="{{ board.url }}">
+            {% if board.logo is not empty %}
+            <img class="board-card__logo" src="{{ board.logo }}" alt="" loading="lazy" decoding="async">
+            {% else %}
+            <span class="board-card__icon material-symbols-outlined" aria-hidden="true">{{ board.icon }}</span>
+            {% endif %}
+            <span class="board-card__body">
+                <span class="board-card__name">{{ board.name }}</span>
+                <span class="board-card__desc">{{ board.description }}</span>
+                <span class="board-card__meta">{{ board.entry_count }} 条帖子</span>
+            </span>
+        </a>
+        {% else %}
+        {{ include('components/empty-state.twig', {
+            icon: 'dashboard',
+            title: '板块暂不可用',
+            text: '管理员可能正在整理板块，稍后再来看看',
+        }) }}
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

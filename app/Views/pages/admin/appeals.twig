@@ -1,0 +1,69 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}申诉管理 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">申诉管理</h1>
+    <div class="filter-tabs">
+        <a class="filter-tab{{ status == '' ? ' is-active' : '' }}" href="/admin/appeals">全部</a>
+        <a class="filter-tab{{ status == 'pending' ? ' is-active' : '' }}" href="/admin/appeals?status=pending">待处理</a>
+    </div>
+</div>
+
+<div class="table-wrap">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>用户</th>
+                <th>账号状态</th>
+                <th>申诉理由</th>
+                <th>状态</th>
+                <th>时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for appeal in appeals.items %}
+            <tr>
+                <td data-label="用户">
+                    @{{ appeal.username }}
+                    {% if appeal.nickname is not empty %}<span class="admin-table__sub">{{ appeal.nickname }}</span>{% endif %}
+                </td>
+                <td data-label="账号状态" class="admin-table__sub">
+                    {{ appeal.user_status == 'banned' ? '已封禁' : (appeal.user_status == 'suspended' ? '已停用' : '正常') }}
+                </td>
+                <td data-label="申诉理由" class="admin-table__content">
+                    {{ appeal.reason }}
+                    {% if appeal.admin_reply is not empty %}<span class="admin-table__sub">处理说明：{{ appeal.admin_reply }}</span>{% endif %}
+                </td>
+                <td data-label="状态">
+                    {% if appeal.status == 'pending' %}<span class="status-dot status-dot--warn"></span>待处理
+                    {% elseif appeal.status == 'accepted' %}<span class="status-dot status-dot--ok"></span>已通过
+                    {% else %}<span class="status-dot status-dot--ok"></span>已驳回{% endif %}
+                </td>
+                <td data-label="时间" class="admin-table__sub">{{ appeal.created_at }}</td>
+                <td class="admin-table__actions">
+                    {% if appeal.status == 'pending' %}
+                    <form method="post" action="/admin/appeals/{{ appeal.id }}/resolve" class="inline-form admin-appeal-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input class="field__input admin-appeal-form__reply" type="text" name="reply" maxlength="500" placeholder="处理说明（可选）">
+                        <button class="text-btn text-btn--sm" type="submit" name="action" value="accept"
+                                data-confirm="通过后将恢复该账号状态，确定吗？">通过并解封</button>
+                        <button class="text-btn text-btn--sm text-btn--danger" type="submit" name="action" value="reject">驳回</button>
+                    </form>
+                    {% else %}
+                    <span class="admin-table__sub">{{ appeal.handled_at }}{% if appeal.handler_username is not empty %} · {{ appeal.handler_username }}{% endif %}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="admin-table__empty">暂无申诉记录</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include 'components/pagination.twig' with { pagination: appeals, base: '/admin/appeals?status=' ~ status } %}
+{% endblock %}

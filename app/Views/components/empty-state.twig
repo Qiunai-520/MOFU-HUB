@@ -1,0 +1,21 @@
+{#
+  空状态组件
+  - icon / title / text / cta_* 均可选；
+  - compact: 用于侧栏卡片、评论列表等紧凑容器（透明底、更小内边距）；
+  - extra_class: 调用方补充的上下文类（如聊天区的居中定位）；
+  - 输出 data-empty-state 供客户端在插入内容后移除（见 post-page/confessions/messages 模块）。
+#}
+<div class="empty-state{{ compact|default(false) ? ' empty-state--compact' : '' }}{{ extra_class is defined and extra_class != '' ? ' ' ~ extra_class : '' }}" data-empty-state>
+    {% if icon is defined and icon != '' %}
+    <span class="material-symbols-outlined empty-state__icon" aria-hidden="true">{{ icon }}</span>
+    {% endif %}
+    {% if title is defined and title != '' %}
+    <p class="empty-state__title">{{ title }}</p>
+    {% endif %}
+    {% if text is defined and text != '' %}
+    <p class="empty-state__text">{{ text }}</p>
+    {% endif %}
+    {% if cta_href is defined and cta_href != '' %}
+    <a class="{{ cta_class|default('filled-btn filled-btn--sm') }}" href="{{ cta_href }}">{{ cta_label|default('去看看') }}</a>
+    {% endif %}
+</div>

@@ -1,0 +1,20 @@
+{# 分页导航：base 为不带 page 参数的链接前缀 #}
+{% if pagination.pages > 1 %}
+{% set lastChar = base|slice(-1) %}
+{% set joiner = (lastChar == '?' or lastChar == '&') ? '' : '&' %}
+<nav class="pagination" aria-label="分页导航">
+    {% if pagination.page > 1 %}
+    <a class="pagination__link" href="{{ base }}{{ joiner }}page={{ pagination.page - 1 }}">上一页</a>
+    {% else %}
+    <span class="pagination__link is-disabled">上一页</span>
+    {% endif %}
+
+    <span class="pagination__status">第 {{ pagination.page }} / {{ pagination.pages }} 页</span>
+
+    {% if pagination.page < pagination.pages %}
+    <a class="pagination__link" href="{{ base }}{{ joiner }}page={{ pagination.page + 1 }}">下一页</a>
+    {% else %}
+    <span class="pagination__link is-disabled">下一页</span>
+    {% endif %}
+</nav>
+{% endif %}

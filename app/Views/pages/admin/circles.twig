@@ -1,0 +1,61 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}圈子管理 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">圈子管理</h1>
+    <div class="filter-tabs">
+        <a class="filter-tab{{ filter == '' ? ' is-active' : '' }}" href="/admin/circles">全部</a>
+        <a class="filter-tab{{ filter == 'inactive' ? ' is-active' : '' }}" href="/admin/circles?filter=inactive">已停用</a>
+    </div>
+</div>
+
+<div class="table-wrap">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>圈子</th>
+                <th>圈主</th>
+                <th>成员</th>
+                <th>动态</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in circles.items %}
+            <tr>
+                <td data-label="圈子" class="admin-table__content">
+                    <a href="{{ c.url }}">{{ c.name }}</a>
+                    <span class="admin-table__sub">{{ c.visibility_label }}{% if c.description is not empty %} · {{ c.description }}{% endif %}</span>
+                </td>
+                <td data-label="圈主" class="admin-table__sub">@{{ c.owner_username }}</td>
+                <td data-label="成员">{{ c.member_count }}</td>
+                <td data-label="动态">{{ c.post_count }}</td>
+                <td data-label="状态">
+                    {% if c.is_active %}<span class="status-dot status-dot--ok"></span>启用
+                    {% else %}<span class="status-dot status-dot--warn"></span>已停用{% endif %}
+                </td>
+                <td class="admin-table__actions">
+                    <form method="post" action="/admin/circles/{{ c.id }}/active" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="{{ c.is_active ? 'deactivate' : 'activate' }}">
+                        <button class="text-btn text-btn--sm" type="submit">{{ c.is_active ? '停用' : '启用' }}</button>
+                    </form>
+                    <form method="post" action="/admin/circles/{{ c.id }}/delete" class="inline-form" data-confirm="删除圈子将同时删除其全部圈子动态，确定吗？">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <button class="text-btn text-btn--sm" type="submit">删除</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="admin-table__sub">没有圈子</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include 'components/pagination.twig' with { pagination: circles, base: '/admin/circles' } %}
+{% endblock %}

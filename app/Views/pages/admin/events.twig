@@ -1,0 +1,81 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}活动管理 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">活动管理</h1>
+    <div class="filter-tabs">
+        <a class="filter-tab{{ status == '' ? ' is-active' : '' }}" href="/admin/events">全部</a>
+        <a class="filter-tab{{ status == 'published' ? ' is-active' : '' }}" href="/admin/events?status=published">正常</a>
+        <a class="filter-tab{{ status == 'cancelled' ? ' is-active' : '' }}" href="/admin/events?status=cancelled">已取消</a>
+        <a class="filter-tab{{ status == 'hidden' ? ' is-active' : '' }}" href="/admin/events?status=hidden">已隐藏</a>
+        <a class="filter-tab{{ status == 'removed' ? ' is-active' : '' }}" href="/admin/events?status=removed">已移除</a>
+    </div>
+</div>
+
+<div class="table-wrap">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>活动</th>
+                <th>组织者</th>
+                <th>开始时间</th>
+                <th>报名</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in events.items %}
+            <tr>
+                <td data-label="活动" class="admin-table__content">
+                    <a href="{{ e.url }}">{{ e.title }}</a>
+                </td>
+                <td data-label="组织者" class="admin-table__sub">@{{ e.username }}</td>
+                <td data-label="开始时间" class="admin-table__sub">{{ e.start_text }}</td>
+                <td data-label="报名">{{ e.signup_count }}</td>
+                <td data-label="状态">
+                    {% if e.deleted %}<span class="status-dot status-dot--warn"></span>已删除
+                    {% elseif e.status == 'published' %}<span class="status-dot status-dot--ok"></span>正常
+                    {% elseif e.status == 'cancelled' %}<span class="status-dot status-dot--warn"></span>已取消
+                    {% elseif e.status == 'hidden' %}<span class="status-dot status-dot--warn"></span>已隐藏
+                    {% else %}<span class="status-dot status-dot--warn"></span>已移除{% endif %}
+                </td>
+                <td class="admin-table__actions">
+                    {% if not e.deleted %}
+                    {% if e.status == 'published' %}
+                    <form method="post" action="/admin/events/{{ e.id }}/status" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="hide">
+                        <button class="text-btn text-btn--sm" type="submit">隐藏</button>
+                    </form>
+                    {% elseif e.status == 'hidden' or e.status == 'removed' %}
+                    <form method="post" action="/admin/events/{{ e.id }}/status" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="restore">
+                        <button class="text-btn text-btn--sm" type="submit">恢复</button>
+                    </form>
+                    <form method="post" action="/admin/events/{{ e.id }}/status" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="remove">
+                        <button class="text-btn text-btn--sm" type="submit">移除</button>
+                    </form>
+                    {% endif %}
+                    <form method="post" action="/admin/events/{{ e.id }}/delete" class="inline-form" data-confirm="确定删除这个活动吗？">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <button class="text-btn text-btn--sm" type="submit">删除</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="admin-table__sub">没有活动</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include 'components/pagination.twig' with { pagination: events, base: '/admin/events?status=' ~ status } %}
+{% endblock %}

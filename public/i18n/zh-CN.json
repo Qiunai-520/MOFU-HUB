@@ -1,0 +1,53 @@
+{
+    "nav": {
+        "home": "主页",
+        "boards": "板块",
+        "messages": "消息",
+        "profile": "我的",
+        "search": "搜索",
+        "login": "登录",
+        "browse": "浏览",
+        "wall": "表白墙",
+        "hole": "树洞",
+        "circles": "圈子",
+        "events": "活动",
+        "news": "资讯",
+        "my_profile": "我的主页",
+        "my_confessions": "我的投稿",
+        "history": "浏览记录",
+        "settings": "设置",
+        "admin": "管理",
+        "admin_panel": "管理后台",
+        "about": "关于",
+        "compose_cta": "发布动态",
+        "join": "加入 {{appName}}",
+        "logout": "退出登录"
+    },
+    "settings": {
+        "language_title": "语言",
+        "language": "界面语言",
+        "language_desc": "选择应用界面显示的语言",
+        "nav": {
+            "profile": "个人资料",
+            "security": "账号与安全",
+            "notifications": "通知设置",
+            "privacy": "隐私设置",
+            "appearance": "个性化主题",
+            "background": "背景设置"
+        }
+    },
+    "header": {
+        "compose": "发布新动态",
+        "login": "登录",
+        "register": "注册"
+    },
+    "feed": {
+        "recommend": "推荐",
+        "latest": "最新",
+        "hot": "热门",
+        "following": "关注"
+    },
+    "footer": {
+        "tagline": "分享校园生活 · 记录每一份心情"
+    }
+}

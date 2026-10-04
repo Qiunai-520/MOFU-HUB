@@ -1,0 +1,42 @@
+{
+    "name": "mofu/community",
+    "description": "MOFU社区 — 校园社区平台",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.1",
+        "ext-pdo": "*",
+        "ext-mbstring": "*",
+        "ext-json": "*",
+        "slim/slim": "^4.14",
+        "slim/psr7": "^1.7",
+        "twig/twig": "^3.14",
+        "vlucas/phpdotenv": "^5.6"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Mofu\\": "app/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Mofu\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true,
+        "platform": {
+            "php": "8.1.0"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "migrate": "php bin/migrate.php migrate",
+        "migrate:status": "php bin/migrate.php status",
+        "serve": "php -S 0.0.0.0:8000 -t public public/router.php"
+    }
+}

@@ -1,0 +1,1592 @@
+/* ============ MOFU社区 基础样式 ============ */
+/*
+ * 字体：全局使用 Apple 系统字体栈，不加载任何第三方字体。
+ * iOS/macOS 走 -apple-system（SF Pro）；其它平台回退到系统同族（Helvetica / 苹方 等）。
+ */
+
+/*
+ * 设计令牌（Design Tokens）
+ *
+ * 颜色：全部 M3 颜色角色（--md-sys-color-*）由主题系统（m3e-theme + 内联主题 CSS）
+ *       提供，客户端与构建期双端由 material-color-utilities 生成（54 角色 × 明暗两套），
+ *       本文件只消费角色，不定义颜色；语义扩展色见下方注释。
+ * 形状：radius 五档与 M3 shape scale 对齐（xs4 / sm8 / md12 / lg16 / xl28），圆形直接用 999px。
+ * 字体：与 M3 type roles 的映射——display↔Headline S、title-lg↔Title L、title↔Title M、
+ *       body↔Body L、label↔Label L；考虑到 CJK 阅读密度，Body/Title 档做了适当下调。
+ * 间距：4px 基准刻度（space-1..8），组件内边距与区块间距优先取刻度值。
+ * 层级：elev-1..4，阴影颜色由 on-surface 混合，暗色主题自动适配。
+ * 动效：短/中/长三档时长 + M3E spring 令牌（主题动效设为「回应式」时由 m3e-theme 覆盖）。
+ */
+:root {
+  /* Shape（整体上移一档：Material You 大圆角风格，消灭直角） */
+  --mofu-radius-xs: 6px;
+  --mofu-radius-sm: 12px;
+  --mofu-radius-md: 16px;
+  --mofu-radius-lg: 24px;
+  --mofu-radius-xl: 32px;
+
+  /* Spacing（4px 基准） */
+  --mofu-space-1: 4px;
+  --mofu-space-2: 8px;
+  --mofu-space-3: 12px;
+  --mofu-space-4: 16px;
+  --mofu-space-5: 20px;
+  --mofu-space-6: 24px;
+  --mofu-space-7: 32px;
+  --mofu-space-8: 48px;
+
+  /* Typography（映射见文件头注释） */
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  --font-cjk: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --mofu-font: var(--font-body);
+  --mofu-fs-display: 24px;
+  --mofu-fs-title-lg: 20px;
+  --mofu-fs-title: 16px;
+  --mofu-fs-body: 15px;
+  --mofu-fs-body-sm: 14px;
+  --mofu-fs-label: 13px;
+  --mofu-fs-label-sm: 12px;
+  --mofu-fs-label-xs: 11px;
+
+  /* Elevation（阴影色随明暗主题自适应） */
+  --mofu-elev-1: 0 1px 3px color-mix(in srgb, var(--md-sys-color-on-surface) 14%, transparent);
+  --mofu-elev-2: 0 2px 8px color-mix(in srgb, var(--md-sys-color-on-surface) 16%, transparent);
+  --mofu-elev-3: 0 8px 24px color-mix(in srgb, var(--md-sys-color-on-surface) 20%, transparent);
+  --mofu-elev-4: 0 14px 40px color-mix(in srgb, var(--md-sys-color-on-surface) 26%, transparent);
+
+  /* Motion */
+  --mofu-dur-short: 120ms;
+  --mofu-dur-medium: 220ms;
+  --mofu-dur-long: 320ms;
+  --mofu-motion: var(--mofu-dur-medium) cubic-bezier(0.2, 0, 0, 1);
+  /* 空间/形变类动效引用 M3E spring 令牌；主题动效设为「回应式」时由 m3e-theme 覆盖变量值 */
+  --mofu-motion-effects: var(--md-sys-motion-spring-fast-effects, 150ms cubic-bezier(0.31, 0.94, 0.34, 1));
+  --mofu-motion-spatial: var(--md-sys-motion-spring-fast-spatial, 350ms cubic-bezier(0.27, 1.06, 0.18, 1));
+  /* 缓动曲线：出场用「快起慢收」，滑块等需要生命感的位移用带轻微回弹的 spring */
+  --mofu-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --mofu-ease-spring: cubic-bezier(0.32, 1.28, 0.55, 1);
+  --mofu-slide: 340ms var(--mofu-ease-spring);
+
+  /* 遮罩（浮层背景）：取 M3 scrim 角色，避免页面里散落 rgba 字面值 */
+  --mofu-scrim: color-mix(in srgb, var(--md-sys-color-scrim) 47%, transparent);
+  --mofu-scrim-strong: color-mix(in srgb, var(--md-sys-color-scrim) 88%, transparent);
+
+  /* 交互状态层（M3 state layers：悬停 8% / 按下 10%） */
+  --mofu-state-hover: 8%;
+  --mofu-state-press: 10%;
+
+  /* 语义扩展色：M3 无 success/warning 角色。
+     成功确认（toast）映射到 tertiary 族；ok/warning 仅用于状态点等小面积功能指示。 */
+  --mofu-color-success-container: var(--color-success-background);
+  --mofu-color-on-success-container: var(--color-success-foreground);
+  --mofu-color-ok: var(--color-success-foreground);
+  --mofu-color-warning: var(--color-warning-foreground);
+
+  --mofu-max-width: 1240px;
+  --mofu-header-height: 60px;
+  /* 底部悬浮导航几何：外层圆角由条高推导，内层圆角 = 外层 − 内边距，保证内外同心；
+     内边距同时作为「内外轮廓的呼吸缝」与滑块的四个方向留白 */
+  --mofu-nav-h: 64px;
+  --mofu-nav-inset: 6px;
+  --mofu-nav-radius: calc(var(--mofu-nav-h) * 0.4);
+  --mofu-nav-item-radius: calc(var(--mofu-nav-radius) - var(--mofu-nav-inset));
+  /* 移动端底部导航占位高度（含安全区）：内容留白 / toast / 回到顶部共用 */
+  --mofu-bottom-nav-h: calc(var(--mofu-nav-h) + env(safe-area-inset-bottom, 0px));
+
+  /* 层级令牌（统一使用，不要在组件里写裸数字） */
+  --z-below: -1;        /* 背景层（站点背景图） */
+  --z-base: 0;          /* 滑块等底层装饰 */
+  --z-raised: 1;        /* 滑块之上的内容 */
+  --z-popover: 30;      /* 输入框内部弹出层（表情/提及） */
+  --z-sticky: 100;      /* 顶栏 / 悬浮导航 */
+  --z-float: 150;       /* 回到顶部等浮动按钮 */
+  --z-menu: 200;        /* 下拉菜单 */
+  --z-indicator: 260;   /* 页面切换加载指示 */
+  --z-scrim: 299;       /* 抽屉遮罩 */
+  --z-drawer: 300;      /* 侧边抽屉 */
+  --z-tooltip: 400;     /* 提示气泡 */
+  --z-skip-link: 999;   /* 跳转主内容（可访问性） */
+  --z-toast: 1000;      /* 全局提示 */
+  --z-lightbox: 1100;   /* 图片预览 */
+  --z-modal: 1200;      /* 对话框 / 抽屉模态 */
+
+  /* 断点刻度（CSS 媒体查询不支持 var()，此处作为统一规范，新增查询请沿用）
+     600 移动细节 / 720 外壳切换 / 1024 桌面 / 1200 宽屏 */
+}
+
+/* ---------- 品牌语义配色（Warm Brown / Antique Gold） ----------
+ * 品牌基准色 #775A0D；中性色为暖调，明暗各自设计，light-dark() 跟随 color-scheme。 */
+:root {
+  /* ============================================================
+   * 语义化色彩系统（Apple HIG 取向）
+   * 三层结构：系统色（--sys-* 与 --gray-*）→ 语义令牌（--color-*）→ M3 兼容别名（--md-sys-color-*）
+   * 字面色值只允许出现在本层，业务组件一律引用语义令牌。
+   * ============================================================ */
+  color-scheme: light dark;
+
+  /* ---- 系统色（浅/深成对） ---- */
+  --sys-blue: light-dark(#007AFF, #0A84FF);
+  --sys-blue-fill: light-dark(#0B63CE, #0A6EDB);
+  --sys-green: light-dark(#34C759, #30D158);
+  --sys-red: light-dark(#FF3B30, #FF453A);
+  --sys-orange: light-dark(#FF9500, #FF9F0A);
+  --sys-yellow: light-dark(#FFCC00, #FFD60A);
+  --sys-purple: light-dark(#AF52DE, #BF5AF2);
+  --sys-teal: light-dark(#30B0C7, #40C8E0);
+
+  /* ---- 中性灰阶（Apple System Gray 组织方式，按用途分层） ---- */
+  --gray-secondary-text: light-dark(#8E8E93, #8E8E93);
+  --gray-tertiary-fill: light-dark(#C7C7CC, #48484A);
+  --gray-quaternary-fill: light-dark(#D1D1D6, #3A3A3C);
+  --gray-5: light-dark(#E5E5EA, #2C2C2E);
+  --gray-6: light-dark(#F2F2F7, #1C1C1E);
+
+  /* ---- 品牌色阶（Hue 44，Warm Brown / Antique Gold） ----
+     500 为品牌基准色 #775A0D（不得擅改）；其余按色相/明度/饱和度协调推导，非透明度生成。 */
+  --brand-50: #FCF9F3;
+  --brand-100: #F8F2E3;
+  --brand-200: #EBE0C2;
+  --brand-300: #DAC895;
+  --brand-400: #C49D31;
+  --brand-500: #775A0D;   /* Brand Primary（基准色） */
+  --brand-600: #614A0A;
+  --brand-700: #4E3C09;
+  --brand-800: #3A2D08;
+  --brand-900: #2C2207;
+
+  /* ---- 品牌语义令牌（组件统一引用这些，不要直接用色阶） ---- */
+  --color-brand-primary: light-dark(#775A0D, #8A6A14);      /* 实心主按钮 / 主交互底 */
+  --color-brand-hover: light-dark(#614A0A, #9A7718);
+  --color-brand-active: light-dark(#4E3C09, #775A0D);
+  --color-brand-subtle: light-dark(#F3EDE0, #3A2F14);       /* 低饱和品牌底：选中项 / 选中滑块 */
+  --color-brand-subtle-strong: light-dark(#EBE0C2, #4E3C09);
+  --color-brand-muted: light-dark(#FAF7F0, #241F16);        /* 极浅品牌底：分区 / 提示 */
+  --color-brand-foreground: light-dark(#775A0D, #D5C08F);   /* 中性表面上的品牌前景（图标/链接/文字） */
+  --color-brand-on-subtle: light-dark(#775A0D, #E7DBC2);    /* 置于 brand-subtle 之上 */
+  --color-brand-focus: light-dark(#775A0D, #D5C08F);
+
+  /* ---- 强调色（= 品牌色；保留 --color-accent* 兼容命名） ---- */
+  --color-accent: var(--color-brand-foreground);        /* 图标 / 选中 / 焦点（非文字） */
+  --color-accent-fill: var(--color-brand-primary);      /* 实心按钮底（配 on-accent） */
+  --color-accent-hover: var(--color-brand-hover);
+  --color-accent-active: var(--color-brand-active);
+  --color-accent-subtle: var(--color-brand-subtle);
+  --color-accent-subtle-strong: var(--color-brand-subtle-strong);
+  --color-accent-muted: var(--color-brand-muted);
+  --color-on-accent: #FFFFFF;
+  --color-on-accent-subtle: var(--color-brand-on-subtle);
+  --color-focus-ring: var(--color-brand-focus);
+  --color-label-on-media: #FFFFFF;   /* 媒体 / 遮罩上的文字（始终反白） */
+
+  /* ---- 状态色（底色 / 描边 / 前景 三元组） ---- */
+  --color-success: var(--sys-green);
+  --color-success-background: light-dark(#E7F8EC, #12331F);
+  --color-success-border: light-dark(#B7E6C3, #1F5C36);
+  --color-success-foreground: light-dark(#1B7A3D, #7FE0A0);
+
+  --color-warning: var(--sys-orange);
+  --color-warning-background: light-dark(#FFF1E0, #3A2A0A);
+  --color-warning-border: light-dark(#FFD8A8, #6B4E12);
+  --color-warning-foreground: light-dark(#9A5B00, #FFC061);
+
+  --color-destructive: light-dark(#B3261E, #FF453A);
+  --color-destructive-background: light-dark(#FFE8E6, #3A1513);
+  --color-destructive-border: light-dark(#FFC7C2, #7A2A24);
+  --color-destructive-foreground: light-dark(#B3261E, #FF9A93);
+
+  --color-info: var(--sys-blue);
+  --color-info-background: light-dark(#E4F0FF, #0A2A4D);   /* 信息色独立于品牌色 */
+  --color-info-border: light-dark(#BBD8FF, #1F4C80);
+  --color-info-foreground: light-dark(#0A5FD0, #7FB6FF);
+
+  /* ---- 语义文本（标签）：暖调中性 ---- */
+  --color-label-primary: light-dark(#1F1B16, #F5F1EA);
+  --color-label-secondary: light-dark(#5C554B, #C9C2B6);
+  --color-label-tertiary: light-dark(#6E6659, #9A9286);
+  --color-label-quaternary: light-dark(#8E8A80, #7C766B);
+  --color-label-placeholder: light-dark(#6E6659, #9A9286);
+  --color-label-disabled: light-dark(#B0A99E, #4A443B);
+  --color-label-inverse: light-dark(#FFFFFF, #1F1B16);
+  --color-label-link: var(--color-brand-foreground);
+
+  /* ---- 背景与表面层级（暖调中性，明暗各自设计） ---- */
+  --color-background: light-dark(#F7F5F2, #12100D);
+  --color-background-secondary: light-dark(#FFFFFF, #1C1915);
+  --color-background-tertiary: light-dark(#EFEBE4, #2A251E);
+  --color-surface: light-dark(#FFFFFF, #1C1915);
+  --color-surface-secondary: light-dark(#F2EFEA, #2A251E);
+  --color-surface-elevated: light-dark(#FFFFFF, #2A251E);
+  --color-surface-overlay: light-dark(#FFFFFF, #1C1915);
+  --color-surface-sunken: light-dark(#EAE5DD, #0D0B09);
+  --color-media-backdrop: #000000;   /* 视频等媒体底（始终黑） */
+  --color-brand-mark-bg: #FFFFFF;    /* Logo 承载底（始终浅色，保证透明 Logo 在深色模式可辨） */
+
+  /* ---- 边框与分隔线 ---- */
+  --color-border: light-dark(#E2DCD3, #3A342B);
+  --color-border-strong: light-dark(#C9C1B4, #4A443B);
+  --color-separator: light-dark(#EDE8E0, #282319);
+
+  /* ---- 填充（选中段 / 芯片 / 嵌套底） ---- */
+  --color-fill-secondary: light-dark(#EFEBE4, #2A251E);
+  --color-fill-tertiary: light-dark(#F7F5F2, #221E17);
+
+  /* ---- 浮层材质（Liquid Glass，仅用于导航/弹层） ---- */
+  --color-glass: light-dark(color-mix(in srgb, #FFFFFF 74%, transparent), color-mix(in srgb, #1C1915 74%, transparent));
+  --color-glass-border: light-dark(color-mix(in srgb, #000000 8%, transparent), color-mix(in srgb, #FFFFFF 14%, transparent));
+
+  /* ---- M3 兼容别名（业务组件沿用 --md-sys-color-*，值全部来自语义令牌） ---- */
+  --md-sys-color-primary: var(--color-accent-fill);
+  --md-sys-color-on-primary: var(--color-on-accent);
+  --md-sys-color-primary-container: var(--color-accent-subtle);
+  --md-sys-color-on-primary-container: var(--color-on-accent-subtle);
+  --md-sys-color-secondary: var(--color-label-secondary);
+  --md-sys-color-secondary-container: var(--color-accent-subtle);
+  --md-sys-color-on-secondary-container: var(--color-on-accent-subtle);
+  --md-sys-color-tertiary: var(--color-success);
+  --md-sys-color-tertiary-container: var(--color-success-background);
+  --md-sys-color-on-tertiary-container: var(--color-success-foreground);
+  --md-sys-color-error: var(--color-destructive);
+  --md-sys-color-error-container: var(--color-destructive-background);
+  --md-sys-color-on-error-container: var(--color-destructive-foreground);
+  --md-sys-color-on-error: #FFFFFF;
+  --md-sys-color-background: var(--color-background);
+  --md-sys-color-on-background: var(--color-label-primary);
+  --md-sys-color-surface: var(--color-surface);
+  --md-sys-color-surface-container-low: var(--color-surface);
+  --md-sys-color-surface-container: var(--color-surface-secondary);
+  --md-sys-color-surface-container-high: var(--color-surface-elevated);
+  --md-sys-color-surface-container-highest: var(--color-fill-secondary);
+  --md-sys-color-surface-variant: var(--color-surface-secondary);
+  --md-sys-color-surface-dim: var(--color-surface-sunken);
+  --md-sys-color-surface-bright: var(--color-surface-elevated);
+  --md-sys-color-surface-tint: var(--color-accent);
+  --md-sys-color-on-surface: var(--color-label-primary);
+  --md-sys-color-on-surface-variant: var(--color-label-secondary);
+  --md-sys-color-outline: var(--color-border);
+  --md-sys-color-outline-variant: var(--color-separator);
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-inverse-surface: var(--color-label-inverse);
+  --md-sys-color-inverse-on-surface: var(--color-label-primary);
+}
+
+/* 卡片基类使用中性表面 */
+.card {
+  background: var(--md-sys-color-surface-container-low);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  /* 去掉移动端点击时系统给的蓝色高亮块 */
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  font-family: var(--mofu-font);
+  font-size: var(--mofu-fs-body);
+  line-height: 1.6;
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-sys-color-surface);
+}
+
+m3e-theme {
+  display: block;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 等宽角色：代码与终端类内容 */
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+}
+
+a {
+  color: var(--md-sys-color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+h1, h2, h3, h4 {
+  margin: 0 0 0.5em;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+p {
+  margin: 0 0 0.5em;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* swup 换页用 DOMParser 解析新页面（默认脚本禁用），会把 <noscript> 内的元素当成真实节点并入 DOM，
+   启用 JS 时统一隐藏 noscript 内容，避免其意外显示；无 JS 时 <html class="no-js"> 保留，不隐藏 */
+html:not(.no-js) noscript {
+  display: none !important;
+}
+
+/* ---------- 键盘焦点（M3 focus indicator：3px 主色环 + 2px 偏移） ---------- */
+:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* 输入类控件使用自身 focus 环（边框 + 内发光），避免与全局环叠加 */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
+/* ---------- 减少动态效果兜底（系统级偏好；主题动效开关之外的硬保障） ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: var(--z-skip-link);
+  padding: var(--mofu-space-2) var(--mofu-space-4);
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  border-radius: 0 0 var(--mofu-radius-sm) 0;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+/* ---------- 按钮 ---------- */
+.filled-btn,
+.tonal-btn,
+.outlined-btn,
+.text-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--mofu-fs-body-sm);
+  font-weight: 500;
+  line-height: 1;
+  padding: var(--mofu-space-3) var(--mofu-space-6);
+  border-radius: 999px;
+  transition: box-shadow var(--mofu-motion), background var(--mofu-motion), transform var(--mofu-motion-effects);
+  white-space: nowrap;
+}
+
+.filled-btn {
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+}
+
+/* M3 状态层：悬停在主色上叠加 on-primary 8%，而非投影 */
+.filled-btn:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-primary) var(--mofu-state-hover), var(--md-sys-color-primary));
+  text-decoration: none;
+}
+
+.filled-btn:active {
+  background: color-mix(in srgb, var(--md-sys-color-on-primary) var(--mofu-state-press), var(--md-sys-color-primary));
+}
+
+.filled-btn:disabled:not(.is-loading) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 危险确认按钮（删除等破坏性操作） */
+.filled-btn--danger {
+  background: var(--md-sys-color-error);
+  color: var(--md-sys-color-on-error);
+}
+
+.filled-btn--danger:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-error) var(--mofu-state-hover), var(--md-sys-color-error));
+}
+
+.filled-btn--danger:active {
+  background: color-mix(in srgb, var(--md-sys-color-on-error) var(--mofu-state-press), var(--md-sys-color-error));
+}
+
+/* Tonal：中强调操作（secondary-container 族），用于次于主 CTA 的实体行动作 */
+.tonal-btn {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.tonal-btn:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-secondary-container) var(--mofu-state-hover), var(--md-sys-color-secondary-container));
+  text-decoration: none;
+}
+
+.tonal-btn:active {
+  background: color-mix(in srgb, var(--md-sys-color-on-secondary-container) var(--mofu-state-press), var(--md-sys-color-secondary-container));
+}
+
+.tonal-btn--sm {
+  padding: 9px 18px;
+  font-size: var(--mofu-fs-label);
+}
+
+.filled-btn--sm {
+  padding: 9px 18px;
+  font-size: var(--mofu-fs-label);
+}
+
+.filled-btn--block {
+  width: 100%;
+}
+
+.outlined-btn {
+  position: relative;
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  border: 1px solid var(--md-sys-color-outline);
+}
+
+/* label 包裹 file input 时：原生控件铺满按钮并隐去，整块可点 */
+.outlined-btn > input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.outlined-btn:hover {
+  background: color-mix(in srgb, var(--md-sys-color-primary) var(--mofu-state-hover), transparent);
+  text-decoration: none;
+}
+
+.outlined-btn:active {
+  background: color-mix(in srgb, var(--md-sys-color-primary) var(--mofu-state-press), transparent);
+}
+
+.outlined-btn--sm {
+  padding: 9px 18px;
+  font-size: var(--mofu-fs-label);
+}
+
+.text-btn {
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  padding: var(--mofu-space-2) var(--mofu-space-3);
+  font-size: var(--mofu-fs-body-sm);
+}
+
+.text-btn:hover {
+  background: color-mix(in srgb, var(--md-sys-color-primary) var(--mofu-state-hover), transparent);
+  text-decoration: none;
+}
+
+.text-btn:active {
+  background: color-mix(in srgb, var(--md-sys-color-primary) var(--mofu-state-press), transparent);
+}
+
+/* 禁用态：覆盖链接按钮与图标按钮（filled 已有独立规则） */
+.tonal-btn:disabled:not(.is-loading),
+.outlined-btn:disabled:not(.is-loading),
+.text-btn:disabled:not(.is-loading),
+.icon-btn:disabled:not(.is-loading),
+.follow-btn:disabled:not(.is-loading) {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.text-btn--sm {
+  padding: 5px 8px;
+  font-size: var(--mofu-fs-label);
+}
+
+.text-btn--danger {
+  color: var(--md-sys-color-error);
+}
+
+.text-btn--danger:hover {
+  background: color-mix(in srgb, var(--md-sys-color-error) 8%, transparent);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  cursor: pointer;
+  transition: background var(--mofu-motion), transform var(--mofu-motion-effects);
+  flex: none;
+}
+
+.icon-btn:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--mofu-state-hover), transparent);
+  text-decoration: none;
+}
+
+.icon-btn--sm {
+  width: 32px;
+  height: 32px;
+  position: relative;
+}
+
+/* 小图标按钮扩展至 48px 隐形触控热区 */
+.icon-btn--sm::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+}
+
+/* ---------- 加载态 ---------- */
+/* 列表骨架屏（抓取下一页时占位；样式随主题令牌，减少动态偏好下停用扫光） */
+.skeleton {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: var(--mofu-radius-sm);
+  background: var(--color-fill-secondary);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--color-surface) 70%, transparent),
+      transparent
+    );
+    transform: translateX(-100%);
+    animation: skeleton-sweep 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes skeleton-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton--avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.skeleton--line {
+  height: 12px;
+}
+
+.skeleton-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--mofu-space-3);
+  padding: var(--mofu-space-3);
+}
+
+.skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.is-loading {
+  position: relative;
+  pointer-events: none;
+  /* !important：加载态需覆盖各按钮自身的文字颜色（跨文件的优先级差异） */
+  color: transparent !important;
+}
+
+/* 静默防重：进行中不接受重复操作，但不显示加载动画（如点赞/收藏的乐观 UI） */
+.is-busy {
+  pointer-events: none;
+}
+
+.is-loading m3e-loading-indicator {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  --m3e-loading-indicator-size: 20px;
+  --m3e-loading-indicator-active-indicator-color: var(--md-sys-color-primary);
+}
+
+.filled-btn.is-loading m3e-loading-indicator {
+  --m3e-loading-indicator-active-indicator-color: var(--md-sys-color-on-primary);
+}
+
+.tonal-btn.is-loading m3e-loading-indicator {
+  --m3e-loading-indicator-active-indicator-color: var(--md-sys-color-on-secondary-container);
+}
+
+.filled-btn--danger.is-loading m3e-loading-indicator {
+  --m3e-loading-indicator-active-indicator-color: var(--md-sys-color-on-error);
+}
+
+.text-btn--danger.is-loading m3e-loading-indicator {
+  --m3e-loading-indicator-active-indicator-color: var(--md-sys-color-error);
+}
+
+.icon-btn.is-loading m3e-loading-indicator {
+  --m3e-loading-indicator-active-indicator-color: var(--md-sys-color-on-surface-variant);
+}
+
+.filled-btn--sm.is-loading m3e-loading-indicator,
+.outlined-btn--sm.is-loading m3e-loading-indicator,
+.text-btn--sm.is-loading m3e-loading-indicator,
+.icon-btn--sm.is-loading m3e-loading-indicator {
+  --m3e-loading-indicator-size: 18px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .filled-btn:active,
+  .tonal-btn:active,
+  .outlined-btn:active,
+  .text-btn:active {
+    transform: scale(0.98);
+  }
+
+  .icon-btn:active {
+    transform: scale(0.92);
+  }
+}
+
+/* ---------- 图标字体 ---------- */
+/* 注意：本节的 font-size 是图标尺寸，不参与文字字号阶梯 */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-size: 22px;
+  line-height: 1;
+  user-select: none;
+}
+
+/* ---------- 表单 ---------- */
+.field {
+  display: block;
+  margin-bottom: var(--mofu-space-4);
+}
+
+.field__label {
+  display: block;
+  font-size: var(--mofu-fs-label);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+  margin-bottom: 6px;
+}
+
+.field__input {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: var(--mofu-fs-body);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-sys-color-surface);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--mofu-radius-sm);
+  outline: none;
+  transition: border-color var(--mofu-motion), box-shadow var(--mofu-motion);
+}
+
+.field__input:focus {
+  border-color: var(--md-sys-color-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--md-sys-color-primary) 24%, transparent);
+}
+
+.field__input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: color-mix(in srgb, var(--md-sys-color-surface-variant) 40%, var(--md-sys-color-surface));
+}
+
+/* 错误态输入框：与 .field__error 文案配套（模板加 aria-invalid="true"） */
+.field__input[aria-invalid='true'] {
+  border-color: var(--color-destructive);
+}
+
+.field__input[aria-invalid='true']:focus {
+  border-color: var(--color-destructive);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-destructive) 24%, transparent);
+}
+
+/* 兼容模板上的 .field--error 包装（无须逐个输入框加 aria-invalid 也能变红） */
+.field--error .field__input {
+  border-color: var(--color-destructive);
+}
+
+.field--error .field__input:focus {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-destructive) 24%, transparent);
+}
+
+.field__input--textarea {
+  resize: vertical;
+  min-height: 84px;
+}
+
+.field__hint {
+  display: block;
+  font-size: var(--mofu-fs-label-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  margin-top: var(--mofu-space-1);
+}
+
+.field__error {
+  display: block;
+  font-size: var(--mofu-fs-label-sm);
+  color: var(--md-sys-color-error);
+  margin-top: var(--mofu-space-1);
+}
+
+.field--error .field__input {
+  border-color: var(--md-sys-color-error);
+}
+
+select.field__input,
+select {
+  font-family: inherit;
+  font-size: var(--mofu-fs-body);
+  padding: 12px 14px;
+  border-radius: var(--mofu-radius-sm);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+}
+
+.form-alert {
+  padding: var(--mofu-space-3) var(--mofu-space-4);
+  border-radius: var(--mofu-radius-sm);
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+  font-size: var(--mofu-fs-body-sm);
+  margin-bottom: var(--mofu-space-4);
+}
+
+.form-success {
+  padding: var(--mofu-space-3) var(--mofu-space-4);
+  border-radius: var(--mofu-radius-sm);
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  font-size: var(--mofu-fs-body-sm);
+  margin-bottom: var(--mofu-space-4);
+}
+
+/* ---------- 头像 ---------- */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-weight: 600;
+  flex: none;
+  color: hsl(var(--avatar-hue, 220) 45% 96%);
+  background: hsl(var(--avatar-hue, 220) 42% 42%);
+  user-select: none;
+}
+
+.avatar--md {
+  width: 40px;
+  height: 40px;
+}
+
+.avatar--sm {
+  width: 32px;
+  height: 32px;
+  font-size: 13px;
+}
+
+.avatar--lg {
+  width: 48px;
+  height: 48px;
+  font-size: 18px;
+}
+
+.avatar--xl {
+  width: 72px;
+  height: 72px;
+  font-size: 28px;
+}
+
+img.avatar {
+  object-fit: cover;
+}
+
+/* 头像链接：点头像进个人主页 */
+.avatar-link {
+  display: inline-flex;
+  flex: none;
+  border-radius: 50%;
+  color: inherit;
+}
+
+.avatar-link:hover {
+  text-decoration: none;
+  opacity: 0.88;
+}
+
+/* ---------- chips 与标签 ---------- */
+.topic-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mofu-space-1);
+  min-height: 32px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  font-size: var(--mofu-fs-label);
+  transition: background var(--mofu-motion);
+}
+
+.topic-chip:hover {
+  text-decoration: none;
+  background: color-mix(in srgb, var(--md-sys-color-secondary-container) 80%, var(--md-sys-color-on-secondary-container));
+}
+
+.topic-chip--editable {
+  padding-right: var(--mofu-space-1);
+}
+
+.topic-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: var(--mofu-fs-body-sm);
+  cursor: pointer;
+}
+
+.topic-chip__remove:hover {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: var(--mofu-fs-label-xs);
+  background: var(--md-sys-color-surface-variant);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.meta-chip--accent {
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+}
+
+.meta-chip--warn {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}
+
+.nav-badge {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 var(--mofu-space-1);
+  border-radius: 999px;
+  background: var(--md-sys-color-error);
+  color: var(--md-sys-color-on-error);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* ---------- 空状态 ---------- */
+.empty-state {
+  text-align: center;
+  padding: var(--mofu-space-8) var(--mofu-space-6);
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-sys-color-surface-container-low);
+  border-radius: var(--mofu-radius-lg);
+}
+
+.empty-state__icon {
+  font-size: 48px;
+  opacity: 0.5;
+}
+
+.empty-state__title {
+  font-size: var(--mofu-fs-title);
+  font-weight: 600;
+  margin-top: var(--mofu-space-2);
+  color: var(--md-sys-color-on-surface);
+}
+
+.empty-state__text {
+  margin-bottom: var(--mofu-space-4);
+}
+
+/* 紧凑变体：侧栏卡片、评论列表、聊天空态等嵌套容器内使用（透明底、更小内边距） */
+.empty-state--compact {
+  padding: var(--mofu-space-5) var(--mofu-space-4);
+  background: transparent;
+  border-radius: var(--mofu-radius-md);
+}
+
+.empty-state--compact .empty-state__icon {
+  font-size: 28px;
+}
+
+.empty-state--compact .empty-state__title {
+  font-size: var(--mofu-fs-body-sm);
+  margin-top: var(--mofu-space-1);
+}
+
+.empty-state--compact .empty-state__text {
+  margin-bottom: 0;
+  font-size: var(--mofu-fs-label);
+}
+
+/* ---------- 列表「加载更多」 ---------- */
+.load-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--mofu-space-2);
+  padding: var(--mofu-space-5) 0 var(--mofu-space-2);
+}
+
+.load-more__hint {
+  margin: 0;
+  font-size: var(--mofu-fs-label);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* ---------- 分页导航（无 JS 时经 <noscript> 呈现） ---------- */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mofu-space-4);
+  margin: var(--mofu-space-6) 0;
+}
+
+.pagination__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--md-sys-color-outline);
+  color: var(--md-sys-color-primary);
+  font-size: var(--mofu-fs-body-sm);
+  transition: background var(--mofu-motion);
+}
+
+.pagination__link:hover {
+  background: color-mix(in srgb, var(--md-sys-color-primary) var(--mofu-state-hover), transparent);
+  text-decoration: none;
+}
+
+.pagination__link.is-disabled {
+  opacity: 0.4;
+  border-color: var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.pagination__status {
+  font-size: var(--mofu-fs-label);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* ---------- toast ---------- */
+.toast-host {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--mofu-bottom-nav-h) + var(--mofu-space-6));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--mofu-space-2);
+  z-index: var(--z-toast);
+  pointer-events: none;
+  width: min(92vw, 420px);
+}
+
+.toast {
+  padding: 12px 18px;
+  border-radius: var(--mofu-radius-md);
+  background: var(--md-sys-color-inverse-surface);
+  color: var(--md-sys-color-inverse-on-surface);
+  font-size: var(--mofu-fs-body-sm);
+  box-shadow: var(--mofu-elev-3);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity var(--mofu-motion), transform var(--mofu-motion);
+}
+
+.toast.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast--error {
+  background: var(--md-sys-color-error);
+  color: var(--md-sys-color-on-error);
+}
+
+/* 成功确认：M3 无 success 角色，采用 tertiary 容器族表达「确认」语义 */
+.toast--success {
+  background: var(--mofu-color-success-container);
+  color: var(--mofu-color-on-success-container);
+}
+
+/* ---------- lightbox ---------- */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-lightbox);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mofu-scrim-strong);
+}
+
+.lightbox__img {
+  max-width: 92vw;
+  max-height: 88vh;
+  border-radius: var(--mofu-radius-sm);
+}
+
+.lightbox__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  color: #fff;
+}
+
+body.lightbox-open {
+  overflow: hidden;
+}
+
+/* ---------- 状态点 ---------- */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: var(--mofu-space-1);
+}
+
+.status-dot--ok {
+  background: var(--mofu-color-ok);
+}
+
+.status-dot--warn {
+  background: var(--mofu-color-warning);
+}
+
+.status-dot--danger {
+  background: var(--md-sys-color-error);
+}
+
+/* ---------- 工具 ---------- */
+/* 仅供读屏的可访问文本（如文件上传控件的名称） */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.page-title {
+  font-size: var(--mofu-fs-display);
+  font-weight: 600;
+}
+
+.page-subtitle {
+  color: var(--md-sys-color-on-surface-variant);
+  margin-bottom: var(--mofu-space-5);
+}
+
+.inline-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---------- 点赞动效 ---------- */
+@keyframes like-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35); }
+  70% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .post-action.is-active .material-symbols-outlined,
+  .caction.is-active .material-symbols-outlined {
+    animation: like-pop 320ms cubic-bezier(0.2, 0, 0, 1);
+  }
+}
+
+/* ---------- 关注按钮 ---------- */
+/* ---------- 关注按钮 ----------
+ * 基础几何（背景/文字/圆角/内边距/字号）继承按钮族：markup 需同时带
+ * filled-btn / filled-btn--sm（已关注时 JS 会切换为 outlined-btn / outlined-btn--sm）。
+ * 此处只保留关注态特有的尺寸、状态色与「取消关注」危险悬停。
+ */
+.follow-btn {
+  min-height: 36px;
+  flex: none;
+}
+
+.follow-btn:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-primary) var(--mofu-state-hover), var(--md-sys-color-primary));
+}
+
+.follow-btn--lg {
+  min-height: 40px;
+  padding: 11px 28px;
+  font-size: var(--mofu-fs-body-sm);
+}
+
+.follow-btn.is-following {
+  background: transparent;
+  border: 1px solid var(--md-sys-color-outline);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.follow-btn.is-following:hover {
+  border-color: var(--md-sys-color-error);
+  color: var(--md-sys-color-error);
+  background: color-mix(in srgb, var(--md-sys-color-error) var(--mofu-state-hover), transparent);
+}
+
+/* ---------- 卡片基类 ----------
+ * 所有内容卡片共用「surface 容器 + 圆角」，内边距与布局由各自组件决定。
+ * 组件用法：class="card post-card" 等（不要再重复声明 background / radius）。
+ */
+.card {
+  background: var(--md-sys-color-surface-container-low);
+  border-radius: var(--mofu-radius-lg);
+}
+
+/* ---------- 用户卡片 ---------- */
+.user-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mofu-space-2);
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: var(--mofu-space-3);
+  padding: 12px 14px;
+  transition: box-shadow var(--mofu-motion);
+}
+
+.user-card:hover {
+  box-shadow: var(--mofu-elev-1);
+}
+
+.user-card__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-card__name {
+  display: block;
+  font-weight: 600;
+  font-size: var(--mofu-fs-body-sm);
+  color: var(--md-sys-color-on-surface);
+}
+
+.user-card__username {
+  font-size: var(--mofu-fs-label-sm);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.user-card__bio {
+  font-size: var(--mofu-fs-label-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  margin: 2px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-list--compact .user-card {
+  background: transparent;
+  padding: 6px 4px;
+}
+
+.user-list--compact .user-card:hover {
+  box-shadow: none;
+}
+
+/* ---------- 空状态动作区 ---------- */
+.empty-state__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* ---------- 开关（M3 Switch） ---------- */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 32px;
+  flex: none;
+}
+
+.switch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* 轨道 */
+.switch::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--md-sys-color-surface-variant);
+  border: 2px solid var(--md-sys-color-outline);
+  transition: background var(--mofu-motion), border-color var(--mofu-motion);
+}
+
+/* 滑钮（选中时尺寸与位置变化，使用 M3E spring 令牌） */
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 7px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--md-sys-color-outline);
+  transform: translateY(-50%);
+  transition: left var(--mofu-motion-spatial), width var(--mofu-motion-spatial), height var(--mofu-motion-spatial), background var(--mofu-motion);
+}
+
+.switch:has(input:checked)::before {
+  background: var(--md-sys-color-primary);
+  border-color: var(--md-sys-color-primary);
+}
+
+.switch:has(input:checked)::after {
+  left: 24px;
+  width: 24px;
+  height: 24px;
+  background: var(--md-sys-color-on-primary);
+}
+
+.switch:has(input:focus-visible)::before {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+.switch:has(input:disabled) {
+  opacity: 0.5;
+}
+
+.switch:has(input:disabled) input {
+  cursor: not-allowed;
+}
+
+/* ---------- 单选 / 多选（M3 风格，与开关/首色圆点同语言） ---------- */
+input[type="radio"],
+input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  flex: none;
+  appearance: none;
+  border: 2px solid var(--md-sys-color-outline);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color var(--mofu-motion), background var(--mofu-motion);
+}
+
+/* 单选：M3 selected icon button —— 选中为实心主色圆点 */
+input[type="radio"] {
+  border-radius: 50%;
+}
+
+input[type="radio"]:checked {
+  border-color: var(--md-sys-color-primary);
+  background: radial-gradient(circle, var(--md-sys-color-primary) 0 56%, transparent 62%);
+}
+
+input[type="checkbox"] {
+  border-radius: var(--mofu-radius-xs);
+}
+
+input[type="checkbox"]:checked {
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary) center / 58% no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+}
+
+/* 勾选类控件的焦点与禁用态（此前只有默认/选中两态） */
+input[type="radio"]:focus-visible,
+input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+input[type="radio"]:disabled,
+input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input[type="radio"]:disabled:checked,
+input[type="checkbox"]:disabled:checked {
+  border-color: var(--color-label-disabled);
+  background-color: var(--color-label-disabled);
+}
+
+/* ---------- 复选框 / 单选框焦点可见性 ---------- */
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+/* ---------- 工具提示（Tooltip） ---------- */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  translate: -50% 0;
+  padding: 5px 10px;
+  border-radius: var(--mofu-radius-sm);
+  background: var(--md-sys-color-inverse-surface);
+  color: var(--md-sys-color-inverse-on-surface);
+  font-size: var(--mofu-fs-label-sm);
+  line-height: 1.4;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--mofu-dur-short) linear;
+  z-index: var(--z-tooltip);
+}
+
+[data-tooltip]:hover::after,
+[data-tooltip]:focus-visible::after {
+  opacity: 1;
+}
+
+[data-tooltip-align="end"]::after {
+  left: auto;
+  right: 0;
+  translate: none;
+}
+
+/* ---------- 字数统计（配合 [data-counter]） ---------- */
+.field__counter {
+  display: block;
+  margin-top: var(--mofu-space-1);
+  text-align: right;
+  font-size: var(--mofu-fs-label-sm);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.field__counter.is-warn {
+  color: var(--md-sys-color-error);
+}
+
+/* ---------- 对话框与底部面板（M3 Dialog / Bottom Sheet） ---------- */
+.mofu-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--mofu-space-4);
+  background: var(--mofu-scrim);
+}
+
+.mofu-dialog__panel {
+  width: min(100%, 420px);
+  max-height: min(80vh, 640px);
+  overflow-y: auto;
+  background: var(--md-sys-color-surface-container-high);
+  border-radius: var(--mofu-radius-xl);
+  padding: var(--mofu-space-6);
+  box-shadow: var(--mofu-elev-4);
+}
+
+/* 面板容器仅承接焦点（tabindex=-1），不显示焦点环 */
+.mofu-dialog__panel:focus-visible {
+  outline: none;
+}
+
+.mofu-dialog__title {
+  font-size: var(--mofu-fs-title);
+  margin-bottom: var(--mofu-space-2);
+}
+
+.mofu-dialog__text {
+  margin: 0;
+  font-size: var(--mofu-fs-body-sm);
+  line-height: 1.6;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.mofu-dialog__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: var(--mofu-space-5);
+}
+
+/* 入场动效：仅允许动效时播放 */
+@media (prefers-reduced-motion: no-preference) {
+  .mofu-dialog__panel {
+    animation: dialog-in var(--mofu-dur-medium) cubic-bezier(0.2, 0, 0, 1);
+  }
+}
+
+@keyframes dialog-in {
+  from { opacity: 0; transform: scale(0.92) translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* 移动端：对话框转为底部面板（M3 bottom sheet 形态） */
+@media (max-width: 600px) {
+  .mofu-dialog {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .mofu-dialog__panel {
+    width: 100%;
+    max-height: min(86vh, 720px);
+    border-radius: var(--mofu-radius-xl) var(--mofu-radius-xl) 0 0;
+    padding-bottom: calc(var(--mofu-space-6) + env(safe-area-inset-bottom));
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .mofu-dialog__panel {
+      animation: sheet-in var(--mofu-motion-spatial);
+    }
+  }
+}
+
+@keyframes sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+/* ---------- 举报对话框（基底复用 mofu-dialog） ---------- */
+
+.report-dialog__title {
+  font-size: var(--mofu-fs-title);
+  margin-bottom: var(--mofu-space-1);
+}
+
+.report-dialog__subtitle {
+  font-size: var(--mofu-fs-label);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.report-dialog__reasons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mofu-space-1);
+  margin: 14px 0;
+}
+
+.report-reason {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--mofu-radius-md);
+  cursor: pointer;
+  font-size: var(--mofu-fs-body-sm);
+  transition: background var(--mofu-motion);
+}
+
+.report-reason:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--mofu-state-hover), transparent);
+}
+
+.report-reason input {
+  accent-color: var(--md-sys-color-primary);
+}
+
+.report-dialog__detail {
+  padding: 10px 12px;
+  resize: vertical;
+  min-height: 64px;
+}
+
+.report-dialog__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: var(--mofu-space-4);
+}

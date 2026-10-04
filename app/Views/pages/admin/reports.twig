@@ -1,0 +1,71 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}举报处理 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">举报处理</h1>
+    <div class="filter-tabs">
+        <a class="filter-tab{{ status == '' ? ' is-active' : '' }}" href="/admin/reports">全部</a>
+        <a class="filter-tab{{ status == 'pending' ? ' is-active' : '' }}" href="/admin/reports?status=pending">待处理</a>
+        <a class="filter-tab{{ status == 'accepted' ? ' is-active' : '' }}" href="/admin/reports?status=accepted">已处理</a>
+        <a class="filter-tab{{ status == 'rejected' ? ' is-active' : '' }}" href="/admin/reports?status=rejected">已驳回</a>
+    </div>
+</div>
+
+<div class="table-wrap">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>被举报内容</th>
+                <th>类型</th>
+                <th>原因</th>
+                <th>举报人</th>
+                <th>状态</th>
+                <th>时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in reports.items %}
+            <tr>
+                <td data-label="被举报内容" class="admin-table__content">
+                    <a href="{{ r.target_url }}">{{ r.target_excerpt }}</a>
+                    {% if r.detail is not empty %}<span class="admin-table__sub">补充：{{ r.detail }}</span>{% endif %}
+                </td>
+                <td data-label="类型">{{ r.target_type_label }} <span class="admin-table__sub">#{{ r.target_id }}</span></td>
+                <td data-label="原因">{{ r.reason_label }}</td>
+                <td data-label="举报人" class="admin-table__sub">@{{ r.reporter_username }}</td>
+                <td data-label="状态">
+                    {% if r.status == 'pending' %}<span class="status-dot status-dot--warn"></span>待处理
+                    {% elseif r.status == 'accepted' %}<span class="status-dot status-dot--ok"></span>已处理
+                    {% else %}<span class="status-dot status-dot--ok"></span>已驳回{% endif %}
+                </td>
+                <td data-label="时间" class="admin-table__sub">{{ r.created_at }}</td>
+                <td class="admin-table__actions">
+                    {% if r.status == 'pending' %}
+                    <form method="post" action="/admin/reports/{{ r.id }}/resolve" class="inline-form" data-confirm="接受举报将同时下架该内容，确定吗？">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="accept">
+                        <button class="text-btn text-btn--sm" type="submit">接受并下架</button>
+                    </form>
+                    <form method="post" action="/admin/reports/{{ r.id }}/resolve" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="reject">
+                        <button class="text-btn text-btn--sm" type="submit">驳回</button>
+                    </form>
+                    {% else %}
+                    <span class="admin-table__sub">{{ r.handled_at }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="admin-table__empty">暂无举报记录</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include 'components/pagination.twig' with { pagination: reports, base: '/admin/reports?status=' ~ status } %}
+{% endblock %}

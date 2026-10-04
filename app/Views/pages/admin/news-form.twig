@@ -1,0 +1,74 @@
+{% extends 'layouts/admin.twig' %}
+
+{% set isEdit = editing %}
+{% set categories = { notice: '通知公告', campus: '校园新闻', resource: '学习资源' } %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}{{ isEdit ? '编辑资讯' : '新建资讯' }} · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">{{ isEdit ? '编辑资讯' : '新建资讯' }}</h1>
+    <a class="text-btn text-btn--sm" href="/admin/news">返回列表</a>
+</div>
+
+{% if errors.form is defined %}
+<p class="form-alert" role="alert">{{ errors.form }}</p>
+{% endif %}
+
+<form class="board-form news-form" method="post"
+      action="{{ isEdit ? '/admin/news/' ~ article.id : '/admin/news' }}" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+    <label class="field">
+        <span class="field__label">标题</span>
+        <input class="field__input" type="text" name="title" value="{{ values.title }}" maxlength="80" required>
+    </label>
+
+    <div class="board-form__row">
+        <label class="field">
+            <span class="field__label">分类</span>
+            <select class="field__input" name="category" required>
+                {% for key, label in categories %}
+                <option value="{{ key }}" {{ values.category == key ? 'selected' : '' }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="field">
+            <span class="field__label">封面图（可选）</span>
+            <input class="field__input" type="file" name="cover" accept="image/jpeg,image/png,image/webp,image/gif">
+            {% if isEdit and article.cover_media_id is not null %}
+            <span class="field__hint">当前已有封面，选择新图片将替换</span>
+            {% endif %}
+        </label>
+    </div>
+
+    <label class="field">
+        <span class="field__label">摘要（可选，列表展示用）</span>
+        <textarea class="field__input field__input--textarea" name="summary" rows="2" maxlength="200"
+                  placeholder="一句话概括这条资讯">{{ values.summary }}</textarea>
+    </label>
+
+    <label class="field">
+        <span class="field__label">正文</span>
+        <textarea class="field__input field__input--textarea" name="content" rows="12" maxlength="20000" required>{{ values.content }}</textarea>
+    </label>
+
+    <label class="settings-row">
+        <span class="settings-row__text"><strong>置顶显示</strong>列表中优先展示</span>
+        <span class="switch">
+            <input type="checkbox" name="is_pinned" value="1" {{ values.is_pinned == '1' ? 'checked' : '' }}>
+        </span>
+    </label>
+
+    <div class="board-form__foot">
+        <a class="outlined-btn" href="/admin/news">取消</a>
+        <button class="outlined-btn" type="submit">{{ isEdit ? '保存' : '保存草稿' }}</button>
+        {% if not isEdit or article.status != 'published' %}
+        <button class="filled-btn" type="submit" name="action" value="publish">发布</button>
+        {% endif %}
+    </div>
+
+    <p class="settings-hint">发布后将为全站活跃用户推送一条资讯通知（仅在首次发布时发送一次）。</p>
+</form>
+{% endblock %}

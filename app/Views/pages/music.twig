@@ -1,0 +1,26 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}music{% endblock %}
+{% block title %}音乐 · {{ app.name }}{% endblock %}
+{% block meta_description %}聚合多个平台的音乐搜索与播放{% endblock %}
+
+{% block content %}
+<section class="music-page">
+    <header class="music-page__head">
+        <h1 class="page-title">音乐</h1>
+        <p class="page-subtitle">聚合多个平台，一个入口搜索与播放。</p>
+    </header>
+
+    <div class="card music-hero">
+        <span class="music-hero__icon material-symbols-outlined" aria-hidden="true">library_music</span>
+        <h2 class="music-hero__title">音乐聚合即将上线</h2>
+        <p class="music-hero__text">正在接入各平台音源，稍后即可在这里搜索与播放。</p>
+        <div class="music-sources">
+            <span class="meta-chip">网易云</span>
+            <span class="meta-chip">QQ 音乐</span>
+            <span class="meta-chip">酷狗</span>
+            <span class="meta-chip">酷我</span>
+        </div>
+    </div>
+</section>
+{% endblock %}

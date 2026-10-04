@@ -1,0 +1,80 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}board-new{% endblock %}
+{% block title %}发帖 · {{ board.name }} · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="board-new">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">发布到「{{ board.name }}」</h1>
+            <p class="page-subtitle">{{ board.description }}</p>
+        </div>
+    </header>
+
+    {% if errors.form is defined %}
+    <p class="form-alert" role="alert">{{ errors.form }}</p>
+    {% endif %}
+
+    <form class="board-form" method="post" action="/boards/{{ board.slug }}">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+        <label class="field">
+            <span class="field__label">标题</span>
+            <input class="field__input" type="text" name="title" value="{{ values.title }}" maxlength="80" required>
+        </label>
+
+        {% if board.kind == 'market' %}
+        <div class="board-form__row">
+            <label class="field">
+                <span class="field__label">价格（元）</span>
+                <input class="field__input" type="text" name="price" value="{{ values.price }}" inputmode="decimal"
+                       placeholder="例如：99.5" required>
+            </label>
+            <label class="field">
+                <span class="field__label">成色</span>
+                <select class="field__input" name="condition" required>
+                    <option value="">请选择</option>
+                    {% for key, label in conditions %}
+                    <option value="{{ key }}" {{ values.condition == key ? 'selected' : '' }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </div>
+        {% elseif board.kind == 'lost' %}
+        <div class="board-form__row">
+            <fieldset class="field board-form__types">
+                <legend class="field__label">类型</legend>
+                <label class="radio-row">
+                    <input type="radio" name="lost_type" value="lost" {{ values.lost_type == 'lost' ? 'checked' : '' }} required>
+                    <span>寻物：我丢了东西</span>
+                </label>
+                <label class="radio-row">
+                    <input type="radio" name="lost_type" value="found" {{ values.lost_type == 'found' ? 'checked' : '' }}>
+                    <span>招领：我捡到东西</span>
+                </label>
+            </fieldset>
+            <label class="field">
+                <span class="field__label">地点（可选）</span>
+                <input class="field__input" type="text" name="location" value="{{ values.location }}" maxlength="40"
+                       placeholder="例如：图书馆三楼">
+            </label>
+            <label class="field">
+                <span class="field__label">日期（可选）</span>
+                <input class="field__input" type="date" name="happened_on" value="{{ values.happened_on }}">
+            </label>
+        </div>
+        {% endif %}
+
+        <label class="field">
+            <span class="field__label">正文</span>
+            <textarea class="field__input field__input--textarea" name="content" rows="8" maxlength="5000" required data-counter>{{ values.content }}</textarea>
+        </label>
+
+        <div class="board-form__foot">
+            <a class="outlined-btn" href="/boards/{{ board.slug }}">取消</a>
+            <button class="filled-btn" type="submit">发布</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

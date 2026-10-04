@@ -1,0 +1,61 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}评论管理 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">评论管理</h1>
+    <a class="outlined-btn outlined-btn--sm" href="/admin/comments/export-twikoo" download>
+        <span class="material-symbols-outlined" aria-hidden="true">download</span> 导出为 Twikoo 导入文件
+    </a>
+</div>
+
+<p class="page-subtitle">
+    导出的是 Twikoo 备份格式：在 Twikoo 评论管理面板 →「导入评论」→ 源系统选 <strong>Twikoo</strong>，上传这个 JSON 即可。
+    导入后评论会挂到对应帖子（按 <code>/posts/&lt;id&gt;</code> 匹配）。
+</p>
+
+<div class="table-wrap">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>评论内容</th>
+                <th>作者</th>
+                <th>所属动态</th>
+                <th>状态</th>
+                <th>时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in comments.items %}
+            <tr>
+                <td data-label="评论内容" class="admin-table__content">{{ c.content }}</td>
+                <td data-label="作者"><a href="/u/{{ c.username }}">{{ c.nickname }}</a></td>
+                <td data-label="所属动态"><a href="/posts/{{ c.post_id }}#comments">#{{ c.post_id }}</a></td>
+                <td data-label="状态">
+                    {% if c.status == 'published' %}<span class="status-dot status-dot--ok"></span>正常
+                    {% else %}<span class="status-dot status-dot--danger"></span>已移除{% endif %}
+                </td>
+                <td data-label="时间" class="admin-table__sub">{{ c.time_ago }}</td>
+                <td class="admin-table__actions">
+                    {% if c.status != 'removed' %}
+                    <form method="post" action="/admin/comments/{{ c.id }}/remove" class="inline-form" data-confirm="确定移除这条评论吗？">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <button class="text-btn text-btn--sm text-btn--danger" type="submit">移除</button>
+                    </form>
+                    {% else %}
+                    <span class="admin-table__sub">已处理</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="admin-table__empty">暂无评论</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include 'components/pagination.twig' with { pagination: comments, base: '/admin/comments' } %}
+{% endblock %}

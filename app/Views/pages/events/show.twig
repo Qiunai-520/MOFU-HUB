@@ -1,0 +1,180 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}event{% endblock %}
+{% block title %}{{ event.title }} · 校园活动 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<div class="event-page">
+    <nav class="board-entry__crumb" aria-label="面包屑">
+        <a href="/events">校园活动</a>
+        <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+        <span>{{ event.title }}</span>
+    </nav>
+
+    {% set okMessages = {
+        signedup: '报名成功，活动见',
+        pending: '报名已提交，等待组织者审核',
+        cancelled: '已取消报名',
+        'event-cancelled': '活动已取消，已通知全部报名者',
+        approved: '已通过该同学的报名',
+        rejected: '已拒绝该同学的报名',
+        removed: '已将该同学移出活动',
+    } %}
+    {% if ok is defined and okMessages[ok] is defined %}
+    <div class="form-success" role="status">{{ okMessages[ok] }}</div>
+    {% endif %}
+
+    <article class="event-detail">
+        {% if event.cover_url is not empty %}
+        <div class="event-detail__cover">
+            <img src="{{ event.cover_url }}" alt="" loading="lazy" decoding="async">
+        </div>
+        {% endif %}
+
+        <div class="event-detail__head">
+            <h1 class="event-detail__title">{{ event.title }}</h1>
+            <div class="event-detail__chips">
+                <span class="meta-chip{{ event.state_variant == 'accent' ? ' meta-chip--accent' : (event.state_variant == 'warn' ? ' meta-chip--warn' : '') }}">{{ event.state_label }}</span>
+                {% if event.is_full %}<span class="meta-chip meta-chip--warn">已满</span>{% endif %}
+                {% if event.requires_approval %}<span class="meta-chip">报名需审核</span>{% endif %}
+                {% if event.is_hidden %}<span class="meta-chip meta-chip--warn">{{ event.status == 'removed' ? '已被移除' : '已被隐藏' }}</span>{% endif %}
+            </div>
+        </div>
+
+        <dl class="event-detail__meta">
+            <div class="event-detail__meta-item">
+                <span class="material-symbols-outlined" aria-hidden="true">schedule</span>
+                <div>
+                    <dt>活动时间</dt>
+                    <dd>{{ event.time_text }}</dd>
+                </div>
+            </div>
+            {% if event.location is not empty %}
+            <div class="event-detail__meta-item">
+                <span class="material-symbols-outlined" aria-hidden="true">location_on</span>
+                <div>
+                    <dt>活动地点</dt>
+                    <dd>{{ event.location }}</dd>
+                </div>
+            </div>
+            {% endif %}
+            <div class="event-detail__meta-item">
+                <span class="material-symbols-outlined" aria-hidden="true">group</span>
+                <div>
+                    <dt>报名情况</dt>
+                    <dd>{{ event.capacity_text }}{% if event.deadline_text is not empty %} · 截止 {{ event.deadline_text }}{% endif %}</dd>
+                </div>
+            </div>
+            <div class="event-detail__meta-item">
+                <span class="material-symbols-outlined" aria-hidden="true">person</span>
+                <div>
+                    <dt>组织者</dt>
+                    <dd><a href="{{ event.organizer.url }}">{{ event.organizer.nickname }}</a></dd>
+                </div>
+            </div>
+        </dl>
+
+        <div class="event-detail__desc">
+            {{ event.description_html|raw }}
+        </div>
+
+        <section class="event-signup-panel" id="signup">
+            {% if event.can_signup %}
+            <form class="event-signup-form" method="post" action="/events/{{ event.id }}/signup">
+                <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                <textarea class="field__input field__input--textarea" name="note" rows="2" maxlength="200"
+                          placeholder="报名备注（可选，仅组织者可见，如联系方式）" aria-label="报名备注"></textarea>
+                <button class="filled-btn" type="submit">{{ event.requires_approval ? '提交报名（需审核）' : '立即报名' }}</button>
+            </form>
+            {% elseif event.my_status == 'approved' %}
+            <div class="event-signup-panel__state">
+                <span class="meta-chip meta-chip--accent">已报名</span>
+                <form method="post" action="/events/{{ event.id }}/signup/cancel">
+                    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                    <button class="outlined-btn outlined-btn--sm" type="submit" data-confirm="确定取消报名吗？">取消报名</button>
+                </form>
+            </div>
+            {% elseif event.my_status == 'pending' %}
+            <div class="event-signup-panel__state">
+                <span class="meta-chip meta-chip--warn">报名待审核</span>
+                <form method="post" action="/events/{{ event.id }}/signup/cancel">
+                    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                    <button class="outlined-btn outlined-btn--sm" type="submit">撤回报名</button>
+                </form>
+            </div>
+            {% elseif currentUser is null %}
+            <a class="filled-btn" href="/login">登录后报名</a>
+            {% else %}
+            <p class="event-signup-panel__hint">{{ event.signup_hint }}</p>
+            {% endif %}
+        </section>
+
+        {% if event.is_organizer %}
+        <section class="event-detail__manage">
+            <h2 class="feed__title">组织者管理</h2>
+            <div class="event-detail__manage-actions">
+                {% if event.can_edit %}
+                <a class="outlined-btn outlined-btn--sm" href="{{ event.edit_url }}">编辑活动</a>
+                {% endif %}
+                {% if event.state != 'cancelled' %}
+                <form method="post" action="/events/{{ event.id }}/cancel">
+                    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                    <button class="outlined-btn outlined-btn--sm" type="submit" data-confirm="取消活动将通知所有已报名者，确定吗？">取消活动</button>
+                </form>
+                {% endif %}
+                <form method="post" action="/events/{{ event.id }}/delete">
+                    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                    <button class="text-btn text-btn--sm" type="submit" data-confirm="确定删除这个活动吗？">删除活动</button>
+                </form>
+            </div>
+        </section>
+        {% endif %}
+    </article>
+
+    <section class="event-signups" id="signups">
+        <h2 class="feed__title">报名名单</h2>
+
+        {% if event.is_organizer %}
+            {% if pendingSignups|length > 0 %}
+            <h3 class="event-signups__title">待审核（{{ pendingSignups|length }}）</h3>
+            {% for signup in pendingSignups %}
+            {% embed 'components/user-row.twig' with { user: signup.user, meta: signup.time_ago ~ (signup.note is not empty ? ' · 备注：' ~ signup.note : '') } %}
+                {% block actions %}
+                <form method="post" action="/events/{{ event.id }}/signups/{{ signup.user_id }}/approve">
+                    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                    <button class="filled-btn filled-btn--sm" type="submit">通过</button>
+                </form>
+                <form method="post" action="/events/{{ event.id }}/signups/{{ signup.user_id }}/reject">
+                    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                    <button class="outlined-btn outlined-btn--sm" type="submit">拒绝</button>
+                </form>
+                {% endblock %}
+            {% endembed %}
+            {% endfor %}
+            {% endif %}
+
+            <h3 class="event-signups__title">已报名（{{ rosterSignups|length }}）</h3>
+            {% for signup in rosterSignups %}
+            {% embed 'components/user-row.twig' with { user: signup.user, meta: signup.time_ago ~ (showNotes and signup.note is not empty ? ' · 备注：' ~ signup.note : '') } %}
+                {% block actions %}
+                <form method="post" action="/events/{{ event.id }}/signups/{{ signup.user_id }}/remove">
+                    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                    <button class="outlined-btn outlined-btn--sm" type="submit" data-confirm="确定将该同学移出活动吗？">移出</button>
+                </form>
+                {% endblock %}
+            {% endembed %}
+            {% else %}
+            {{ include('components/empty-state.twig', { compact: true, text: '还没有人报名' }) }}
+            {% endfor %}
+
+        {% elseif rosterSignups|length > 0 %}
+            <h3 class="event-signups__title">已报名（{{ rosterSignups|length }}）</h3>
+            {% for signup in rosterSignups %}
+            {{ include('components/user-row.twig', { user: signup.user }) }}
+            {% endfor %}
+        {% else %}
+            {{ include('components/empty-state.twig', { compact: true, icon: 'lock', text: '报名名单仅组织者与已通过报名者可见' }) }}
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

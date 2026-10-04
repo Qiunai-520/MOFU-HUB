@@ -1,0 +1,34 @@
+{#
+  列表「加载更多」
+  - JS 就绪时：按钮抓取下一页的 SSR HTML，提取同名列表容器并追加（见 core/load-more.ts）；
+  - 无 JS 时：<noscript> 内退化为「上一页 / 下一页」链接，直达链接与 SEO 不受影响；
+  - base：不带 page 的链接前缀（与 pagination.twig 一致，末尾带 ? 或 & 均可）；
+  - target：列表容器名，容器上需有对应的 data-list="<target>"。
+#}
+{% if pagination.pages > 1 %}
+{% set lastChar = base|slice(-1) %}
+{% set joiner = (lastChar == '?' or lastChar == '&') ? '' : '&' %}
+{% set atEnd = pagination.page >= pagination.pages %}
+<div class="load-more" data-load-more>
+    <button class="outlined-btn" type="button" data-action="load-more-page"
+            data-endpoint="{{ base }}{{ joiner }}page="
+            data-next-page="{{ pagination.page + 1 }}"
+            data-pages="{{ pagination.pages }}"
+            data-target="{{ target }}"
+            {% if atEnd %}hidden{% endif %}>加载更多</button>
+
+    <p class="load-more__hint" data-load-more-hint{{ atEnd ? '' : ' hidden' }}>已经到底啦</p>
+
+    <noscript>
+        <nav class="pagination" aria-label="分页导航">
+            {% if pagination.page > 1 %}
+            <a class="pagination__link" href="{{ base }}{{ joiner }}page={{ pagination.page - 1 }}">上一页</a>
+            {% endif %}
+            <span class="pagination__status">第 {{ pagination.page }} / {{ pagination.pages }} 页</span>
+            {% if not atEnd %}
+            <a class="pagination__link" href="{{ base }}{{ joiner }}page={{ pagination.page + 1 }}">下一页</a>
+            {% endif %}
+        </nav>
+    </noscript>
+</div>
+{% endif %}

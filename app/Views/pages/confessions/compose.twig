@@ -1,0 +1,70 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}{{ board == 'hole' ? 'hole' : 'wall' }}{% endblock %}
+{% block title %}{{ boardLabel }}投稿 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="compose compose--confession" data-confession-compose data-board="{{ board }}">
+    <h1 class="page-title">{{ board == 'hole' ? '挖个树洞' : '写下表白' }}</h1>
+    <p class="page-subtitle">
+        {% if board == 'hole' %}
+        说出你的心事，没有人会知道是你。
+        {% else %}
+        可以匿名说给全世界，也可以署名说给某个人。
+        {% endif %}
+    </p>
+
+    <div class="confession-notice">
+        <span class="material-symbols-outlined" aria-hidden="true">info</span>
+        <p>
+            {% if moderationEnabled %}投稿会先进入审核队列，通过后才会公开展示；{% else %}投稿提交后会立即公开展示；{% endif %}
+            完全匿名仅在展示层生效，系统内部会保留投稿者记录用于审计与申诉处理。
+            {% if not currentUser %}未登录投稿通过一份不可逆的设备凭证关联，仅用于在「我的投稿」查看状态。{% endif %}
+        </p>
+    </div>
+
+    <form class="compose-form" data-confession-form>
+        <div class="confession-categories" role="radiogroup" aria-label="投稿分类" data-category-group>
+            {% for key, label in categories %}
+            <button class="topic-chip{{ loop.first ? ' is-active' : '' }}" type="button" data-category="{{ key }}"
+                    aria-pressed="{{ loop.first ? 'true' : 'false' }}">{{ label }}</button>
+            {% endfor %}
+        </div>
+
+        <textarea class="compose-form__input" name="content" rows="7" maxlength="1000"
+                  placeholder="{{ board == 'hole' ? '把想说的话放进来…' : '想对 TA 说什么？' }}"
+                  aria-label="投稿内容" data-counter data-confession-input></textarea>
+
+        {% if currentUser %}
+        <div class="compose-form__media" data-confession-media hidden></div>
+        {% endif %}
+
+        <div class="compose-form__foot">
+            <div class="compose-form__tools">
+                {% if currentUser %}
+                <label class="icon-btn" data-tooltip="添加图片（最多 4 张）">
+                    <span class="visually-hidden">添加图片（最多 4 张）</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden data-confession-file>
+                    <span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span>
+                </label>
+                <label class="compose-form__visibility">
+                    <span class="material-symbols-outlined" aria-hidden="true">visibility_off</span>
+                    <select data-confession-mode aria-label="署名方式">
+                        <option value="anonymous">完全匿名</option>
+                        <option value="named">使用昵称署名</option>
+                    </select>
+                </label>
+                {% else %}
+                <span class="compose-form__hint">未登录也可以匿名投稿；登录后可添加图片与署名</span>
+                {% endif %}
+            </div>
+            <button class="filled-btn" type="submit" data-confession-submit>提交投稿</button>
+        </div>
+
+        <noscript>
+        <p class="form-alert" role="alert">投稿需要启用 JavaScript：当前浏览器未启用，请在浏览器设置中开启后重试。</p>
+        </noscript>
+        <p class="form-alert" data-confession-error hidden role="alert"></p>
+    </form>
+</section>
+{% endblock %}

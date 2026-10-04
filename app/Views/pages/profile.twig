@@ -1,0 +1,217 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}profile{% endblock %}
+{% block title %}{{ profile.nickname }} · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="profile-head{{ profile.cover_url is not empty ? ' profile-head--cover' : '' }}">
+    {% if profile.cover_url is not empty %}
+    <div class="profile-cover" style="background-image: url('{{ profile.cover_url|e('css') }}')" aria-hidden="true"></div>
+    {% endif %}
+    {{ include('components/avatar.twig', { user: profile, size: 'xl' }) }}
+    <div class="profile-head__info">
+        <h1 class="profile-head__name">{{ profile.nickname }}</h1>
+        <p class="profile-head__username">@{{ profile.username }}</p>
+        {% if profile.bio is not empty %}<p class="profile-head__bio">{{ profile.bio }}</p>{% endif %}
+        <div class="profile-head__meta">
+            {% if profile.location is not empty %}
+            <span class="profile-head__item"><span class="material-symbols-outlined" aria-hidden="true">location_on</span>{{ profile.location }}</span>
+            {% endif %}
+            {% if profile.website is not empty %}
+            <a class="profile-head__item" href="{{ profile.website }}" target="_blank" rel="nofollow noopener">
+                <span class="material-symbols-outlined" aria-hidden="true">link</span>{{ profile.website }}
+            </a>
+            {% endif %}
+            <span class="profile-head__item"><span class="material-symbols-outlined" aria-hidden="true">calendar_month</span>{{ profile.joined_at }} 加入</span>
+            <span class="profile-head__item"><span class="material-symbols-outlined" aria-hidden="true">group</span>{{ profile.followers_count }} 粉丝 · {{ profile.following_count }} 关注</span>
+        </div>
+    </div>
+    <div class="profile-head__actions">
+        {% if profile.is_self %}
+        <a class="outlined-btn outlined-btn--sm" href="/settings/profile">
+            <span class="material-symbols-outlined" aria-hidden="true">edit</span> 编辑资料
+        </a>
+        {% elseif currentUser %}
+        {% if profile.can_message %}
+        <a class="outlined-btn outlined-btn--sm" href="/messages/with/{{ profile.username }}">
+            <span class="material-symbols-outlined" aria-hidden="true">mail</span> 私信
+        </a>
+        {% endif %}
+        <button class="{{ profile.is_following ? 'outlined-btn' : 'filled-btn' }} follow-btn follow-btn--lg{{ profile.is_following ? ' is-following' : '' }}" type="button"
+                data-action="toggle-follow" data-user-id="{{ profile.id }}" data-follow-size="lg"
+                aria-pressed="{{ profile.is_following ? 'true' : 'false' }}">
+            {{ profile.is_following ? '已关注' : '关注' }}
+        </button>
+        <button class="text-btn text-btn--sm block-btn{{ profile.is_blocked ? ' is-blocked' : '' }}" type="button"
+                data-action="toggle-block" data-user-id="{{ profile.id }}">
+            {{ profile.is_blocked ? '解除拉黑' : '拉黑' }}
+        </button>
+        {% endif %}
+    </div>
+</section>
+
+<nav class="profile-tabs" aria-label="个人主页导航" data-swup-persist="profile-tabs">
+    <a class="profile-tab{{ tab == 'posts' ? ' is-active' : '' }}"{{ tab == 'posts' ? ' aria-current="page"' : '' }} href="/u/{{ profile.username }}?tab=posts" data-tab-default>动态</a>
+    {% if profile.is_self %}
+    <a class="profile-tab{{ tab == 'favorites' ? ' is-active' : '' }}"{{ tab == 'favorites' ? ' aria-current="page"' : '' }} href="/u/{{ profile.username }}?tab=favorites">收藏</a>
+    <a class="profile-tab{{ tab == 'likes' ? ' is-active' : '' }}"{{ tab == 'likes' ? ' aria-current="page"' : '' }} href="/u/{{ profile.username }}?tab=likes">点赞</a>
+    <a class="profile-tab{{ tab == 'comments' ? ' is-active' : '' }}"{{ tab == 'comments' ? ' aria-current="page"' : '' }} href="/u/{{ profile.username }}?tab=comments">评论</a>
+    {% endif %}
+    <a class="profile-tab{{ tab == 'following' ? ' is-active' : '' }}"{{ tab == 'following' ? ' aria-current="page"' : '' }} href="/u/{{ profile.username }}?tab=following">关注 {{ profile.following_count }}</a>
+    <a class="profile-tab{{ tab == 'followers' ? ' is-active' : '' }}"{{ tab == 'followers' ? ' aria-current="page"' : '' }} href="/u/{{ profile.username }}?tab=followers">粉丝 {{ profile.followers_count }}</a>
+</nav>
+
+<div class="profile-panel" data-tabs-panel>
+{% if tab == 'posts' %}
+<section class="feed">
+    <div class="feed-list" data-list="profile-posts">
+        {% for post in feedItems %}
+            {{ include('components/post-card.twig', { post: post }) }}
+        {% else %}
+        {{ include('components/empty-state.twig', {
+            icon: 'article',
+            title: '还没有动态',
+            cta_href: profile.is_self ? '/compose' : '',
+            cta_label: '发布第一条',
+        }) }}
+        {% endfor %}
+    </div>
+    {{ include('components/load-more.twig', { pagination: feed, base: tabUrl ~ 'tab=posts&', target: 'profile-posts' }) }}
+</section>
+
+{% elseif tab == 'favorites' %}
+<section class="favorites">
+    {% if not canViewFavorites %}
+    {{ include('components/empty-state.twig', { icon: 'lock', title: '收藏仅本人可见' }) }}
+    {% else %}
+    <h2 class="feed__title">收藏的动态</h2>
+    <div class="feed-list">
+        {% for post in favoritePosts %}
+            {{ include('components/post-card.twig', { post: post }) }}
+        {% else %}
+        {{ include('components/empty-state.twig', {
+            icon: 'bookmark',
+            title: '还没有收藏动态',
+            text: '在动态卡片上点击书签图标即可收藏',
+        }) }}
+        {% endfor %}
+    </div>
+
+    <h2 class="feed__title">收藏的表白 / 树洞</h2>
+    <div class="board__list">
+        {% for item in favoriteConfessions %}
+            {{ include('components/confession-card.twig', { item: item }) }}
+        {% else %}
+        {{ include('components/empty-state.twig', { icon: 'favorite', title: '还没有收藏的投稿' }) }}
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+
+{% elseif tab == 'likes' %}
+<section class="favorites">
+    {% if not canViewPrivate %}
+    {{ include('components/empty-state.twig', { icon: 'lock', title: '点赞仅本人可见' }) }}
+    {% else %}
+    <h2 class="feed__title">点赞的动态</h2>
+    <div class="feed-list">
+        {% for post in likedPosts %}
+            {{ include('components/post-card.twig', { post: post }) }}
+        {% else %}
+        {{ include('components/empty-state.twig', {
+            icon: 'favorite',
+            title: '还没有点赞动态',
+            text: '在动态卡片上点击爱心即可点赞',
+        }) }}
+        {% endfor %}
+    </div>
+
+    <h2 class="feed__title">点赞的表白 / 树洞</h2>
+    <div class="board__list">
+        {% for item in likedConfessions %}
+            {{ include('components/confession-card.twig', { item: item }) }}
+        {% else %}
+        {{ include('components/empty-state.twig', { icon: 'favorite', title: '还没有点赞投稿' }) }}
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+
+{% elseif tab == 'comments' %}
+<section class="my-comments">
+    {% if not canViewPrivate %}
+    {{ include('components/empty-state.twig', { icon: 'lock', title: '评论仅本人可见' }) }}
+    {% elseif myComments|length == 0 and myConfessionComments|length == 0 %}
+    {{ include('components/empty-state.twig', {
+        icon: 'forum',
+        title: '还没有发表过评论',
+        text: '去首页看看大家的动态，参与讨论吧',
+    }) }}
+    {% else %}
+    <div class="my-comment-list">
+        {% for c in myComments %}
+        <article class="my-comment">
+            <div class="my-comment__meta">
+                <span class="meta-chip">{{ c.label }}</span>
+                <time class="my-comment__time">{{ c.time_ago }}</time>
+            </div>
+            <p class="my-comment__content">{{ c.excerpt }}</p>
+            <div class="my-comment__foot">
+                {% if c.available %}
+                <a class="text-btn text-btn--sm" href="{{ c.url }}">查看来源</a>
+                {% else %}
+                <span class="my-comment__gone">来源已不可见</span>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+        {% for c in myConfessionComments %}
+        <article class="my-comment">
+            <div class="my-comment__meta">
+                <span class="meta-chip">{{ c.label }}</span>
+                <time class="my-comment__time">{{ c.time_ago }}</time>
+            </div>
+            <p class="my-comment__content">{{ c.excerpt }}</p>
+            <div class="my-comment__foot">
+                {% if c.available %}
+                <a class="text-btn text-btn--sm" href="{{ c.url }}">查看来源</a>
+                {% else %}
+                <span class="my-comment__gone">来源已不可见</span>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+
+{% elseif tab == 'following' or tab == 'followers' %}
+<section class="connections">
+    {% if connectionsHidden %}
+    <div class="empty-state">
+        <span class="material-symbols-outlined empty-state__icon" aria-hidden="true">lock</span>
+        <p class="empty-state__title">对方设置了隐私保护</p>
+        <p class="empty-state__text">关注与粉丝列表仅本人可见</p>
+    </div>
+    {% else %}
+    <h2 class="feed__title">{{ tab == 'following' ? '关注的人' : '粉丝' }}</h2>
+    <div class="user-list" data-list="profile-connections">
+        {% for user in connections.items %}
+            {{ include('components/user-card.twig', { user: user }) }}
+        {% else %}
+        <div class="empty-state">
+            <span class="material-symbols-outlined empty-state__icon" aria-hidden="true">group</span>
+            <p class="empty-state__title">{{ tab == 'following' ? '还没有关注任何人' : '还没有粉丝' }}</p>
+            {% if tab == 'following' and profile.is_self %}
+            <p class="empty-state__text">去首页看看大家的动态，关注感兴趣的同学</p>
+            <a class="filled-btn" href="/">去发现</a>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {{ include('components/load-more.twig', { pagination: connections, base: tabUrl ~ 'tab=' ~ tab ~ '&', target: 'profile-connections' }) }}
+    {% endif %}
+</section>
+{% endif %}
+</div>
+{% endblock %}

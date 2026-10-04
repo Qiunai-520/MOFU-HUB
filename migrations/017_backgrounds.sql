@@ -1,0 +1,3 @@
+-- 017 背景图：无需新表/新列
+-- 背景偏好存放在 user_preferences（pref_key='appearance'，由 PreferenceService 维护），
+-- 背景图片复用 media 表存储，本迁移仅作占位说明，不产生 schema 变更。

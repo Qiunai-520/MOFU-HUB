@@ -1,0 +1,78 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}settings{% endblock %}
+{% block title %}通知设置 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="settings-layout">
+    {{ include('components/settings-nav.twig') }}
+
+    <div class="settings-main" data-tabs-panel>
+        <h1 class="page-title">通知设置</h1>
+        <p class="page-subtitle">选择你希望接收的互动通知；投稿审核结果、举报处理与系统消息始终送达。</p>
+
+        {% if saved %}
+        <div class="form-success" role="status">已保存</div>
+        {% endif %}
+
+        <form method="post" action="/settings/notifications" class="settings-form">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+            <div class="settings-group">
+                <h2 class="settings-group__title">通知类型</h2>
+                <div class="settings-card">
+                    <label class="settings-row" for="notif-likes">
+                        <span class="settings-row__text"><strong>点赞</strong>动态、评论与投稿被点赞时通知我</span>
+                        <span class="switch">
+                            <input type="checkbox" id="notif-likes" name="pref_likes" value="1" {{ prefs.likes ? 'checked' : '' }}>
+                        </span>
+                    </label>
+
+                    <label class="settings-row" for="notif-comments">
+                        <span class="settings-row__text"><strong>评论</strong>动态、评论与投稿收到评论或回复时通知我</span>
+                        <span class="switch">
+                            <input type="checkbox" id="notif-comments" name="pref_comments" value="1" {{ prefs.comments ? 'checked' : '' }}>
+                        </span>
+                    </label>
+
+                    <label class="settings-row" for="notif-follows">
+                        <span class="settings-row__text"><strong>关注</strong>有人关注我时通知我</span>
+                        <span class="switch">
+                            <input type="checkbox" id="notif-follows" name="pref_follows" value="1" {{ prefs.follows ? 'checked' : '' }}>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h2 class="settings-group__title">免打扰时段</h2>
+                <div class="settings-card">
+                    <label class="settings-row" for="notif-dnd">
+                        <span class="settings-row__text"><strong>启用免打扰</strong>时段内的点赞、评论与关注通知不会送达（重要通知不受影响）</span>
+                        <span class="switch">
+                            <input type="checkbox" id="notif-dnd" name="dnd_enabled" value="1" {{ prefs.dnd.enabled ? 'checked' : '' }}>
+                        </span>
+                    </label>
+                    <div class="dnd-range">
+                        <label class="dnd-range__field">从
+                            <select class="field__input dnd-range__select" name="dnd_start">
+                                {% for hour in 0..23 %}<option value="{{ hour }}" {{ prefs.dnd.start == hour ? 'selected' : '' }}>{{ '%02d:00'|format(hour) }}</option>{% endfor %}
+                            </select>
+                        </label>
+                        <label class="dnd-range__field">到
+                            <select class="field__input dnd-range__select" name="dnd_end">
+                                {% for hour in 0..23 %}<option value="{{ hour }}" {{ prefs.dnd.end == hour ? 'selected' : '' }}>{{ '%02d:00'|format(hour) }}</option>{% endfor %}
+                            </select>
+                        </label>
+                        <span class="settings-hint">跨天时段（如 23:00 → 07:00）按夜间处理；起止时间相同视为不启用。</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-form__foot">
+                <button class="filled-btn" type="submit">保存偏好</button>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

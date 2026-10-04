@@ -1,0 +1,98 @@
+{% extends 'layouts/admin.twig' %}
+
+{% set categories = { notice: '通知公告', campus: '校园新闻', resource: '学习资源' } %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}资讯管理 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">资讯管理</h1>
+    <a class="filled-btn filled-btn--sm" href="/admin/news/new">
+        <span class="material-symbols-outlined" aria-hidden="true">add</span> 新建资讯
+    </a>
+</div>
+
+<div class="filter-tabs">
+    <a class="filter-tab{{ status == '' ? ' is-active' : '' }}" href="/admin/news{{ category != '' ? '?category=' ~ category : '' }}">全部</a>
+    <a class="filter-tab{{ status == 'draft' ? ' is-active' : '' }}" href="/admin/news?status=draft{{ category != '' ? '&category=' ~ category : '' }}">草稿</a>
+    <a class="filter-tab{{ status == 'published' ? ' is-active' : '' }}" href="/admin/news?status=published{{ category != '' ? '&category=' ~ category : '' }}">已发布</a>
+    <a class="filter-tab{{ status == 'hidden' ? ' is-active' : '' }}" href="/admin/news?status=hidden{{ category != '' ? '&category=' ~ category : '' }}">已隐藏</a>
+    <a class="filter-tab{{ status == 'removed' ? ' is-active' : '' }}" href="/admin/news?status=removed{{ category != '' ? '&category=' ~ category : '' }}">已移除</a>
+</div>
+
+<div class="board-filters admin-board-filters">
+    <a class="meta-chip{{ category == '' ? ' meta-chip--accent' : '' }}" href="/admin/news{{ status != '' ? '?status=' ~ status : '' }}">全部分类</a>
+    {% for key, label in categories %}
+    <a class="meta-chip{{ category == key ? ' meta-chip--accent' : '' }}" href="/admin/news?category={{ key }}{{ status != '' ? '&status=' ~ status : '' }}">{{ label }}</a>
+    {% endfor %}
+</div>
+
+<div class="table-wrap">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>标题</th>
+                <th>分类</th>
+                <th>发布者</th>
+                <th>状态</th>
+                <th>置顶</th>
+                <th>浏览</th>
+                <th>发布时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for n in news.items %}
+            <tr>
+                <td data-label="标题" class="admin-table__content">
+                    <a href="{{ n.url }}">{{ n.title }}</a>
+                    {% if n.deleted %}<span class="admin-table__sub">已删除</span>{% endif %}
+                </td>
+                <td data-label="分类">{{ n.category_label }}</td>
+                <td data-label="发布者" class="admin-table__sub">@{{ n.username }}</td>
+                <td data-label="状态">
+                    {% if n.status == 'published' %}<span class="status-dot status-dot--ok"></span>{{ n.status_label }}
+                    {% elseif n.status == 'draft' %}<span class="status-dot"></span>{{ n.status_label }}
+                    {% else %}<span class="status-dot status-dot--warn"></span>{{ n.status_label }}{% endif %}
+                </td>
+                <td data-label="置顶">{% if n.is_pinned %}<span class="meta-chip meta-chip--accent">置顶</span>{% endif %}</td>
+                <td data-label="浏览">{{ n.view_count }}</td>
+                <td data-label="发布时间" class="admin-table__sub">{{ n.published_text }}</td>
+                <td class="admin-table__actions">
+                    {% if not n.deleted %}
+                    {% if n.status == 'draft' or n.status == 'hidden' or n.status == 'removed' %}
+                    <form method="post" action="/admin/news/{{ n.id }}/status" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="publish">
+                        <button class="text-btn text-btn--sm" type="submit">发布</button>
+                    </form>
+                    {% endif %}
+                    {% if n.status == 'published' %}
+                    <form method="post" action="/admin/news/{{ n.id }}/status" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="hide">
+                        <button class="text-btn text-btn--sm" type="submit">隐藏</button>
+                    </form>
+                    {% endif %}
+                    <form method="post" action="/admin/news/{{ n.id }}/pin" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <button class="text-btn text-btn--sm" type="submit">{{ n.is_pinned ? '取消置顶' : '置顶' }}</button>
+                    </form>
+                    <a class="text-btn text-btn--sm" href="{{ n.edit_url }}">编辑</a>
+                    <form method="post" action="/admin/news/{{ n.id }}/delete" class="inline-form" data-confirm="确定删除这条资讯吗？">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <button class="text-btn text-btn--sm" type="submit">删除</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="admin-table__sub">还没有资讯</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include 'components/pagination.twig' with { pagination: news, base: '/admin/news?status=' ~ status ~ '&category=' ~ category } %}
+{% endblock %}

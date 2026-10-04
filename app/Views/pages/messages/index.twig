@@ -1,0 +1,99 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}messages{% endblock %}
+{% block title %}消息 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="messages-page inbox" data-messages-page data-inbox data-inbox-tab="{{ tab }}">
+    <h1 class="page-title">消息</h1>
+
+    {# 私信 / 通知：单页内切换，不整页刷新 #}
+    <nav class="segmented" data-segmented role="tablist" aria-label="消息类型">
+        <span class="segmented__thumb" data-segmented-thumb aria-hidden="true"></span>
+        <button class="segmented__item{{ tab == 'notifications' ? ' is-active' : '' }}" type="button" role="tab"
+                data-inbox-switch="notifications" aria-selected="{{ tab == 'notifications' ? 'true' : 'false' }}">
+            通知{% if unreadCount > 0 %}（{{ unreadCount }}）{% endif %}
+        </button>
+        <button class="segmented__item{{ tab == 'messages' ? ' is-active' : '' }}" type="button" role="tab"
+                data-inbox-switch="messages" aria-selected="{{ tab == 'messages' ? 'true' : 'false' }}">私信</button>
+    </nav>
+
+    <div class="inbox-panel" data-inbox-panel="notifications"{{ tab == 'notifications' ? '' : ' hidden' }}>
+        <div class="inbox-panel__tools">
+            <nav class="filter-tabs" aria-label="通知筛选">
+                <a class="filter-tab{{ filter == 'all' ? ' is-active' : '' }}"{{ filter == 'all' ? ' aria-current="page"' : '' }} href="/notifications?filter=all">全部</a>
+                <a class="filter-tab{{ filter == 'unread' ? ' is-active' : '' }}"{{ filter == 'unread' ? ' aria-current="page"' : '' }} href="/notifications?filter=unread">
+                    未读{% if unreadCount > 0 %}（{{ unreadCount }}）{% endif %}
+                </a>
+            </nav>
+            {% if unreadCount > 0 %}
+            <button class="text-btn text-btn--sm" type="button" data-action="mark-all-read">全部标记已读</button>
+            {% endif %}
+        </div>
+
+        <div class="notification-list" data-notification-list data-list="notifications">
+            {% for n in notifications.items %}
+            <div class="card notification{{ n.read ? '' : ' is-unread' }}" data-notification-id="{{ n.id }}">
+                {% if n.actor %}
+                    {{ include('components/avatar.twig', { user: n.actor, size: 'sm' }) }}
+                {% else %}
+                    <span class="avatar avatar--sm" style="--avatar-hue: 210" aria-hidden="true">
+                        <span class="material-symbols-outlined" aria-hidden="true">campaign</span>
+                    </span>
+                {% endif %}
+                <div class="notification__body">
+                    <p class="notification__text">
+                        {% if n.actor %}<a href="/u/{{ n.actor.username }}">{{ n.actor.nickname }}</a> {% endif %}{{ n.message }}
+                    </p>
+                    {% if n.excerpt is not empty %}<p class="notification__excerpt">{{ n.excerpt }}</p>{% endif %}
+                    <time class="notification__time" datetime="{{ n.created_at }}">{{ n.time_ago }}</time>
+                </div>
+                {% if n.url is not empty %}
+                <a class="notification__link icon-btn icon-btn--sm" href="{{ n.url }}" aria-label="查看详情" data-action="open-notification" data-notification-id="{{ n.id }}">
+                    <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+                </a>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <span class="material-symbols-outlined empty-state__icon" aria-hidden="true">notifications_off</span>
+                <p class="empty-state__title">暂无通知</p>
+                <p class="empty-state__text">当有人与你的内容互动时会出现在这里</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        {{ include('components/load-more.twig', { pagination: notifications, base: '/notifications?filter=' ~ filter, target: 'notifications' }) }}
+    </div>
+
+    <div class="inbox-panel" data-inbox-panel="messages"{{ tab == 'messages' ? '' : ' hidden' }}>
+        <div class="conversation-list" data-list="conversations">
+            {% for conversation in conversations.items %}
+            <a class="conversation" href="/messages/{{ conversation.id }}">
+                {{ include('components/avatar.twig', { user: conversation.other, size: 'lg' }) }}
+                <div class="conversation__info">
+                    <div class="conversation__head">
+                        <span class="conversation__name">{{ conversation.other.nickname }}</span>
+                        <time class="conversation__time">{{ conversation.time }}</time>
+                    </div>
+                    <p class="conversation__preview{{ conversation.unread > 0 ? ' is-unread' : '' }}">
+                        {% if conversation.last_mine %}我：{% endif %}{{ conversation.last_content }}
+                    </p>
+                </div>
+                {% if conversation.unread > 0 %}
+                <span class="conversation__unread">{{ conversation.unread > 99 ? '99+' : conversation.unread }}</span>
+                {% endif %}
+            </a>
+            {% else %}
+            {{ include('components/empty-state.twig', {
+                icon: 'chat',
+                title: '还没有私信',
+                text: '去个人主页点击「私信」开始一段对话',
+            }) }}
+            {% endfor %}
+        </div>
+
+        {{ include('components/load-more.twig', { pagination: conversations, base: '/messages?', target: 'conversations' }) }}
+    </div>
+</section>
+{% endblock %}

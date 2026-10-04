@@ -1,0 +1,281 @@
+{% extends 'layouts/install.twig' %}
+
+{% block content %}
+
+{% if view == 'step1' %}
+<section class="card">
+    {% if state == 'installed' %}
+    <div class="notice">检测到站点已在运行（数据库存在迁移记录），安装向导已停用。如本次是全新部署且误出现本页，请检查 <code>storage/</code> 是否可写后返回站点首页。</div>
+    {% if not lockWritable %}
+    <div class="alert warn">storage/ 目录不可写，无法补写锁定文件；请调整目录权限（如 chmod 0775 storage）后访问站点首页自动补锁。</div>
+    {% endif %}
+    <div class="actions">
+        <a class="btn" href="/">返回站点</a>
+        <a class="btn ghost" href="/install">重新检查</a>
+    </div>
+    {% else %}
+    {% if not requiredPassed %}
+    <div class="alert">存在未满足的必需项（下方标红）。可先修复环境，仍可继续尝试安装，但可能失败。</div>
+    {% endif %}
+
+    {% if state == 'half' %}
+    <div class="notice">检测到 <code>.env</code> 已配置且数据库可连接，但尚未初始化数据。可继续完成安装。</div>
+    <div class="actions">
+        <a class="btn" href="/install?step=3">继续初始化</a>
+        <a class="btn ghost" href="/install?step=2">修改数据库配置</a>
+    </div>
+    {% elseif state == 'configured' %}
+    <div class="alert warn">检测到 <code>.env</code>，但无法连接数据库。请修正数据库配置后再继续；若数据库已在别处恢复，可仅修正配置。</div>
+    <div class="actions">
+        <a class="btn" href="/install?step=2">修改数据库配置</a>
+    </div>
+    {% else %}
+    <div class="notice">欢迎使用 MOFU社区。安装共 3 步：环境自检 → 数据库与站点 → 初始化数据（迁移 + 管理员账号）。全程无需命令行。</div>
+    <div class="actions">
+        <a class="btn" href="/install?step=2">开始安装</a>
+        <a class="btn ghost" href="/install">重新检查</a>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <h2 style="margin-top:22px">环境自检</h2>
+    <table class="checks">
+        {% for check in checks %}
+        <tr>
+            <td>
+                <span class="dot {{ check.ok ? 'ok' : (check.level == 'required' ? 'bad' : 'warn') }}"></span>
+                {{ check.label }}
+                {% if check.level == 'recommended' %}<span class="hint">（建议）</span>{% endif %}
+                {% if not check.ok and check.hint %}<span class="hint"> — {{ check.hint }}</span>{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+
+{% elseif view == 'step2' %}
+<section class="card">
+    <h2>数据库与站点</h2>
+    {% if errors.db is defined %}<div class="alert">{{ errors.db }}</div>{% endif %}
+
+    <form method="post" action="/install/db">
+        <input type="hidden" name="_token" value="{{ token }}">
+
+        <label class="f"><span>站点名称</span>
+            <input type="text" name="site_name" value="{{ values.site_name }}" maxlength="48" required>
+        </label>
+
+        <label class="f"><span>站点地址（含协议，用于生成链接）</span>
+            <input type="text" name="site_url" value="{{ values.site_url }}" required>
+            {% if errors.site_url is defined %}<span class="err">{{ errors.site_url }}</span>{% endif %}
+        </label>
+
+        <div class="grid">
+            <label class="f"><span>数据库主机</span>
+                <input type="text" name="db_host" value="{{ values.db_host }}" required>
+                {% if errors.db_host is defined %}<span class="err">{{ errors.db_host }}</span>{% endif %}
+            </label>
+            <label class="f"><span>端口</span>
+                <input type="number" name="db_port" value="{{ values.db_port }}" min="1" max="65535" required>
+                {% if errors.db_port is defined %}<span class="err">{{ errors.db_port }}</span>{% endif %}
+            </label>
+        </div>
+
+        <label class="f"><span>数据库名（不存在时将尝试自动创建）</span>
+            <input type="text" name="db_name" value="{{ values.db_name }}" maxlength="64" required>
+            {% if errors.db_name is defined %}<span class="err">{{ errors.db_name }}</span>{% endif %}
+        </label>
+
+        <div class="grid">
+            <label class="f"><span>数据库用户名</span>
+                <input type="text" name="db_user" value="{{ values.db_user }}" required>
+                {% if errors.db_user is defined %}<span class="err">{{ errors.db_user }}</span>{% endif %}
+            </label>
+            <label class="f"><span>数据库密码</span>
+                <input type="password" name="db_pass" value="{{ values.db_pass }}" autocomplete="off">
+            </label>
+        </div>
+
+        <label class="f"><span>Twikoo 评论环境地址（可选，留空则使用站内评论）</span>
+            <input type="text" name="twikoo_env" value="{{ values.twikoo_env|default('') }}" maxlength="190"
+                   placeholder="https://your-twikoo.vercel.app">
+        </label>
+
+        <label class="check-inline">
+            <input type="checkbox" name="debug" value="1" {{ values.debug == '1' ? 'checked' : '' }}>
+            <span>启用调试模式（仅本地开发；生产环境请保持关闭）</span>
+        </label>
+
+        <div class="actions">
+            <button class="btn" type="submit">保存并测试连接</button>
+            <a class="btn ghost" href="/install">返回上一步</a>
+        </div>
+    </form>
+</section>
+
+{% elseif view == 'step3' %}
+<section class="card">
+    <h2>初始化数据</h2>
+
+    {% if errors.username is defined or errors.email is defined or errors.password is defined or errors.password_confirm is defined or errors.nickname is defined %}
+    <div class="alert">管理员信息有误，请修正后重新提交。</div>
+    {% endif %}
+
+    {% if pending|length > 0 %}
+    <div class="notice">将执行 {{ pending|length }} 个数据库迁移（{{ pending|slice(0, 4)|join('、') }}{{ pending|length > 4 ? ' 等' : '' }}）。</div>
+    {% else %}
+    <div class="notice">数据库结构已是最新，无需执行迁移。</div>
+    {% endif %}
+
+    {% if userCount > 0 %}
+    <div class="notice">检测到数据库已有 {{ userCount }} 个用户，将跳过管理员创建，直接完成锁定。</div>
+    {% endif %}
+
+    <form method="post" action="/install/init">
+        <input type="hidden" name="_token" value="{{ token }}">
+
+        <div class="grid">
+            <label class="f"><span>管理员用户名（3-20 位字母、数字或下划线）</span>
+                <input type="text" name="username" value="{{ values.username }}" maxlength="20" required>
+                {% if errors.username is defined %}<span class="err">{{ errors.username }}</span>{% endif %}
+            </label>
+            <label class="f"><span>昵称（可选）</span>
+                <input type="text" name="nickname" value="{{ values.nickname }}" maxlength="24">
+                {% if errors.nickname is defined %}<span class="err">{{ errors.nickname }}</span>{% endif %}
+            </label>
+        </div>
+
+        <label class="f"><span>邮箱</span>
+            <input type="email" name="email" value="{{ values.email }}" required>
+            {% if errors.email is defined %}<span class="err">{{ errors.email }}</span>{% endif %}
+        </label>
+
+        <div class="grid">
+            <label class="f"><span>密码（至少 8 位）</span>
+                <input type="password" name="password" autocomplete="new-password" required>
+                {% if errors.password is defined %}<span class="err">{{ errors.password }}</span>{% endif %}
+            </label>
+            <label class="f"><span>确认密码</span>
+                <input type="password" name="password_confirm" autocomplete="new-password" required>
+                {% if errors.password_confirm is defined %}<span class="err">{{ errors.password_confirm }}</span>{% endif %}
+            </label>
+        </div>
+
+        {% if userCount == 0 %}
+        <p class="hint">该账号将拥有超级管理员权限，请妥善保管密码。</p>
+        {% endif %}
+
+        <div class="actions">
+            <button class="btn" type="submit">完成安装</button>
+            <a class="btn ghost" href="/install?step=2">返回上一步</a>
+        </div>
+    </form>
+</section>
+
+{% elseif view == 'done' %}
+<section class="card">
+    <h2>安装完成</h2>
+    <div class="notice">站点已初始化并锁定安装向导，现在可以正常使用了。</div>
+    <div class="actions">
+        <a class="btn" href="/">访问站点</a>
+        <a class="btn ghost" href="/login">立即登录</a>
+    </div>
+    <ul class="plain hint">
+        <li>安装向导已锁定，再次访问 /install 将返回 404；需重新安装时请清空数据库并删除根目录 .env 与 storage/install.lock。</li>
+        <li>建议配置定期备份：<code>php bin/backup.php</code>（无命令行环境可手动备份数据库与 public/uploads）。</li>
+        <li>生产环境请保持 APP_DEBUG 关闭；如需开启请编辑根目录 .env 后改回。</li>
+    </ul>
+</section>
+
+{% elseif view == 'envblocked' %}
+<section class="card">
+    <h2>环境自检未通过</h2>
+    <div class="alert">以下必需项未通过，继续安装会导致站点无法正常运行，请先在服务器上修复：</div>
+    <table class="checks">
+        {% for check in checks %}
+        {% if check.level == 'required' and not check.ok %}
+        <tr>
+            <td>
+                <span class="dot bad"></span>
+                {{ check.label }}
+                {% if check.hint %}<span class="hint"> — {{ check.hint }}</span>{% endif %}
+            </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+    </table>
+    <p class="hint">常见修复方式：用文件管理器在站点目录下新建缺失的文件夹（如 <code>storage/logs</code>、<code>storage/cache</code>、<code>public/uploads</code>），并把它们的权限设为 755（或 775）。空文件夹很容易在 FTP 上传时被跳过。</p>
+    <div class="actions">
+        <a class="btn" href="/install">返回环境自检</a>
+        <a class="btn ghost" href="/install?step=3">仍要继续安装</a>
+    </div>
+</section>
+
+{% elseif view == 'conflict' %}
+<section class="card">
+    <h2>数据库不可直接安装</h2>
+
+    {% if kind == 'partial' %}
+    <div class="alert">目标数据库包含 <code>users</code> 等 MOFU 特征表，但没有迁移记录表 <code>schema_migrations</code>。</div>
+    <p class="hint">常见原因：上一次安装中途被中断（浏览器关闭 / 请求超时），从旧库、备份恢复了数据但缺少迁移记录，或这个库本就属于其他程序。为避免覆盖数据，向导已停止安装。</p>
+    <ul class="plain hint">
+        <li><b>若是残留的测试库 / 误选的库</b>：在主机面板删掉该库后重新创建（空的），再回到上一步重试；也可在 phpMyAdmin 中全选删除所有表。</li>
+        <li><b>若库中数据重要</b>：先做备份；如果原站曾正常运行，请从备份中恢复 <code>schema_migrations</code> 表（其中记录已应用的迁移），再重新初始化。</li>
+        <li><b>若该库属于其他程序</b>：请改用主机面板新建的专用空数据库。</li>
+    </ul>
+    {% else %}
+    <div class="alert">目标数据库非空，且包含不属于 MOFU 的数据表（共 {{ tableCount }} 张）。</div>
+    <p class="hint">向导只会在空数据库上安装，以免覆盖已有数据。</p>
+    <ul class="plain hint">
+        <li>建议在主机面板新建一个专用空数据库，回到上一步填入新的库名。</li>
+        <li>若该库确实属于本应用，请改用正确的库名或先清空它。</li>
+    </ul>
+    {% endif %}
+
+    {% if registryEmpty %}
+    <div class="notice">另：上次安装尝试在该库中留下了一个空的 <code>schema_migrations</code> 表（无数据）。确认它不是其他程序的表后，可在 phpMyAdmin 中删除它，使该库恢复原状。</div>
+    {% endif %}
+
+    {% if tables|length > 0 %}
+    <p class="hint">已检测到的表：<code>{{ tables|join('、') }}</code>{% if tableCount > tables|length %} 等 {{ tableCount }} 张{% endif %}</p>
+    {% endif %}
+    {% if raw %}<p class="hint">原始错误：<code>{{ raw }}</code></p>{% endif %}
+
+    <div class="actions">
+        <a class="btn" href="/install?step=2">修改数据库配置</a>
+        <a class="btn ghost" href="/install?step=3">我已处理，重试</a>
+    </div>
+</section>
+
+{% elseif view == 'blocked' %}
+<section class="card">
+    <h2>站点已在运行</h2>
+    <div class="alert warn">当前站点已有数据且在运行，安装向导的写操作已停用。如需重新安装，请先清空数据库并删除根目录 .env 与 storage/install.lock。</div>
+    <div class="actions">
+        <a class="btn" href="/">返回站点</a>
+    </div>
+</section>
+
+{% elseif view == 'manual-env' %}
+<section class="card">
+    <h2>手动创建 .env</h2>
+    <div class="alert">{{ message }}</div>
+    <p class="hint">请在项目根目录创建 <code>.env</code> 文件并写入以下内容（或在给根目录写权限后返回上一步重试）：</p>
+    <pre class="env">{{ content }}</pre>
+    <div class="actions">
+        <a class="btn" href="/install?step=3">我已手动创建，继续</a>
+        <a class="btn ghost" href="/install?step=2">返回重试自动写入</a>
+    </div>
+</section>
+
+{% else %}
+<section class="card">
+    <h2>安装未完成</h2>
+    <div class="alert">{{ message }}</div>
+    <div class="actions">
+        <a class="btn" href="/install">返回安装首页</a>
+    </div>
+</section>
+{% endif %}
+
+{% endblock %}

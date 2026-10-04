@@ -1,0 +1,59 @@
+{# 表白墙 / 树洞卡片 #}
+<article class="card confession-card" data-confession-id="{{ item.id }}" data-board="{{ item.board }}">
+    <header class="confession-card__head">
+        <span class="avatar avatar--md" style="--avatar-hue: {{ item.author.hue }}" aria-hidden="true">{{ item.author.initial }}</span>
+        <div class="confession-card__meta">
+            {% if item.author.kind == 'named' %}
+            <a class="confession-card__author" href="{{ item.author.url }}">{{ item.author.display }}</a>
+            {% else %}
+            <span class="confession-card__author confession-card__author--anon">{{ item.author.display }}</span>
+            {% endif %}
+            <div class="confession-card__sub">
+                <time datetime="{{ item.created_at }}">{{ item.time_ago }}</time>
+                {% if item.category_label %}<span class="meta-chip">{{ item.category_label }}</span>{% endif %}
+                {% if item.is_featured %}<span class="meta-chip meta-chip--accent">精选</span>{% endif %}
+                {% if item.status_label %}<span class="meta-chip meta-chip--warn">{{ item.status_label }}</span>{% endif %}
+            </div>
+        </div>
+        {% if currentUser %}
+        <button class="icon-btn icon-btn--sm" type="button" data-action="report"
+                data-target-type="confession" data-target-id="{{ item.id }}" aria-label="举报">
+            <span class="material-symbols-outlined" aria-hidden="true">flag</span>
+        </button>
+        {% endif %}
+    </header>
+
+    <div class="confession-card__body">
+        <div class="confession-card__content">{{ item.content_html|raw }}</div>
+        {% if item.media|length > 0 %}
+        <div class="post-media" data-count="{{ min(item.media|length, 4) }}">
+            {% for m in item.media|slice(0, 4) %}
+            <button class="post-media__item" type="button" data-action="lightbox" data-src="{{ m.url }}">
+                <img src="{{ m.thumb }}" alt="图片" loading="lazy" decoding="async">
+            </button>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <footer class="confession-card__foot">
+        <button class="caction caction--like{{ item.liked ? ' is-active' : '' }}" type="button"
+                data-action="toggle-like" data-target-type="confession" data-target-id="{{ item.id }}"
+                aria-pressed="{{ item.liked ? 'true' : 'false' }}" aria-label="喜欢">
+            <span class="material-symbols-outlined" aria-hidden="true">favorite</span>
+            <span class="post-action__count" data-like-count>{{ item.like_count }}</span>
+        </button>
+        <a class="caction" href="{{ item.url }}#comments" aria-label="回应">
+            <span class="material-symbols-outlined" aria-hidden="true">forum</span>
+            <span class="post-action__count">{{ item.comment_count }}</span>
+        </a>
+        <button class="caction{{ item.favorited ? ' is-active' : '' }}" type="button"
+                data-action="toggle-favorite" data-target-type="confession" data-target-id="{{ item.id }}"
+                aria-pressed="{{ item.favorited ? 'true' : 'false' }}" aria-label="收藏">
+            <span class="material-symbols-outlined" aria-hidden="true">bookmark</span>
+        </button>
+        <a class="caction caction--tail" href="{{ item.url }}" aria-label="查看详情">
+            <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+        </a>
+    </footer>
+</article>

@@ -1,0 +1,66 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}circles{% endblock %}
+{% block title %}兴趣圈子 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="circles-page">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">兴趣圈子</h1>
+            <p class="page-subtitle">加入感兴趣的小圈子，和同好一起交流</p>
+        </div>
+        {% if currentUser %}
+        <a class="filled-btn filled-btn--sm" href="/circles/new">
+            <span class="material-symbols-outlined" aria-hidden="true">add</span> 创建圈子
+        </a>
+        {% endif %}
+    </header>
+
+    {% if myCircles|length > 0 %}
+    <h2 class="feed__title">我加入的圈子</h2>
+    <div class="circle-grid">
+        {% for circle in myCircles %}
+        <a class="card circle-card" href="{{ circle.url }}">
+            <span class="circle-card__icon material-symbols-outlined" aria-hidden="true">{{ circle.icon }}</span>
+            <span class="circle-card__body">
+                <span class="circle-card__name">{{ circle.name }}</span>
+                <span class="circle-card__meta">{{ circle.member_count }} 成员 · {{ circle.post_count }} 动态</span>
+            </span>
+            {% if circle.my_role == 'owner' %}<span class="meta-chip meta-chip--accent">圈主</span>
+            {% elseif circle.my_role == 'moderator' %}<span class="meta-chip meta-chip--accent">管理员</span>{% endif %}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <h2 class="feed__title">发现圈子</h2>
+    <div class="circle-grid" data-list="circles">
+        {% for circle in circles.items %}
+        <a class="card circle-card" href="{{ circle.url }}">
+            <span class="circle-card__icon material-symbols-outlined" aria-hidden="true">{{ circle.icon }}</span>
+            <span class="circle-card__body">
+                <span class="circle-card__name">{{ circle.name }}</span>
+                <span class="circle-card__meta">{{ circle.member_count }} 成员 · {{ circle.post_count }} 动态</span>
+                {% if circle.description is not empty %}
+                <span class="circle-card__desc">{{ circle.description }}</span>
+                {% endif %}
+            </span>
+            {% if circle.my_status == 'active' %}<span class="meta-chip">已加入</span>
+            {% elseif circle.my_status == 'pending' %}<span class="meta-chip meta-chip--warn">待审批</span>
+            {% elseif circle.visibility == 'approval' %}<span class="meta-chip">审批加入</span>{% endif %}
+        </a>
+        {% else %}
+        {{ include('components/empty-state.twig', {
+            icon: 'groups',
+            title: '还没有圈子',
+            text: '创建第一个圈子，聚集志同道合的同学',
+            cta_href: currentUser ? '/circles/new' : '',
+            cta_label: '创建圈子',
+        }) }}
+        {% endfor %}
+    </div>
+
+    {{ include('components/load-more.twig', { pagination: circles, base: '/circles?', target: 'circles' }) }}
+</section>
+{% endblock %}

@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="zh-CN" class="no-js" data-page="{% block page_id %}page{% endblock %}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1">
+<meta name="theme-color" content="">
+<title>{% block title %}{{ app.name }}{% endblock %}</title>
+<meta name="csrf-token" content="{{ csrfToken }}">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="description" content="{% block meta_description %}{{ app.name }} - 校园社区平台{% endblock %}">
+<link rel="canonical" href="{{ app.url }}{% block canonical_path %}{{ currentPath }}{% endblock %}">
+<meta property="og:site_name" content="{{ app.name }}">
+<meta property="og:type" content="{% block og_type %}website{% endblock %}">
+<meta property="og:title" content="{% block og_title %}{{ app.name }}{% endblock %}">
+<meta property="og:description" content="{% block og_description %}校园社区平台{% endblock %}">
+<meta property="og:url" content="{{ app.url }}{% block og_path %}{{ currentPath }}{% endblock %}">
+{% block og_extra %}{% endblock %}
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="{% block twitter_title %}{{ app.name }}{% endblock %}">
+<meta name="twitter:description" content="{% block twitter_description %}校园社区平台{% endblock %}">
+{% block json_ld %}{% endblock %}
+<noscript><p style="padding:2rem;text-align:center">请启用 JavaScript 以正常使用本站。</p></noscript>
+<script>
+document.documentElement.classList.remove('no-js');
+window.__MOFU__ = {
+  csrf: {{ csrfToken|json_encode|raw }},
+  user: {% if currentUser %}{"id": {{ currentUser.id }}, "username": {{ currentUser.username|json_encode|raw }}, "nickname": {{ currentUser.nickname|json_encode|raw }}, "can_admin": {{ currentUser.can_admin ? 'true' : 'false' }}}{% else %}null{% endif %},
+  theme: {{ themeConfig|json_encode|raw }},
+  upload: { maxMb: {{ upload.maxMb }}, videoMaxMb: {{ upload.videoMaxMb }} },
+  twikoo: { envId: {{ twikooEnvId|json_encode|raw }}, scriptUrl: {{ twikooScriptUrl|json_encode|raw }}, lang: {{ twikooLang|json_encode|raw }} }
+};
+</script>
+{{ vite_asset('src-client/main.ts') }}
+{# 主题变量必须在样式表之后：#theme-vars 与 base.css 的 M3 别名同特异度，需由主题胜出 #}
+<style id="theme-vars">{{ themeCss|raw }}</style>
+<script>
+(function () {
+  try {
+    var raw = localStorage.getItem('mofu.theme.guest');
+    if (!raw) return;
+    var data = JSON.parse(raw);
+    if (data && typeof data.css === 'string' && data.css) {
+      var el = document.getElementById('theme-vars');
+      if (el) el.textContent = data.css;
+    }
+  } catch (e) {}
+})();
+</script>
+<style id="brand-vars">{{ brandCss|raw }}</style>
+</head>
+<body class="mofu-body">
+<m3e-theme id="app-theme"
+    color="{{ themeConfig.sourceColor }}"
+    scheme="{{ themeConfig.scheme }}"
+    contrast="{{ themeConfig.contrast }}"
+    density="{{ themeConfig.density }}"
+    motion="{{ themeConfig.motion }}">
+
+<a class="skip-link" href="#swup">跳到主要内容</a>
+
+<header class="app-header" data-app-header>
+    <div class="app-header__inner">
+        <button class="icon-btn nav-toggle" type="button" aria-label="打开导航菜单" aria-expanded="false" data-action="toggle-nav">
+            <span class="material-symbols-outlined" aria-hidden="true">menu</span>
+        </button>
+
+        <a class="brand" href="/" data-nav-item="/">
+            <span class="brand-mark brand-mark--sm" aria-hidden="true">
+                <img src="/logo.png" alt="" width="26" height="26" loading="eager" decoding="async">
+            </span>
+            <span class="brand__name">{{ app.name }}</span>
+        </a>
+
+        <form class="global-search" method="get" action="/search" role="search">
+            <span class="material-symbols-outlined global-search__icon" aria-hidden="true">search</span>
+            <input class="global-search__input" type="search" name="q" placeholder="搜索动态、话题、同学…"
+                   aria-label="全局搜索" autocomplete="off" maxlength="50">
+        </form>
+
+        <div class="app-header__actions">
+            <a class="icon-btn global-search__toggle" href="/search" aria-label="搜索">
+                <span class="material-symbols-outlined" aria-hidden="true">search</span>
+            </a>
+            {% if currentUser %}
+                <div class="user-menu" data-user-menu>
+                    <button class="user-menu__trigger" type="button" aria-haspopup="menu" aria-expanded="false" data-action="toggle-user-menu" aria-label="用户菜单">
+                        {{ include('components/avatar.twig', { user: currentUser, size: 'sm' }) }}
+                    </button>
+                    <div class="user-menu__panel" hidden data-user-menu-panel role="menu">
+                        <div class="user-menu__header">
+                            <strong>{{ currentUser.nickname }}</strong>
+                            <span>@{{ currentUser.username }}</span>
+                        </div>
+                        <a class="user-menu__item" role="menuitem" href="/u/{{ currentUser.username }}">
+                            <span class="material-symbols-outlined" aria-hidden="true">person</span><span data-i18n="header.profile">个人主页</span>
+                        </a>
+                        <a class="user-menu__item" role="menuitem" href="/messages">
+                            <span class="material-symbols-outlined" aria-hidden="true">chat</span><span data-i18n="header.messages">私信</span>
+                        </a>
+                        <a class="user-menu__item" role="menuitem" href="/my/confessions">
+                            <span class="material-symbols-outlined" aria-hidden="true">favorite</span><span data-i18n="header.my_confessions">我的投稿</span>
+                        </a>
+                        <a class="user-menu__item" role="menuitem" href="/settings/profile">
+                            <span class="material-symbols-outlined" aria-hidden="true">settings</span><span data-i18n="header.settings">设置</span>
+                        </a>
+                        {% if currentUser.can_admin %}
+                        <a class="user-menu__item" role="menuitem" href="/admin">
+                            <span class="material-symbols-outlined" aria-hidden="true">admin_panel_settings</span><span data-i18n="header.admin_panel">管理后台</span>
+                        </a>
+                        {% endif %}
+                        <form method="post" action="/logout" class="user-menu__form">
+                            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                            <button class="user-menu__item user-menu__item--button" type="submit" role="menuitem">
+                                <span class="material-symbols-outlined" aria-hidden="true">logout</span><span data-i18n="header.logout">退出登录</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            {% else %}
+                <a class="text-btn" href="/login"><span data-i18n="header.login">登录</span></a>
+                <a class="filled-btn filled-btn--sm" href="/register"><span data-i18n="header.register">注册</span></a>
+            {% endif %}
+        </div>
+    </div>
+</header>
+
+<div class="app-body">
+    <aside class="side-nav" id="side-nav" data-side-nav aria-label="侧边导航">
+        <div class="side-nav__brand">
+            <span class="brand-mark brand-mark--sm" aria-hidden="true">
+                <img src="/logo.png" alt="" width="26" height="26" loading="lazy" decoding="async">
+            </span>
+            <span class="side-nav__brand-name">{{ app.name }}</span>
+        </div>
+        <nav class="side-nav__group">
+            <p class="side-nav__label" data-i18n="nav.browse">浏览</p>
+            <a class="side-nav__item" href="/wall" data-nav-item="/wall">
+                <span class="material-symbols-outlined" aria-hidden="true">favorite</span><span data-i18n="nav.wall">表白墙</span>
+            </a>
+            <a class="side-nav__item" href="/hole" data-nav-item="/hole">
+                <span class="material-symbols-outlined" aria-hidden="true">forest</span><span data-i18n="nav.hole">树洞</span>
+            </a>
+            <a class="side-nav__item" href="/circles" data-nav-item="/circles">
+                <span class="material-symbols-outlined" aria-hidden="true">groups</span><span data-i18n="nav.circles">圈子</span>
+            </a>
+            <a class="side-nav__item" href="/boards" data-nav-item="/boards">
+                <span class="material-symbols-outlined" aria-hidden="true">dashboard</span><span data-i18n="nav.boards">板块</span>
+            </a>
+            <a class="side-nav__item" href="/events" data-nav-item="/events">
+                <span class="material-symbols-outlined" aria-hidden="true">event</span><span data-i18n="nav.events">活动</span>
+            </a>
+            <a class="side-nav__item" href="/news" data-nav-item="/news">
+                <span class="material-symbols-outlined" aria-hidden="true">newspaper</span><span data-i18n="nav.news">资讯</span>
+            </a>
+            {% if currentUser %}
+            <a class="side-nav__cta filled-btn" href="/compose">
+                <span class="material-symbols-outlined" aria-hidden="true">edit_square</span><span data-i18n="nav.compose_cta">发布动态</span>
+            </a>
+            {% else %}
+            <a class="side-nav__cta filled-btn" href="/register">加入 {{ app.name }}</a>
+            <a class="side-nav__item" href="/login" data-nav-item="/login">
+                <span class="material-symbols-outlined" aria-hidden="true">login</span><span data-i18n="nav.login">登录</span>
+            </a>
+            {% endif %}
+        </nav>
+    </aside>
+
+    <div class="side-nav-scrim" data-nav-scrim hidden></div>
+
+    {% if background and background.url %}
+    {# URL 必须用 CSS 转义 + CSS 字符串引号：js 转义会把 : 写成 \u003A，在 url() 里退化成 u003A #}
+    <div class="site-background" aria-hidden="true"
+         style="background-image: url(&quot;{{ background.url|e('css') }}&quot;); opacity: {{ background.opacity }}%"></div>
+    {% endif %}
+
+    <main id="swup" class="page-main transition-swup" data-page-content tabindex="-1">
+        {# 换页时 swup 只替换本容器，html[data-page] 不会更新；此标记供前端同步页面标识 #}
+        <span data-page-marker data-page="{{ block('page_id') }}" hidden></span>
+        {% block content %}{% endblock %}
+    </main>
+</div>
+
+<footer class="site-footer">
+    <div class="site-footer__inner">
+        <div class="site-footer__brand">
+            <span class="brand-mark brand-mark--sm" aria-hidden="true">
+                <img src="/logo.png" alt="" width="26" height="26" loading="lazy" decoding="async">
+            </span>
+            <div class="site-footer__meta">
+                <strong>{{ app.name }}</strong>
+                <span data-i18n="footer.tagline">分享校园生活 · 记录每一份心情</span>
+            </div>
+        </div>
+        <nav class="site-footer__links" aria-label="页脚导航">
+            <a href="/about" data-i18n="nav.about">关于</a>
+            <a href="/boards" data-i18n="nav.boards">板块</a>
+            <a href="/circles" data-i18n="nav.circles">圈子</a>
+            <a href="/events" data-i18n="nav.events">活动</a>
+            <a href="/news" data-i18n="nav.news">资讯</a>
+        </nav>
+        <p class="site-footer__copy">© {{ "now"|date("Y") }} {{ app.name }}</p>
+    </div>
+</footer>
+
+<div class="fab-stack" data-fab-stack>
+    {# 回到顶部：并入悬浮按钮栈（滚动足够多才出现，默认 hidden） #}
+    <button class="fab-btn back-to-top" id="back-to-top" type="button" hidden data-action="back-to-top" aria-label="回到顶部">
+        <span class="material-symbols-outlined" aria-hidden="true">arrow_upward</span>
+    </button>
+    <a class="fab-btn fab-btn--primary" href="/compose" aria-label="发布帖子" data-tooltip="发布帖子">
+        <span class="material-symbols-outlined" aria-hidden="true">edit_square</span>
+    </a>
+    <a class="fab-btn" href="/music" aria-label="音乐" data-tooltip="音乐">
+        <span class="material-symbols-outlined" aria-hidden="true">music_note</span>
+    </a>
+</div>
+
+<nav class="bottom-nav" aria-label="主导航">
+    <div class="bottom-nav__bar">
+        <span class="bottom-nav__thumb" data-bottom-nav-thumb aria-hidden="true"></span>
+        <a class="bottom-nav__item" href="/" data-nav-item="/">
+            <span class="material-symbols-outlined" aria-hidden="true">home</span><span class="bottom-nav__label" data-i18n="nav.home">主页</span>
+        </a>
+        <a class="bottom-nav__item" href="/boards" data-nav-item="/boards">
+            <span class="material-symbols-outlined" aria-hidden="true">dashboard</span><span class="bottom-nav__label" data-i18n="nav.boards">板块</span>
+        </a>
+        <a class="bottom-nav__item" href="/messages" data-nav-item="/messages">
+            <span class="material-symbols-outlined" aria-hidden="true">chat</span><span class="bottom-nav__label" data-i18n="nav.messages">消息</span>
+            <span class="bottom-nav__badge-wrap"><span class="nav-badge" data-unread-badge hidden></span><span class="nav-badge nav-badge--offset" data-message-badge hidden></span></span>
+        </a>
+        <a class="bottom-nav__item" href="/me" data-nav-item="/me">
+            <span class="material-symbols-outlined" aria-hidden="true">person</span><span class="bottom-nav__label" data-i18n="nav.profile">我的</span>
+        </a>
+    </div>
+</nav>
+
+<div class="toast-host" id="toast-host" aria-live="polite"></div>
+<div class="lightbox" id="lightbox" hidden>
+    <button class="lightbox__close icon-btn" type="button" aria-label="关闭预览" data-action="close-lightbox">
+        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+    </button>
+    <img class="lightbox__img" src="" alt="" loading="lazy" decoding="async">
+</div>
+
+<div class="page-loading" data-page-loading aria-hidden="true" hidden>
+    <m3e-loading-indicator></m3e-loading-indicator>
+</div>
+</m3e-theme>
+</body>
+</html>

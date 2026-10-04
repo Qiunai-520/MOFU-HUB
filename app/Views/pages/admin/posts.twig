@@ -1,0 +1,67 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}动态管理 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">动态管理</h1>
+    <div class="filter-tabs">
+        <a class="filter-tab{{ status == '' ? ' is-active' : '' }}" href="/admin/posts">全部</a>
+        <a class="filter-tab{{ status == 'published' ? ' is-active' : '' }}" href="/admin/posts?status=published">已发布</a>
+        <a class="filter-tab{{ status == 'hidden' ? ' is-active' : '' }}" href="/admin/posts?status=hidden">已隐藏</a>
+        <a class="filter-tab{{ status == 'removed' ? ' is-active' : '' }}" href="/admin/posts?status=removed">已移除</a>
+    </div>
+</div>
+
+<div class="table-wrap">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>内容</th>
+                <th>作者</th>
+                <th>状态</th>
+                <th>互动</th>
+                <th>时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in posts.items %}
+            <tr>
+                <td data-label="内容" class="admin-table__content">{% if p.visibility == 'private' %}<span title="仅自己可见，前台不可访问">{{ p.excerpt }}</span>{% else %}<a href="/posts/{{ p.id }}">{{ p.excerpt }}</a>{% endif %}</td>
+                <td data-label="作者"><a href="/u/{{ p.username }}">{{ p.nickname }}</a></td>
+                <td data-label="状态">
+                    {% if p.status == 'published' %}<span class="status-dot status-dot--ok"></span>已发布
+                    {% elseif p.status == 'hidden' %}<span class="status-dot status-dot--warn"></span>已隐藏
+                    {% else %}<span class="status-dot status-dot--danger"></span>已移除{% endif %}
+                    {% if p.visibility == 'private' %}<span class="admin-table__sub">仅自己可见</span>{% endif %}
+                </td>
+                <td data-label="互动" class="admin-table__sub">赞 {{ p.like_count }} · 评 {{ p.comment_count }}</td>
+                <td data-label="时间" class="admin-table__sub">{{ p.time_ago }}</td>
+                <td class="admin-table__actions">
+                    <form method="post" action="/admin/posts/{{ p.id }}/status" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        {% if p.status == 'published' %}
+                        <input type="hidden" name="status" value="hidden">
+                        <button class="text-btn text-btn--sm" type="submit">隐藏</button>
+                        {% else %}
+                        <input type="hidden" name="status" value="published">
+                        <button class="text-btn text-btn--sm" type="submit">恢复</button>
+                        {% endif %}
+                    </form>
+                    <form method="post" action="/admin/posts/{{ p.id }}/delete" class="inline-form" data-confirm="确定删除这条动态吗？">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <button class="text-btn text-btn--sm text-btn--danger" type="submit">删除</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="admin-table__empty">没有匹配的动态</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include 'components/pagination.twig' with { pagination: posts, base: '/admin/posts?status=' ~ status } %}
+{% endblock %}

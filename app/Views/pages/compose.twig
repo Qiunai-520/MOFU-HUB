@@ -1,0 +1,74 @@
+{% extends 'layouts/app.twig' %}
+
+{% set isEdit = editPost is defined %}
+{% set composeCommunity = composeCommunity is defined ? composeCommunity : null %}
+
+{% block page_id %}compose{% endblock %}
+{% block title %}{{ composeCommunity ? '发到圈子' : (isEdit ? '编辑动态' : '发布动态') }} · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="compose" data-compose
+         {% if composeCommunity %}data-community-id="{{ composeCommunity.id }}"{% endif %}
+         {% if isEdit %}data-edit-post-id="{{ editPost.id }}"
+         data-edit-topics="{{ editPost.topics|json_encode|e('html_attr') }}"
+         data-edit-media="{{ editPost.media|json_encode|e('html_attr') }}"{% endif %}>
+    <h1 class="page-title">{{ composeCommunity ? '发布到「' ~ composeCommunity.name ~ '」' : (isEdit ? '编辑动态' : '发布动态') }}</h1>
+
+    {% if composeCommunity %}
+    <p class="compose-form__hint">内容将发布到圈子「{{ composeCommunity.name }}」，仅圈内成员可见。
+        <a href="/circles/{{ composeCommunity.slug }}">返回圈子</a></p>
+    {% endif %}
+
+    <form class="compose-form" data-compose-form>
+        <textarea class="compose-form__input" name="content" rows="6" maxlength="2000" data-counter
+                  placeholder="分享你的校园新鲜事…（支持 Markdown 与表情）" data-compose-input>{% if isEdit %}{{ editPost.content }}{% endif %}</textarea>
+
+        <p class="compose-form__hint">支持 Markdown：<code>**加粗**</code> <code>*斜体*</code> <code>~~删除~~</code> <code>`代码`</code> <code>[链接](https://…)</code>；行首 <code>-</code> 列表、<code>&gt;</code> 引用、<code>#</code> 标题。</p>
+
+        <div class="compose-form__media" data-compose-media hidden></div>
+
+        {% if isEdit %}
+        <p class="compose-form__hint">编辑时暂不支持修改图片；如需更换图片，请删除动态后重新发布。</p>
+        {% endif %}
+
+        <div class="compose-form__topics">
+            <div class="compose-form__chips" data-compose-chips></div>
+            <input class="compose-form__topic-input" type="text" maxlength="24"
+                   placeholder="添加话题后回车，例如：社团招新" data-topic-input aria-label="添加话题">
+        </div>
+
+        <div class="compose-form__foot">
+            <div class="compose-form__tools">
+                {% if not isEdit %}
+                <label class="icon-btn" data-tooltip="添加图片或视频（图片最多 9 张，视频 1 个）">
+                    <span class="visually-hidden">添加图片或视频（图片最多 9 张，视频 1 个）</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" multiple hidden data-compose-file>
+                    <span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span>
+                </label>
+                {% endif %}
+                <button class="icon-btn" type="button" data-action="toggle-emoji" aria-label="插入表情" aria-expanded="false">
+                    <span class="material-symbols-outlined" aria-hidden="true">sentiment_satisfied</span>
+                </button>
+                <label class="compose-form__visibility">
+                    <span class="material-symbols-outlined" aria-hidden="true">visibility</span>
+                    <select data-compose-visibility aria-label="可见范围">
+                        <option value="public" {{ isEdit and editPost.visibility == 'public' ? 'selected' : '' }}>公开</option>
+                        <option value="private" {{ isEdit and editPost.visibility == 'private' ? 'selected' : '' }}>仅自己可见</option>
+                    </select>
+                </label>
+            </div>
+            <p class="compose-form__draft-hint" data-draft-hint hidden></p>
+            <button class="filled-btn" type="submit" data-compose-submit>{{ isEdit ? '保存修改' : '发布' }}</button>
+        </div>
+
+        <div class="emoji-panel" data-emoji-panel hidden role="listbox" aria-label="表情"></div>
+        <div class="mention-panel" data-mention-panel hidden role="listbox" aria-label="提及用户"></div>
+
+        <noscript>
+        <p class="form-alert" role="alert">发布需要启用 JavaScript：当前浏览器未启用，请在浏览器设置中开启后重试。</p>
+        </noscript>
+        <p class="compose-form__status" data-compose-status hidden role="status"></p>
+        <p class="form-alert" data-compose-error hidden role="alert"></p>
+    </form>
+</section>
+{% endblock %}

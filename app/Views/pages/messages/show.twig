@@ -1,0 +1,44 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}messages{% endblock %}
+{% block title %}与 {{ other.nickname }} 的私信 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="chat"
+         data-chat
+         data-conversation-id="{{ conversationId }}"
+         data-other-name="{{ other.nickname }}"
+         data-last-id="{{ messages is not empty ? messages|last.id : 0 }}">
+    <header class="chat__head">
+        <a class="icon-btn" href="/messages" aria-label="返回私信列表">
+            <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+        </a>
+        {{ include('components/avatar.twig', { user: other, size: 'sm' }) }}
+        <a class="chat__name" href="{{ other.url }}">{{ other.nickname }}</a>
+        <span class="chat__status" data-chat-status hidden>实时连接已断开，正在定时刷新</span>
+    </header>
+
+    <div class="chat__thread" data-chat-thread>
+        {% for message in messages %}
+        <div class="msg{{ message.mine ? ' msg--mine' : '' }}" data-message-id="{{ message.id }}">
+            <div class="msg__bubble">{{ message.content }}</div>
+            <time class="msg__time" datetime="{{ message.created_at }}">{{ message.time }}</time>
+        </div>
+        {% else %}
+        {{ include('components/empty-state.twig', { compact: true, extra_class: 'chat__empty', text: '还没有消息，打个招呼吧' }) }}
+        {% endfor %}
+    </div>
+
+    {% if canSend %}
+    <form class="chat__composer" data-chat-form>
+        <textarea class="field__input chat__input" name="content" rows="1" maxlength="1000"
+                  placeholder="输入消息…（回车发送，Shift+回车换行）" aria-label="消息内容" required data-chat-input></textarea>
+        <button class="filled-btn filled-btn--sm" type="submit" data-chat-send>发送</button>
+    </form>
+    {% else %}
+    <p class="chat__locked">
+        <span class="material-symbols-outlined" aria-hidden="true">lock</span>{{ lockedReason }}
+    </p>
+    {% endif %}
+</section>
+{% endblock %}

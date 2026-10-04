@@ -1,0 +1,18 @@
+{# 用户卡片（关注列表 / 推荐关注） #}
+<div class="card user-card">
+    <a class="user-card__avatar" href="{{ user.url }}">
+        {{ include('components/avatar.twig', { user: user, size: 'md' }) }}
+    </a>
+    <div class="user-card__info">
+        <a class="user-card__name" href="{{ user.url }}">{{ user.nickname }}</a>
+        <span class="user-card__username">@{{ user.username }}</span>
+        {% if user.bio is not empty %}<p class="user-card__bio">{{ user.bio }}</p>{% endif %}
+    </div>
+    {% if currentUser and not user.is_self %}
+    <button class="{{ user.is_following ? 'outlined-btn outlined-btn--sm' : 'filled-btn filled-btn--sm' }} follow-btn{{ user.is_following ? ' is-following' : '' }}" type="button"
+            data-action="toggle-follow" data-user-id="{{ user.id }}" data-follow-size="sm"
+            aria-pressed="{{ user.is_following ? 'true' : 'false' }}">
+        {{ user.is_following ? '已关注' : '关注' }}
+    </button>
+    {% endif %}
+</div>

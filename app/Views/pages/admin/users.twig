@@ -1,0 +1,71 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}用户管理 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">用户管理</h1>
+    <form class="admin-search" method="get" action="/admin/users">
+        <input class="field__input" type="search" name="q" value="{{ q }}" placeholder="搜索用户名 / 昵称 / 邮箱">
+        <button class="outlined-btn outlined-btn--sm" type="submit">搜索</button>
+    </form>
+</div>
+
+<div class="table-wrap">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>用户</th>
+                <th>邮箱</th>
+                <th>角色</th>
+                <th>状态</th>
+                <th>注册时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users.items %}
+            <tr>
+                <td data-label="用户">
+                    <a href="/u/{{ u.username }}">@{{ u.username }}</a>
+                    {% if u.nickname is not empty and u.nickname != u.username %}<span class="admin-table__sub">{{ u.nickname }}</span>{% endif %}
+                </td>
+                <td data-label="邮箱" class="admin-table__sub">{{ u.email }}</td>
+                <td data-label="角色">{{ u.role_slugs ?: 'user' }}</td>
+                <td data-label="状态">
+                    {% if u.status == 'active' %}<span class="status-dot status-dot--ok"></span>正常
+                    {% elseif u.status == 'suspended' %}<span class="status-dot status-dot--warn"></span>限制
+                    {% else %}<span class="status-dot status-dot--danger"></span>封禁{% endif %}
+                </td>
+                <td data-label="注册时间" class="admin-table__sub">{{ u.created_at }}</td>
+                <td class="admin-table__actions">
+                    <form method="post" action="/admin/users/{{ u.id }}/status" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <select name="status" aria-label="调整状态">
+                            <option value="active" {{ u.status == 'active' ? 'selected' : '' }}>正常</option>
+                            <option value="suspended" {{ u.status == 'suspended' ? 'selected' : '' }}>限制</option>
+                            <option value="banned" {{ u.status == 'banned' ? 'selected' : '' }}>封禁</option>
+                        </select>
+                        <button class="text-btn text-btn--sm" type="submit">应用</button>
+                    </form>
+                    <form method="post" action="/admin/users/{{ u.id }}/role" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <select name="role" aria-label="调整角色">
+                            {% for r in roles %}
+                            <option value="{{ r.slug }}" {{ u.role_slugs == r.slug ? 'selected' : '' }}>{{ r.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="text-btn text-btn--sm" type="submit">设置</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="admin-table__empty">没有匹配的用户</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include 'components/pagination.twig' with { pagination: users, base: '/admin/users?q=' ~ (q|url_encode) } %}
+{% endblock %}

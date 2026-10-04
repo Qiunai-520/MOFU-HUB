@@ -1,0 +1,70 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}开发者与贡献者 · {{ app.name }}{% endblock %}
+
+{% macro teamRow(name, role, bio, avatar, email, since) %}
+<div class="team-row" data-team-row>
+    <div class="team-row__avatar">
+        <span class="team-row__avatar-preview{{ avatar is empty ? ' is-empty' : '' }}" data-team-avatar-preview
+              {% if avatar is not empty %}style="background-image: url('{{ avatar|e('css') }}')"{% endif %}>
+            <span class="material-symbols-outlined" aria-hidden="true">person</span>
+        </span>
+        <input type="hidden" name="member_avatar[]" value="{{ avatar }}" data-team-avatar-input>
+        {# 文件选择控件不提交到表单：上传成功后写回上面的隐藏字段 #}
+        <input class="team-row__file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" data-team-avatar-file hidden>
+        <button class="outlined-btn outlined-btn--sm" type="button" data-team-avatar-pick>
+            <span class="material-symbols-outlined" aria-hidden="true">upload</span> 头像
+        </button>
+    </div>
+    <div class="team-row__fields">
+        <input class="field__input team-row__name" type="text" name="member_name[]" value="{{ name }}"
+               maxlength="60" placeholder="名称" required>
+        <input class="field__input team-row__role" type="text" name="member_role[]" value="{{ role }}"
+               maxlength="60" placeholder="角色（如 开发者 / 贡献者）">
+        <input class="field__input team-row__email" type="email" name="member_email[]" value="{{ email }}"
+               maxlength="120" placeholder="邮箱（弹层展示用，可省略）">
+        <input class="field__input team-row__since" type="text" name="member_since[]" value="{{ since }}"
+               maxlength="32" placeholder="加入时间（如 2024-03）">
+        <input class="field__input team-row__bio" type="text" name="member_bio[]" value="{{ bio }}"
+               maxlength="120" placeholder="简介（可省略）">
+    </div>
+    <button class="icon-btn team-row__remove" type="button" data-team-remove aria-label="删除这位成员">
+        <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+    </button>
+</div>
+{% endmacro %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">开发者与贡献者</h1>
+</div>
+
+{% if ok %}
+<div class="form-success" role="status">已保存</div>
+{% endif %}
+{% if error %}
+<div class="form-alert" role="alert">请至少填写一位成员</div>
+{% endif %}
+
+<p class="page-subtitle">显示在「关于」页的团队区；点团队成员卡片会弹出资料卡。可随时添加新成员，留空的名称不会保存。</p>
+
+<form method="post" action="/admin/team" class="team-form" data-team-form>
+    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+    <div class="team-form__rows" data-team-rows>
+        {% for member in members %}
+            {{ _self.teamRow(member.name, member.role, member.bio, member.avatar, member.email, member.since) }}
+        {% endfor %}
+    </div>
+
+    <template data-team-template>{{ _self.teamRow('', '', '', '', '', '') }}</template>
+
+    <div class="team-form__foot">
+        <button class="outlined-btn" type="button" data-team-add>
+            <span class="material-symbols-outlined" aria-hidden="true">person_add</span> 添加成员
+        </button>
+        <button class="filled-btn" type="submit">保存名单</button>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}post{% endblock %}
+{% block title %}{{ post.excerpt|slice(0, 40) }} · {{ post.author.nickname }} · {{ app.name }}{% endblock %}
+{% block meta_description %}{{ post.excerpt|slice(0, 160) }}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_title %}{{ post.excerpt|slice(0, 60) }} · {{ post.author.nickname }}{% endblock %}
+{% block og_description %}{{ post.excerpt|slice(0, 160) }}{% endblock %}
+{% block og_path %}/posts/{{ post.id }}{% endblock %}
+{% block json_ld %}
+<script type="application/ld+json">
+{{ {
+  "@context": "https://schema.org",
+  "@type": "SocialMediaPosting",
+  "headline": post.excerpt|slice(0, 100),
+  "author": { "@type": "Person", "name": post.author.nickname },
+  "datePublished": post.created_at,
+  "url": app.url ~ '/posts/' ~ post.id
+}|json_encode|raw }}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="post-detail-layout">
+    <article class="post-detail" data-post-id="{{ post.id }}">
+        <header class="post-detail__head">
+            <a class="avatar-link" href="{{ post.author.url }}" aria-label="{{ post.author.nickname }} 的主页">
+                {{ include('components/avatar.twig', { user: post.author, size: 'lg' }) }}
+            </a>
+            <div class="post-detail__meta">
+                <a class="post-detail__author" href="{{ post.author.url }}">{{ post.author.nickname }}</a>
+                <div class="post-detail__sub">
+                    <time datetime="{{ post.created_at }}">{{ post.time_ago }}</time>
+                    {% if post.is_repost %}<span class="meta-chip">转发</span>{% endif %}
+                    {% if post.visibility == 'private' %}<span class="meta-chip">仅自己可见</span>{% endif %}
+                    {% if post.status == 'hidden' %}<span class="meta-chip meta-chip--warn">已被隐藏</span>{% endif %}
+                </div>
+            </div>
+        </header>
+
+        <div class="post-detail__body">
+            {% if post.content_text is not empty %}
+            <div class="post-content post-content--lg">{{ post.content_html|raw }}</div>
+            {% endif %}
+
+            {% if post.repost %}
+            <div class="repost-quote{{ post.repost.available ? '' : ' is-unavailable' }}">
+                {% if post.repost.available %}
+                <div class="repost-quote__head">
+                    <span class="material-symbols-outlined" aria-hidden="true">repeat</span>
+                    <a href="{{ post.repost.author.url }}">{{ post.repost.author.nickname }}</a>
+                </div>
+                <a class="repost-quote__body" href="{{ post.repost.url }}">
+                    <span class="repost-quote__text">{{ post.repost.excerpt }}</span>
+                    {% if post.repost.thumb is not empty %}
+                    <img class="repost-quote__thumb" src="{{ post.repost.thumb }}" alt="" loading="lazy" decoding="async">
+                    {% endif %}
+                </a>
+                {% else %}
+                <p class="repost-quote__missing">原动态已删除或不可见</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if post.media|length > 0 %}
+            <div class="post-detail__media">
+                {% for m in post.media %}
+                {% if m.kind == 'video' %}
+                <video class="post-detail__video" controls preload="metadata" playsinline src="{{ m.url }}"></video>
+                {% else %}
+                <button class="post-detail__media-item" type="button" data-action="lightbox" data-src="{{ m.url }}">
+                    <img src="{{ m.url }}" alt="动态图片" loading="lazy" decoding="async">
+                </button>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if post.topics|length > 0 %}
+            <div class="post-topics">
+                {% for t in post.topics %}
+                <a class="topic-chip" href="{{ t.url }}">#{{ t.name }}</a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if post.community %}
+            <p class="post-community">
+                <span class="material-symbols-outlined" aria-hidden="true">groups</span>
+                <a href="{{ post.community.url }}">来自圈子「{{ post.community.name }}」</a>
+            </p>
+            {% endif %}
+        </div>
+
+        <footer class="post-detail__foot">
+            <button class="post-action{{ post.liked ? ' is-active' : '' }}" type="button"
+                    data-action="toggle-like" data-target-type="post" data-target-id="{{ post.id }}"
+                    aria-pressed="{{ post.liked ? 'true' : 'false' }}">
+                <span class="material-symbols-outlined" aria-hidden="true">favorite</span>
+                <span class="post-action__count" data-like-count>{{ post.like_count }}</span>
+            </button>
+            <a class="post-action" href="#comments">
+                <span class="material-symbols-outlined" aria-hidden="true">chat_bubble</span>
+                <span class="post-action__count">{{ post.comment_count }}</span>
+            </a>
+            <button class="post-action{{ post.favorited ? ' is-active' : '' }}" type="button"
+                    data-action="toggle-favorite" data-target-type="post" data-target-id="{{ post.id }}"
+                    aria-pressed="{{ post.favorited ? 'true' : 'false' }}">
+                <span class="material-symbols-outlined" aria-hidden="true">bookmark</span>
+            </button>
+            {% if not post.is_owner and not post.is_repost %}
+            <button class="post-action{{ post.reposted ? ' is-active' : '' }}" type="button"
+                    data-action="toggle-repost" data-target-id="{{ post.id }}"
+                    aria-pressed="{{ post.reposted ? 'true' : 'false' }}" aria-label="转发">
+                <span class="material-symbols-outlined" aria-hidden="true">repeat</span>
+                <span class="post-action__count" data-repost-count>{{ post.repost_count }}</span>
+            </button>
+            {% endif %}
+            <button class="post-action post-action--tail" type="button" data-action="share"
+                    data-share-url="/posts/{{ post.id }}" aria-label="复制链接">
+                <span class="material-symbols-outlined" aria-hidden="true">share</span>
+            </button>
+            <div class="post-detail__danger">
+                {% if currentUser and not post.is_owner %}
+                <button class="text-btn text-btn--sm" type="button" data-action="report"
+                        data-target-type="post" data-target-id="{{ post.id }}">
+                    <span class="material-symbols-outlined" aria-hidden="true">flag</span> 举报
+                </button>
+                {% endif %}
+                {% if post.can_edit %}
+                <a class="text-btn text-btn--sm" href="/posts/{{ post.id }}/edit">
+                    <span class="material-symbols-outlined" aria-hidden="true">edit</span> 编辑
+                </a>
+                <button class="text-btn text-btn--danger" type="button" data-action="delete-post" data-post-id="{{ post.id }}">
+                    <span class="material-symbols-outlined" aria-hidden="true">delete</span> 删除动态
+                </button>
+                {% endif %}
+            </div>
+        </footer>
+    </article>
+
+    <section class="comments" id="comments" data-comments data-post-id="{{ post.id }}" data-pages="{{ comments.pages }}">
+        <h2 class="comments__title">评论 <span data-comment-total>{{ comments.total }}</span></h2>
+
+        <div id="twikoo" class="twikoo-mount" data-twikoo hidden></div>
+
+        {% if currentUser %}
+        <form class="comment-form" data-comment-form>
+            <textarea class="field__input comment-form__input" name="content" rows="2" maxlength="1000" placeholder="写下你的评论…" required></textarea>
+            <div class="comment-form__foot">
+                <button class="filled-btn filled-btn--sm" type="submit">发表评论</button>
+            </div>
+        </form>
+        {% else %}
+        <p class="comments__guest"><a href="/login">登录</a> 后参与评论</p>
+        {% endif %}
+
+        <div class="comment-list" data-comment-list>
+            {% for comment in comments.items %}
+                {{ include('components/comment.twig', { comment: comment }) }}
+            {% else %}
+            {{ include('components/empty-state.twig', { compact: true, text: '还没有评论，来抢沙发～' }) }}
+            {% endfor %}
+        </div>
+
+        {% if comments.pages > 1 %}
+        <div class="comments__more">
+            <button class="outlined-btn" type="button" data-action="load-comments" data-next-page="2">加载更多评论</button>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

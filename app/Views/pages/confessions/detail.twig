@@ -1,0 +1,102 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}{{ item.board == 'hole' ? 'hole' : 'wall' }}{% endblock %}
+{% block title %}{{ item.excerpt|slice(0, 40) }} · {{ item.board_label }}{% endblock %}
+
+{% block content %}
+<div class="confession-detail-layout">
+    <article class="confession-detail confession-detail--{{ item.board }}" data-confession-id="{{ item.id }}" data-board="{{ item.board }}">
+        <header class="confession-detail__head">
+            <span class="avatar avatar--lg" style="--avatar-hue: {{ item.author.hue }}" aria-hidden="true">{{ item.author.initial }}</span>
+            <div class="confession-detail__meta">
+                {% if item.author.kind == 'named' %}
+                <a class="confession-detail__author" href="{{ item.author.url }}">{{ item.author.display }}</a>
+                {% else %}
+                <span class="confession-detail__author confession-card__author--anon">{{ item.author.display }}</span>
+                {% endif %}
+                <div class="post-detail__sub">
+                    <time datetime="{{ item.created_at }}">{{ item.time_ago }}</time>
+                    {% if item.category_label %}<span class="meta-chip">{{ item.category_label }}</span>{% endif %}
+                    {% if item.is_featured %}<span class="meta-chip meta-chip--accent">精选</span>{% endif %}
+                    {% if item.status_label %}<span class="meta-chip meta-chip--warn">{{ item.status_label }}</span>{% endif %}
+                </div>
+            </div>
+        </header>
+
+        <div class="confession-detail__body">
+            <div class="confession-detail__content">{{ item.content_html|raw }}</div>
+            {% if item.media|length > 0 %}
+            <div class="post-detail__media">
+                {% for m in item.media %}
+                <button class="post-detail__media-item" type="button" data-action="lightbox" data-src="{{ m.url }}"
+                        aria-label="查看图片">
+                    <img src="{{ m.url }}" alt="" loading="lazy" decoding="async">
+                </button>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <footer class="confession-detail__foot">
+            <button class="caction caction--like{{ item.liked ? ' is-active' : '' }}" type="button"
+                    data-action="toggle-like" data-target-type="confession" data-target-id="{{ item.id }}"
+                    aria-pressed="{{ item.liked ? 'true' : 'false' }}" aria-label="点赞">
+                <span class="material-symbols-outlined" aria-hidden="true">favorite</span>
+                <span class="post-action__count" data-like-count>{{ item.like_count }}</span>
+            </button>
+            <a class="caction" href="#comments" aria-label="查看回应">
+                <span class="material-symbols-outlined" aria-hidden="true">forum</span>
+                <span class="post-action__count">{{ item.comment_count }}</span>
+            </a>
+            <button class="caction{{ item.favorited ? ' is-active' : '' }}" type="button"
+                    data-action="toggle-favorite" data-target-type="confession" data-target-id="{{ item.id }}"
+                    aria-pressed="{{ item.favorited ? 'true' : 'false' }}" aria-label="收藏">
+                <span class="material-symbols-outlined" aria-hidden="true">bookmark</span>
+            </button>
+            <div class="confession-detail__tail">
+                {% if currentUser %}
+                <button class="text-btn text-btn--sm" type="button" data-action="report"
+                        data-target-type="confession" data-target-id="{{ item.id }}">
+                    <span class="material-symbols-outlined" aria-hidden="true">flag</span> 举报
+                </button>
+                {% endif %}
+                {% if item.can_delete %}
+                <button class="text-btn text-btn--sm text-btn--danger" type="button"
+                        data-action="delete-confession" data-confession-id="{{ item.id }}">
+                    <span class="material-symbols-outlined" aria-hidden="true">delete</span> 删除
+                </button>
+                {% endif %}
+            </div>
+        </footer>
+    </article>
+
+    <section class="comments" id="comments" data-confession-comments data-confession-id="{{ item.id }}" data-pages="{{ comments.pages }}">
+        <h2 class="comments__title">回应 <span data-comment-total>{{ comments.total }}</span></h2>
+
+        {% if currentUser %}
+        <form class="comment-form" data-confession-comment-form>
+            <textarea class="field__input comment-form__input" name="content" rows="2" maxlength="1000" placeholder="写一条温暖的回应…" required></textarea>
+            <div class="comment-form__foot">
+                <button class="filled-btn filled-btn--sm" type="submit">回应</button>
+            </div>
+        </form>
+        {% else %}
+        <p class="comments__guest"><a href="/login">登录</a> 后可以回应</p>
+        {% endif %}
+
+        <div class="comment-list" data-confession-comment-list>
+            {% for comment in comments.items %}
+                {{ include('components/comment.twig', { comment: comment, anonymous: true }) }}
+            {% else %}
+            {{ include('components/empty-state.twig', { compact: true, text: '还没有回应，来说点什么吧' }) }}
+            {% endfor %}
+        </div>
+
+        {% if comments.pages > 1 %}
+        <div class="comments__more">
+            <button class="outlined-btn" type="button" data-action="load-confession-comments" data-next-page="2">加载更多回应</button>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff" id="metaThemeColor">
+<title>我们马上回来</title>
+<script>
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem('theme'); } catch (e) {}
+    var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var theme = (saved === 'light' || saved === 'dark') ? saved : (dark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+  })();
+</script>
+<style>
+  :root,
+  [data-theme="light"]{
+    --bg: #ffffff;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --link: #0066cc;
+    --ring-track: rgba(0, 0, 0, .12);
+    --ring-arc: #1d1d1f;
+    --btn-hover: rgba(0, 0, 0, .05);
+    --btn-active: rgba(0, 0, 0, .09);
+  }
+
+  [data-theme="dark"]{
+    --bg: #000000;
+    --text: #f5f5f7;
+    --muted: #86868b;
+    --link: #2997ff;
+    --ring-track: rgba(255, 255, 255, .16);
+    --ring-arc: #f5f5f7;
+    --btn-hover: rgba(255, 255, 255, .10);
+    --btn-active: rgba(255, 255, 255, .18);
+  }
+
+  *, *::before, *::after{ box-sizing: border-box; }
+
+  html{
+    background: var(--bg);
+    -webkit-text-size-adjust: 100%;
+    transition: background-color .35s ease;
+  }
+
+  body{
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100svh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding:
+      calc(env(safe-area-inset-top, 0px) + 40px)
+      calc(env(safe-area-inset-right, 0px) + 24px)
+      calc(env(safe-area-inset-bottom, 0px) + 40px)
+      calc(env(safe-area-inset-left, 0px) + 24px);
+    background: var(--bg);
+    color: var(--text);
+    font-family:
+      -apple-system, BlinkMacSystemFont,
+      "SF Pro Display", "SF Pro Text", "SF Pro Icons",
+      "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
+      "Microsoft YaHei", system-ui, sans-serif;
+    text-align: center;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color .35s ease, color .35s ease;
+  }
+
+  .theme-toggle{
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 18px);
+    right: calc(env(safe-area-inset-right, 0px) + 18px);
+    z-index: 10;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color .25s ease, color .25s ease, transform .2s ease;
+  }
+
+  .theme-toggle:hover{
+    background: var(--btn-hover);
+    color: var(--text);
+  }
+
+  .theme-toggle:active{
+    background: var(--btn-active);
+    transform: scale(.92);
+  }
+
+  .theme-toggle:focus-visible{
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+  }
+
+  .theme-toggle svg{
+    width: 22px;
+    height: 22px;
+    display: block;
+  }
+
+  [data-theme="light"] .icon-sun,
+  [data-theme="dark"] .icon-moon{
+    display: none;
+  }
+
+  .content{
+    width: 100%;
+    max-width: 620px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: fade-up .9s cubic-bezier(.25, .8, .35, 1) both;
+  }
+
+  .spinner{
+    width: 56px;
+    height: 56px;
+    margin-bottom: 34px;
+  }
+
+  .spinner svg{
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .spinner .track{
+    fill: none;
+    stroke: var(--ring-track);
+    stroke-width: 3;
+    transition: stroke .35s ease;
+  }
+
+  .spinner .arc{
+    fill: none;
+    stroke: var(--ring-arc);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 125.6;
+    stroke-dashoffset: 94;
+    transform-box: view-box;
+    transform-origin: 50% 50%;
+    animation: spin 1.1s linear infinite;
+    transition: stroke .35s ease;
+  }
+
+  h1{
+    margin: 0 0 18px;
+    font-size: clamp(32px, 7.5vw, 56px);
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  .desc{
+    margin: 0;
+    max-width: 26em;
+    font-size: clamp(17px, 2.2vw, 21px);
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+    color: var(--muted);
+    transition: color .35s ease;
+  }
+
+  .footnote{
+    margin-top: 44px;
+    font-size: clamp(14px, 1.6vw, 15px);
+    line-height: 1.55;
+    letter-spacing: -0.01em;
+    color: var(--muted);
+    transition: color .35s ease;
+  }
+
+  .footnote a{
+    color: var(--link);
+    text-decoration: none;
+    transition: opacity .2s ease, color .35s ease;
+  }
+
+  .footnote a:hover{ text-decoration: underline; }
+  .footnote a:active{ opacity: .6; }
+
+  @keyframes spin{
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes fade-up{
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  @media (max-width: 480px){
+    .spinner{
+      width: 48px;
+      height: 48px;
+      margin-bottom: 28px;
+    }
+    h1{ margin-bottom: 14px; }
+    .footnote{ margin-top: 36px; }
+    .theme-toggle{
+      top: calc(env(safe-area-inset-top, 0px) + 10px);
+      right: calc(env(safe-area-inset-right, 0px) + 10px);
+    }
+  }
+
+  @media (max-height: 480px) and (orientation: landscape){
+    body{ padding-top: 24px; padding-bottom: 24px; }
+    .spinner{ width: 40px; height: 40px; margin-bottom: 20px; }
+    .footnote{ margin-top: 24px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .content{ animation: none; }
+    .spinner .arc{ animation: none; }
+    *{ transition-duration: .01ms !important; }
+  }
+
+  @media (prefers-contrast: more){
+    :root, [data-theme="light"]{
+      --muted: #3a3a3c;
+      --ring-track: rgba(0, 0, 0, .35);
+    }
+    [data-theme="dark"]{
+      --muted: #b0b0b5;
+      --ring-track: rgba(255, 255, 255, .35);
+    }
+  }
+</style>
+</head>
+<body>
+
+  <button class="theme-toggle" type="button" aria-label="切换深色模式">
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M20.5 14.3A8.6 8.6 0 1 1 9.7 3.5a6.9 6.9 0 0 0 10.8 10.8z"/>
+    </svg>
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2"/>
+      <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4L17 7M7 17l-1.6 1.6"/>
+    </svg>
+  </button>
+
+  <main class="content" role="main">
+    <div class="spinner" aria-hidden="true">
+      <svg viewBox="0 0 48 48" focusable="false">
+        <circle class="track" cx="24" cy="24" r="20"></circle>
+        <circle class="arc"   cx="24" cy="24" r="20"></circle>
+      </svg>
+    </div>
+
+    <h1>我们马上回来</h1>
+
+    <p class="desc">
+      正在维护升级中，预计很快恢复。<br>
+      感谢你的耐心等待。
+    </p>
+
+    <p class="footnote">
+      如有紧急事宜，请联系
+      <a href="mailto:Qiunai_520@163.com">Qiunai_520@163.com</a>
+    </p>
+  </main>
+
+  <script>
+    (function () {
+      var root = document.documentElement;
+      var btn = document.querySelector('.theme-toggle');
+      var meta = document.getElementById('metaThemeColor');
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+
+      function readSaved() {
+        try { return localStorage.getItem('theme'); } catch (e) { return null; }
+      }
+
+      function apply(theme, persist) {
+        root.setAttribute('data-theme', theme);
+        if (meta) meta.setAttribute('content', theme === 'dark' ? '#000000' : '#ffffff');
+        if (btn) btn.setAttribute('aria-label', theme === 'dark' ? '切换到浅色模式' : '切换到深色模式');
+        if (persist) {
+          try { localStorage.setItem('theme', theme); } catch (e) {}
+        }
+      }
+
+      apply(root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light', false);
+
+      if (btn) {
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          apply(next, true);
+        });
+      }
+
+      function onSystemChange(e) {
+        if (!readSaved()) apply(e.matches ? 'dark' : 'light', false);
+      }
+
+      if (mq.addEventListener) {
+        mq.addEventListener('change', onSystemChange);
+      } else if (mq.addListener) {
+        mq.addListener(onSystemChange);
+      }
+    })();
+  </script>
+
+</body>
+</html>

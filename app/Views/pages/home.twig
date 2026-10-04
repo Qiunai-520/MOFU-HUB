@@ -1,0 +1,107 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}home{% endblock %}
+{% block title %}{{ app.name }} · 校园社区{% endblock %}
+
+{% block content %}
+<div class="home-layout">
+    <section class="feed" data-feed data-current-tab="{{ tab }}">
+        {% if banners|length > 0 %}
+        <section class="banner" data-banner aria-label="公告与资讯">
+            <div class="banner__track" data-banner-track>
+                {% for b in banners %}
+                <a class="banner__slide" href="{{ b.url }}" data-banner-slide>
+                    {% if b.cover is not empty %}
+                    <img class="banner__img" src="{{ b.cover }}" alt="" loading="lazy" decoding="async">
+                    {% endif %}
+                    <span class="banner__body">
+                        {% if b.category is not empty %}<span class="banner__cat">{{ b.category }}</span>{% endif %}
+                        {% if b.title is not empty %}<span class="banner__title">{{ b.title }}</span>{% endif %}
+                        {% if b.summary is not empty %}<span class="banner__desc">{{ b.summary|slice(0, 58) }}</span>{% endif %}
+                    </span>
+                </a>
+                {% endfor %}
+            </div>
+            {% if banners|length > 1 %}
+            <button class="banner__nav banner__nav--prev" type="button" data-banner-prev aria-label="上一条公告">
+                <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+            </button>
+            <button class="banner__nav banner__nav--next" type="button" data-banner-next aria-label="下一条公告">
+                <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+            </button>
+            <div class="banner__dots" data-banner-dots role="tablist" aria-label="切换公告"></div>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        <nav class="feed-tabs" aria-label="信息流切换">
+            <a class="feed-tab{{ tab == 'recommend' ? ' is-active' : '' }}"{{ tab == 'recommend' ? ' aria-current="page"' : '' }} href="/?tab=recommend" data-i18n="feed.recommend">推荐</a>
+            <a class="feed-tab{{ tab == 'latest' ? ' is-active' : '' }}"{{ tab == 'latest' ? ' aria-current="page"' : '' }} href="/?tab=latest" data-i18n="feed.latest">最新</a>
+            <a class="feed-tab{{ tab == 'hot' ? ' is-active' : '' }}"{{ tab == 'hot' ? ' aria-current="page"' : '' }} href="/?tab=hot" data-i18n="feed.hot">热门</a>
+            {% if currentUser %}
+            <a class="feed-tab{{ tab == 'following' ? ' is-active' : '' }}"{{ tab == 'following' ? ' aria-current="page"' : '' }} href="/?tab=following" data-i18n="feed.following">关注</a>
+            {% endif %}
+        </nav>
+
+        <div class="feed-list" data-feed-list>
+            {% for post in feedItems %}
+                {{ include('components/post-card.twig', { post: post }) }}
+            {% else %}
+            {{ include('components/empty-state.twig', {
+                icon: 'forum',
+                title: followingEmpty ? '关注流还是空的' : '这里还很安静',
+                text: followingEmpty
+                    ? '关注感兴趣的同学，这里就会出现他们的动态'
+                    : (currentUser ? '来发布第一条校园动态吧' : '注册后即可发布你的第一条动态'),
+                cta_href: followingEmpty ? '/?tab=latest' : (currentUser ? '/compose' : '/register'),
+                cta_label: followingEmpty ? '去发现同学' : (currentUser ? '发布动态' : '立即注册'),
+            }) }}
+            {% endfor %}
+        </div>
+
+        {% if feed.pages > 1 %}
+        {% set atEnd = feed.page >= feed.pages %}
+        <div class="load-more" data-load-more>
+            <button class="outlined-btn" type="button" data-action="load-more"
+                    data-next-page="{{ feed.page + 1 }}" data-pages="{{ feed.pages }}"
+                    {% if atEnd %}hidden{% endif %}>加载更多</button>
+            <p class="load-more__hint" data-load-more-hint{{ atEnd ? '' : ' hidden' }}>已经到底啦</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <aside class="home-side">
+        <div class="card side-card">
+            <h2 class="side-card__title">热门话题</h2>
+            {% if topics|length > 0 %}
+            <div class="topic-cloud">
+                {% for topic in topics %}
+                <a class="topic-chip" href="/topics/{{ topic.slug|url_encode }}">#{{ topic.name }}</a>
+                {% endfor %}
+            </div>
+            {% else %}
+            {{ include('components/empty-state.twig', { compact: true, text: '还没有话题，发布动态时带上话题即可创建' }) }}
+            {% endif %}
+        </div>
+
+        {% if suggestions|length > 0 %}
+        <div class="card side-card">
+            <h2 class="side-card__title">推荐关注</h2>
+            <div class="user-list user-list--compact">
+                {% for user in suggestions %}
+                {{ include('components/user-card.twig', { user: user }) }}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="side-card side-card--about">
+            <h2 class="side-card__title">关于 {{ app.name }}</h2>
+            <p class="side-card__text">分享校园生活、参与兴趣交流、记录每一份心情。</p>
+            {% if not currentUser %}
+            <a class="filled-btn" href="/register">加入我们</a>
+            {% endif %}
+        </div>
+    </aside>
+</div>
+{% endblock %}

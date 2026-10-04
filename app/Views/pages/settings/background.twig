@@ -1,0 +1,95 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}settings{% endblock %}
+{% block title %}背景设置 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="settings-layout">
+    {{ include('components/settings-nav.twig') }}
+
+    <div class="settings-main" data-tabs-panel>
+        <h1 class="page-title">背景设置</h1>
+        <p class="page-subtitle">为你的全站页面添加一张背景图，正文卡片会保持不透明以保证可读。</p>
+
+        {% if saved %}
+        <div class="form-success" role="status">已保存</div>
+        {% endif %}
+
+        <div class="settings-group">
+            <h2 class="settings-group__title">背景图</h2>
+            <div class="settings-card">
+                <div class="bg-preview" {% if mediaUrl or prefs.background.url %}style="background-image: url('{{ mediaUrl|default(prefs.background.url) }}')"{% endif %}>
+                    <span class="bg-preview__hint">{{ mediaUrl or prefs.background.url ? '预览效果' : '尚未设置背景图' }}</span>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row__text">
+                        <span class="settings-row__label">上传本地图片</span>
+                        <span class="settings-row__desc">JPG / PNG，最大 {{ uploadMaxMb }} MB</span>
+                    </div>
+                    <form method="post" action="/settings/background/upload" class="settings-row__form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <label class="outlined-btn outlined-btn--sm">
+                            <input type="file" name="background" accept="image/*" required>
+                            <span class="material-symbols-outlined" aria-hidden="true">upload</span> 选择图片
+                        </label>
+                    </form>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row__text">
+                        <span id="background-url-label" class="settings-row__label">随机图 API</span>
+                        <span class="settings-row__desc">粘贴一个 http(s) 图片直链</span>
+                    </div>
+                    <form method="post" action="/settings/background" class="settings-row__form settings-row__form--stacked">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input class="field__input settings-row__input" type="url" name="background_url" aria-labelledby="background-url-label"
+                               value="{{ prefs.background.url }}" placeholder="https://…" autocomplete="off">
+                        <input type="number" name="background_opacity" value="{{ prefs.background.opacity }}" min="0" max="100" hidden>
+                        <button class="filled-btn filled-btn--sm" type="submit">应用链接</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-group">
+            <h2 class="settings-group__title">透明度</h2>
+            <div class="settings-card">
+                <form method="post" action="/settings/background" class="settings-row">
+                    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                    <div class="settings-row__text">
+                        <span id="background-opacity-label" class="settings-row__label">背景不透明度</span>
+                        <span class="settings-row__desc">数值越大背景越清晰</span>
+                    </div>
+                    <div class="bg-opacity" data-bg-opacity>
+                        <input type="range" name="background_opacity" min="5" max="100" step="5"
+                               value="{{ prefs.background.opacity }}" data-bg-opacity-input aria-labelledby="background-opacity-label">
+                        <output data-bg-opacity-value>{{ prefs.background.opacity }}%</output>
+                        <button class="filled-btn filled-btn--sm" type="submit">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if mediaUrl or prefs.background.url %}
+        <div class="settings-group">
+            <h2 class="settings-group__title">管理</h2>
+            <div class="settings-card">
+                <form method="post" action="/settings/background" class="settings-row">
+                    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                    <input type="hidden" name="remove" value="1">
+                    <div class="settings-row__text">
+                        <span class="settings-row__label">关闭背景图</span>
+                        <span class="settings-row__desc">移除背景，保持默认纯色背景</span>
+                    </div>
+                    <button class="text-btn text-btn--danger" type="submit">移除背景</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% endblock %}

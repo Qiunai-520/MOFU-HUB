@@ -1,0 +1,18 @@
+{#
+  用户行：头像 + 名称/说明 + 操作区
+  （圈子成员 / 活动报名 / 拉黑名单共用；结构与样式见 .user-row）
+
+  只读：{{ include('components/user-row.twig', { user: u, meta: '说明文字' }) }}
+  带操作：
+    {% embed 'components/user-row.twig' with { user: u, meta: '…', border: true, row_attrs: 'data-blocked-user="3"' } %}
+        {% block actions %}<button class="text-btn text-btn--sm" type="button">解除拉黑</button>{% endblock %}
+    {% endembed %}
+#}
+<div class="user-row{{ border|default(false) ? ' user-row--bordered' : '' }}"{% if row_attrs is defined and row_attrs != '' %} {{ row_attrs|raw }}{% endif %}>
+    {{ include('components/avatar.twig', { user: user, size: avatar_size|default('md') }) }}
+    <div class="user-row__info">
+        <a class="user-row__name" href="{{ user.url }}">{{ user.nickname }}</a>
+        {% if meta is defined and meta != '' %}<span class="user-row__meta">{{ meta }}</span>{% endif %}
+    </div>
+    <div class="user-row__actions">{% block actions %}{% endblock %}</div>
+</div>

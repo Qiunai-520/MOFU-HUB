@@ -1,0 +1,53 @@
+{#
+  单条评论（含回复嵌套）
+  - 默认：具名评论（头像链接到个人主页、可显示「回复 xxx」）；
+  - anonymous: true —— 表白墙/树洞的匿名评论（仅首字头像，不链接、不显示回复对象）；
+  - 契约：结构与 src-client/modules/comment-render.ts 保持一致，改动时两端同步。
+#}
+{% set isAnon = anonymous|default(false) %}
+{% set targetType = isAnon ? 'confession_comment' : 'comment' %}
+{% set displayName = isAnon ? comment.author.display : comment.author.nickname %}
+<div class="comment{{ reply is defined ? ' comment--reply' : '' }}" data-comment-id="{{ comment.id }}">
+    {% if isAnon %}
+    <span class="avatar avatar--sm" style="--avatar-hue: {{ comment.author.hue }}" aria-hidden="true">{{ comment.author.initial }}</span>
+    {% else %}
+    <a class="avatar-link" href="{{ comment.author.url }}" aria-label="{{ displayName }} 的主页">
+        {{ include('components/avatar.twig', { user: comment.author, size: 'sm' }) }}
+    </a>
+    {% endif %}
+    <div class="comment__body">
+        <div class="comment__head">
+            {% if isAnon %}
+            <span class="comment__author comment-card__author--anon">{{ displayName }}</span>
+            {% else %}
+            <a class="comment__author" href="{{ comment.author.url }}">{{ displayName }}</a>
+            {% endif %}
+            {% if not isAnon and comment.reply_to %}
+            <span class="comment__reply-to">回复 {{ comment.reply_to.nickname }}</span>
+            {% endif %}
+            <time class="comment__time" datetime="{{ comment.created_at }}">{{ comment.time_ago }}</time>
+        </div>
+        <div class="comment__content">{{ comment.content_html|raw }}</div>
+        <div class="comment__actions">
+            <button class="post-action post-action--sm{{ comment.liked ? ' is-active' : '' }}" type="button"
+                    data-action="toggle-like" data-target-type="{{ targetType }}" data-target-id="{{ comment.id }}"
+                    aria-pressed="{{ comment.liked ? 'true' : 'false' }}">
+                <span class="material-symbols-outlined" aria-hidden="true">favorite</span>
+                <span class="post-action__count" data-like-count>{{ comment.like_count }}</span>
+            </button>
+            {% if currentUser %}
+            <button class="text-btn text-btn--sm" type="button" data-action="reply" data-comment-id="{{ comment.id }}" data-reply-name="{{ displayName }}">回复</button>
+            {% endif %}
+            {% if comment.can_remove %}
+            <button class="text-btn text-btn--sm text-btn--danger" type="button" data-action="remove-comment" data-comment-id="{{ comment.id }}">删除</button>
+            {% endif %}
+        </div>
+        {% if comment.replies is defined and comment.replies|length > 0 %}
+        <div class="comment__replies">
+            {% for reply in comment.replies %}
+                {{ include('components/comment.twig', { comment: reply, reply: true, anonymous: isAnon }) }}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>

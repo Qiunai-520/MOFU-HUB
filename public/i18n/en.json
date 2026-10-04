@@ -1,0 +1,53 @@
+{
+    "nav": {
+        "home": "Home",
+        "boards": "Boards",
+        "messages": "Messages",
+        "profile": "Profile",
+        "search": "Search",
+        "login": "Login",
+        "browse": "Browse",
+        "wall": "Confessions",
+        "hole": "Secret Box",
+        "circles": "Circles",
+        "events": "Events",
+        "news": "News",
+        "my_profile": "My Profile",
+        "my_confessions": "My Posts",
+        "history": "History",
+        "settings": "Settings",
+        "admin": "Admin",
+        "admin_panel": "Admin Panel",
+        "about": "About",
+        "compose_cta": "Post",
+        "join": "Join {{appName}}",
+        "logout": "Logout"
+    },
+    "settings": {
+        "language_title": "Language",
+        "language": "Interface Language",
+        "language_desc": "Select the display language for the app",
+        "nav": {
+            "profile": "Profile",
+            "security": "Account & Security",
+            "notifications": "Notifications",
+            "privacy": "Privacy",
+            "appearance": "Appearance",
+            "background": "Background"
+        }
+    },
+    "header": {
+        "compose": "New Post",
+        "login": "Login",
+        "register": "Register"
+    },
+    "feed": {
+        "recommend": "Recommended",
+        "latest": "Latest",
+        "hot": "Hot",
+        "following": "Following"
+    },
+    "footer": {
+        "tagline": "Share campus life · Keep every moment"
+    }
+}

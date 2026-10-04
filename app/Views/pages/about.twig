@@ -1,0 +1,88 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}about{% endblock %}
+{% block title %}关于 · {{ app.name }}{% endblock %}
+{% block meta_description %}关于 {{ app.name }}：功能、技术与团队{% endblock %}
+
+{#
+  团队名单由后台「团队名单」维护（system_settings.site.about_team），未配置时使用默认值。
+#}
+{% set aboutTeam = aboutTeam|default([]) %}
+
+{% set aboutFeatures = [
+    { icon: 'dynamic_feed', title: '校园动态', text: '分享日常、话题与图片视频' },
+    { icon: 'favorite', title: '表白墙 / 树洞', text: '匿名投稿，匿名回应' },
+    { icon: 'groups', title: '兴趣圈子', text: '找到同好，一起交流' },
+    { icon: 'chat', title: '私信与通知', text: '实时送达的互动提醒' },
+    { icon: 'dashboard', title: '校园板块', text: '问答、互助、失物、二手' },
+    { icon: 'palette', title: '主题中心', text: '个性化你的外观' },
+] %}
+
+{% block content %}
+<section class="about-page">
+    <div class="about-hero card">
+        <span class="brand-mark brand-mark--xl">
+            <img src="/logo.png" alt="{{ app.name }} 标志" width="72" height="72" loading="lazy" decoding="async">
+        </span>
+        <h1 class="about-hero__name">{{ app.name }}</h1>
+        <p class="about-hero__desc">简洁安全的校园社区 · 动态、表白墙、树洞、圈子与私信</p>
+        <div class="about-hero__meta">
+            <span class="meta-chip"><span class="material-symbols-outlined" aria-hidden="true">update</span>{{ now | date('Y年m月d日') }} 更新</span>
+            <span class="meta-chip"><span class="material-symbols-outlined" aria-hidden="true">code</span>PHP · TypeScript</span>
+        </div>
+    </div>
+
+    <h2 class="about-section__title">功能</h2>
+    <div class="about-features">
+        {% for feature in aboutFeatures %}
+        <div class="card about-feature">
+            <span class="about-feature__icon material-symbols-outlined" aria-hidden="true">{{ feature.icon }}</span>
+            <span class="about-feature__title">{{ feature.title }}</span>
+            <span class="about-feature__text">{{ feature.text }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <h2 class="about-section__title">技术</h2>
+    <div class="about-tech card">
+        <div class="topic-cloud">
+            <span class="meta-chip">PHP 8</span>
+            <span class="meta-chip">Slim 4</span>
+            <span class="meta-chip">Twig</span>
+            <span class="meta-chip">TypeScript</span>
+            <span class="meta-chip">Vite</span>
+            <span class="meta-chip">Swup</span>
+            <span class="meta-chip">MySQL</span>
+        </div>
+    </div>
+
+    {% if aboutTeam|length > 0 %}
+    <h2 class="about-section__title">团队</h2>
+    <div class="about-team">
+        {% for member in aboutTeam %}
+        <button class="about-member card" type="button" data-team-member
+                data-member-name="{{ member.name }}"
+                data-member-role="{{ member.role }}"
+                data-member-bio="{{ member.bio }}"
+                data-member-avatar="{{ member.avatar }}"
+                data-member-email="{{ member.email }}"
+                data-member-since="{{ member.since }}"
+                aria-label="查看 {{ member.name }} 的资料">
+            {% if member.avatar is not empty %}
+            <img class="about-member__avatar about-member__avatar--img" src="{{ member.avatar }}" alt="" loading="lazy" decoding="async">
+            {% else %}
+            <span class="about-member__avatar" aria-hidden="true">{{ member.name | first }}</span>
+            {% endif %}
+            <span class="about-member__info">
+                <span class="about-member__name">{{ member.name }}</span>
+                {% if member.bio is not empty %}<span class="about-member__bio">{{ member.bio }}</span>{% endif %}
+            </span>
+            {% if member.role is not empty %}
+            <span class="about-member__role meta-chip meta-chip--accent">{{ member.role }}</span>
+            {% endif %}
+        </button>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

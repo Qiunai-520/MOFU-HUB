@@ -1,0 +1,29 @@
+# --- 依赖与构建产物 ---
+/node_modules/
+/vendor/
+/public/assets/
+/bin/composer.phar
+/.aicode/
+/.phpunit.cache/
+
+# --- 运行时数据 ---
+.env
+/.env.bak.*
+/.env.tmp
+/storage/install.lock
+/storage/logs/*
+/storage/cache/*
+/storage/sessions/*
+!/storage/logs/.gitkeep
+!/storage/cache/.gitkeep
+!/storage/sessions/.gitkeep
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+# --- 系统与编辑器 ---
+/deploy/
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

@@ -1,0 +1,31 @@
+{
+  "name": "MOFU社区",
+  "short_name": "MOFU",
+  "description": "面向高校场景的综合性社区平台：动态、表白墙、兴趣圈子、社区板块、校园活动与资讯",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#775A0D",
+  "background_color": "#F7F5F2",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

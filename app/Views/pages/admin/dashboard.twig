@@ -1,0 +1,59 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}管理后台 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<h1 class="page-title">运营仪表盘</h1>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <span class="stat-card__label">注册用户</span>
+        <span class="stat-card__value">{{ stats.users }}</span>
+        <span class="stat-card__sub">近 7 天 +{{ stats.users_7d }}</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-card__label">动态总数</span>
+        <span class="stat-card__value">{{ stats.posts }}</span>
+        <span class="stat-card__sub">近 7 天 +{{ stats.posts_7d }}</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-card__label">评论总数</span>
+        <span class="stat-card__value">{{ stats.comments }}</span>
+    </div>
+    <div class="stat-card{{ stats.pending_reports > 0 ? ' stat-card--alert' : '' }}">
+        <span class="stat-card__label">待处理举报</span>
+        <span class="stat-card__value">{{ stats.pending_reports }}</span>
+    </div>
+</div>
+
+<div class="admin-columns">
+    <section class="admin-panel">
+        <h2 class="admin-panel__title">最新动态</h2>
+        <ul class="admin-list">
+            {% for p in recentPosts %}
+            <li class="admin-list__item">
+                <a href="/posts/{{ p.id }}">{{ p.excerpt }}</a>
+                <span class="admin-list__meta">@{{ p.username }} · {{ p.time_ago }}{% if p.status != 'published' %} · {{ p.status }}{% endif %}</span>
+            </li>
+            {% else %}
+            <li>{{ include('components/empty-state.twig', { compact: true, text: '暂无动态' }) }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section class="admin-panel">
+        <h2 class="admin-panel__title">最新注册</h2>
+        <ul class="admin-list">
+            {% for u in recentUsers %}
+            <li class="admin-list__item">
+                <a href="/u/{{ u.username }}">@{{ u.username }}</a>
+                <span class="admin-list__meta">{{ u.time_ago }}</span>
+            </li>
+            {% else %}
+            <li>{{ include('components/empty-state.twig', { compact: true, text: '暂无用户' }) }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,62 @@
+# MOFU社区 — Apache 重写规则
+# 适用于：站点根目录指向 public/ 的独立服务器与虚拟主机。
+#
+# 若你的主机只能把域名根目录指向项目目录（无法指向 public/），
+# 请把本文件内容与 public/index.php 按部署说明另行处理。
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # 真实存在的文件与目录直接返回（静态资源）
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # 其余全部交给单入口
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# 基础安全响应头
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>
+
+# PWA：Service Worker 不缓存（保证版本更新即时生效），补充 manifest MIME 类型
+<Files "sw.js">
+    <IfModule mod_headers.c>
+        Header set Cache-Control "no-cache"
+    </IfModule>
+</Files>
+<IfModule mod_mime.c>
+    AddType application/manifest+json .webmanifest
+    # 部分虚拟主机未给 .js/.css 正确 MIME，模块脚本会被浏览器拒绝执行
+    AddType text/javascript .js
+    AddType text/css .css
+    # 自托管字体（public/fonts）
+    AddType font/ttf .ttf
+    AddType font/woff2 .woff2
+</IfModule>
+
+# 隐藏敏感文件类型
+<FilesMatch "\.(env|sql|log|md|json|lock)$">
+    Require all denied
+</FilesMatch>
+<Files "composer.json">
+    Require all denied
+</Files>
+
+# 静态资源缓存（构建产物带内容哈希，可长期缓存）
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType image/webp "access plus 30 days"
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/ttf "access plus 1 year"
+</IfModule>

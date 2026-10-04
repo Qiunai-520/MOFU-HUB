@@ -1,0 +1,110 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}settings{% endblock %}
+{% block title %}个人资料设置 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="settings-layout">
+    {{ include('components/settings-nav.twig') }}
+
+    <div class="settings-main" data-tabs-panel>
+        <h1 class="page-title">个人资料</h1>
+
+        {% if saved %}
+        <div class="form-success" role="status">已保存</div>
+        {% endif %}
+
+        <div class="settings-group">
+            <h2 class="settings-group__title">头像</h2>
+            <div class="settings-card settings-card--pad">
+                <div class="avatar-settings">
+                    {% if profile.avatar_url is defined and profile.avatar_url is not empty %}
+                    <img class="avatar avatar--xl" src="{{ profile.avatar_url }}" alt="当前头像">
+                    {% else %}
+                    <span class="avatar avatar--xl" style="--avatar-hue: {{ currentUser.hue }}" aria-hidden="true">{{ currentUser.initial }}</span>
+                    {% endif %}
+                    <form method="post" action="/settings/avatar" enctype="multipart/form-data" class="avatar-settings__form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input class="field__input avatar-settings__file" type="file" name="avatar"
+                               accept="image/jpeg,image/png,image/webp,image/gif" required aria-label="选择头像图片">
+                        <button class="outlined-btn outlined-btn--sm" type="submit">
+                            <span class="material-symbols-outlined" aria-hidden="true">upload</span> 上传头像
+                        </button>
+                        <p class="settings-hint">支持 JPG / PNG / WebP / GIF，上传后自动压缩生成缩略图；过大或格式不符会被拒绝</p>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-group">
+            <h2 class="settings-group__title">主页封面</h2>
+            <div class="settings-card settings-card--pad">
+                <div class="cover-settings">
+                    {% if profile.cover_url|default('') is not empty %}
+                    <div class="cover-settings__preview" style="background-image: url('{{ profile.cover_url|e('css') }}')" aria-hidden="true"></div>
+                    {% else %}
+                    <div class="cover-settings__preview cover-settings__preview--empty" aria-hidden="true">
+                        <span class="material-symbols-outlined" aria-hidden="true">wallpaper</span>
+                        <span>尚未设置封面</span>
+                    </div>
+                    {% endif %}
+
+                    <form method="post" action="/settings/cover" enctype="multipart/form-data" class="cover-settings__form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input class="field__input avatar-settings__file" type="file" name="cover"
+                               accept="image/jpeg,image/png,image/webp,image/gif" required aria-label="选择封面图片">
+                        <button class="outlined-btn outlined-btn--sm" type="submit">
+                            <span class="material-symbols-outlined" aria-hidden="true">upload</span> 上传封面
+                        </button>
+                        <p class="settings-hint">显示在你个人主页（/u/你的用户名）顶部，建议横向大图</p>
+                    </form>
+
+                    {% if profile.cover_url|default('') is not empty %}
+                    <form method="post" action="/settings/cover/remove">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <button class="text-btn text-btn--sm text-btn--danger" type="submit">移除封面</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-group">
+            <h2 class="settings-group__title">基本信息</h2>
+            <div class="settings-card settings-card--pad">
+                <form method="post" action="/settings/profile" class="settings-form" novalidate>
+                    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+                    <label class="field{{ errors.nickname is defined ? ' field--error' : '' }}" for="profile-nickname">
+                        <span class="field__label">昵称</span>
+                        <input class="field__input" id="profile-nickname" type="text" name="nickname" value="{{ profile.nickname|default('') }}" maxlength="24" required>
+                        {% if errors.nickname is defined %}<span class="field__error">{{ errors.nickname }}</span>{% endif %}
+                    </label>
+
+                    <label class="field{{ errors.bio is defined ? ' field--error' : '' }}" for="profile-bio">
+                        <span class="field__label">简介</span>
+                        <textarea class="field__input field__input--textarea" id="profile-bio" name="bio" rows="3" maxlength="200">{{ profile.bio|default('') }}</textarea>
+                        {% if errors.bio is defined %}<span class="field__error">{{ errors.bio }}</span>{% endif %}
+                    </label>
+
+                    <label class="field{{ errors.location is defined ? ' field--error' : '' }}" for="profile-location">
+                        <span class="field__label">所在地</span>
+                        <input class="field__input" id="profile-location" type="text" name="location" value="{{ profile.location|default('') }}" maxlength="32" placeholder="例如：东校区">
+                        {% if errors.location is defined %}<span class="field__error">{{ errors.location }}</span>{% endif %}
+                    </label>
+
+                    <label class="field{{ errors.website is defined ? ' field--error' : '' }}" for="profile-website">
+                        <span class="field__label">个人网站 / 社交主页</span>
+                        <input class="field__input" id="profile-website" type="url" name="website" value="{{ profile.website|default('') }}" maxlength="190" placeholder="https://">
+                        {% if errors.website is defined %}<span class="field__error">{{ errors.website }}</span>{% endif %}
+                    </label>
+
+                    <div class="settings-form__foot">
+                        <button class="filled-btn" type="submit">保存修改</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

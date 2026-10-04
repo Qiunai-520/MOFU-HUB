@@ -1,0 +1,82 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}板块管理 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">板块管理</h1>
+    <div class="filter-tabs">
+        <a class="filter-tab{{ status == '' ? ' is-active' : '' }}" href="/admin/boards{{ boardSlug != '' ? '?board=' ~ boardSlug : '' }}">全部</a>
+        <a class="filter-tab{{ status == 'published' ? ' is-active' : '' }}" href="/admin/boards?status=published{{ boardSlug != '' ? '&board=' ~ boardSlug : '' }}">正常</a>
+        <a class="filter-tab{{ status == 'hidden' ? ' is-active' : '' }}" href="/admin/boards?status=hidden{{ boardSlug != '' ? '&board=' ~ boardSlug : '' }}">已隐藏</a>
+        <a class="filter-tab{{ status == 'removed' ? ' is-active' : '' }}" href="/admin/boards?status=removed{{ boardSlug != '' ? '&board=' ~ boardSlug : '' }}">已移除</a>
+    </div>
+</div>
+
+<div class="board-filters admin-board-filters">
+    <a class="meta-chip{{ boardSlug == '' ? ' meta-chip--accent' : '' }}" href="/admin/boards{{ status != '' ? '?status=' ~ status : '' }}">全部板块</a>
+    {% for b in boards %}
+    <a class="meta-chip{{ boardSlug == b.slug ? ' meta-chip--accent' : '' }}" href="/admin/boards?board={{ b.slug }}{{ status != '' ? '&status=' ~ status : '' }}">{{ b.name }}</a>
+    {% endfor %}
+</div>
+
+<div class="table-wrap">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>帖子</th>
+                <th>板块</th>
+                <th>作者</th>
+                <th>互动</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in entries.items %}
+            <tr>
+                <td data-label="帖子" class="admin-table__content">
+                    <a href="{{ e.url }}">{{ e.title }}</a>
+                    <span class="admin-table__sub">{{ e.excerpt }}</span>
+                </td>
+                <td data-label="板块" class="admin-table__sub"><a href="{{ e.board_url }}">{{ e.board_name }}</a></td>
+                <td data-label="作者" class="admin-table__sub">@{{ e.username }}</td>
+                <td data-label="互动" class="admin-table__sub">赞 {{ e.like_count }} · 回复 {{ e.comment_count }}</td>
+                <td data-label="状态">
+                    {% if e.deleted %}<span class="status-dot status-dot--warn"></span>已删除
+                    {% elseif e.status == 'published' %}<span class="status-dot status-dot--ok"></span>正常
+                    {% elseif e.status == 'hidden' %}<span class="status-dot status-dot--warn"></span>已隐藏
+                    {% else %}<span class="status-dot status-dot--warn"></span>已移除{% endif %}
+                </td>
+                <td class="admin-table__actions">
+                    {% if not e.deleted %}
+                    {% if e.status == 'published' %}
+                    <form method="post" action="/admin/boards/{{ e.id }}/status" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="hide">
+                        <button class="text-btn text-btn--sm" type="submit">隐藏</button>
+                    </form>
+                    {% else %}
+                    <form method="post" action="/admin/boards/{{ e.id }}/status" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="restore">
+                        <button class="text-btn text-btn--sm" type="submit">恢复</button>
+                    </form>
+                    {% endif %}
+                    <form method="post" action="/admin/boards/{{ e.id }}/delete" class="inline-form" data-confirm="确定删除这条帖子吗？">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <button class="text-btn text-btn--sm" type="submit">删除</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="admin-table__sub">没有帖子</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include 'components/pagination.twig' with { pagination: entries, base: '/admin/boards?status=' ~ status ~ '&board=' ~ boardSlug } %}
+{% endblock %}

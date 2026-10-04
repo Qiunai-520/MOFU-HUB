@@ -1,0 +1,41 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}history{% endblock %}
+{% block title %}浏览记录 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="history-page">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">浏览记录</h1>
+            <p class="page-subtitle">最近看过的动态</p>
+        </div>
+        {% if feed.total > 0 %}
+        <form method="post" action="/history/clear" data-confirm="确定清空全部浏览记录吗？">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <button class="outlined-btn outlined-btn--sm" type="submit">
+                <span class="material-symbols-outlined" aria-hidden="true">delete_sweep</span> 清空记录
+            </button>
+        </form>
+        {% endif %}
+    </header>
+
+    <div class="feed-list" data-list="history">
+        {% for item in feed.items %}
+        <div class="history-item">
+            <p class="history-item__time">浏览于 {{ item.viewed_text }}</p>
+            {{ include('components/post-card.twig', { post: item }) }}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <span class="material-symbols-outlined empty-state__icon" aria-hidden="true">history</span>
+            <p class="empty-state__title">还没有浏览记录</p>
+            <p class="empty-state__text">看过的动态会出现在这里</p>
+            <a class="filled-btn" href="/">去逛逛</a>
+        </div>
+        {% endfor %}
+    </div>
+
+    {{ include('components/load-more.twig', { pagination: feed, base: baseUrl, target: 'history' }) }}
+</section>
+{% endblock %}

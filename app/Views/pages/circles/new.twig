@@ -1,0 +1,49 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}circles-new{% endblock %}
+{% block title %}创建圈子 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="circles-new">
+    <h1 class="page-title">创建圈子</h1>
+    <p class="page-subtitle">起一个响亮的名字，聚集志同道合的同学</p>
+
+    {% if errors.form is defined %}
+    <p class="form-alert" role="alert">{{ errors.form }}</p>
+    {% endif %}
+
+    <form class="circle-form" method="post" action="/circles">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+        <label class="field">
+            <span class="field__label">圈子名称</span>
+            <input class="field__input" type="text" name="name" value="{{ values.name }}" maxlength="24"
+                   placeholder="例如：摄影同好会" required>
+            <span class="field__hint">2-24 字，支持中文、字母与数字</span>
+        </label>
+
+        <label class="field">
+            <span class="field__label">圈子简介</span>
+            <textarea class="field__input field__input--textarea" name="description" rows="4" maxlength="300"
+                      placeholder="介绍一下圈子的主题与氛围（可选）">{{ values.description }}</textarea>
+        </label>
+
+        <fieldset class="field circle-form__visibility">
+            <legend class="field__label">加入方式</legend>
+            <label class="radio-row">
+                <input type="radio" name="visibility" value="public" {{ values.visibility == 'public' ? 'checked' : '' }}>
+                <span>自由加入：同学点击即可加入</span>
+            </label>
+            <label class="radio-row">
+                <input type="radio" name="visibility" value="approval" {{ values.visibility == 'approval' ? 'checked' : '' }}>
+                <span>审批加入：需要圈主或管理员同意</span>
+            </label>
+        </fieldset>
+
+        <div class="circle-form__foot">
+            <a class="outlined-btn" href="/circles">取消</a>
+            <button class="filled-btn" type="submit">创建圈子</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

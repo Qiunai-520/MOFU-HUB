@@ -1,0 +1,39 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}events-mine{% endblock %}
+{% block title %}我的活动 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="events-page">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">我的活动</h1>
+            <p class="page-subtitle">我报名的与我发起的活动</p>
+        </div>
+        <a class="filled-btn filled-btn--sm" href="/events/new">
+            <span class="material-symbols-outlined" aria-hidden="true">add</span> 发起活动
+        </a>
+    </header>
+
+    <nav class="feed-tabs" aria-label="我的活动筛选">
+        <a class="feed-tab{{ tab == 'joined' ? ' is-active' : '' }}"{{ tab == 'joined' ? ' aria-current="page"' : '' }} href="/events/mine?tab=joined">我报名的</a>
+        <a class="feed-tab{{ tab == 'organized' ? ' is-active' : '' }}"{{ tab == 'organized' ? ' aria-current="page"' : '' }} href="/events/mine?tab=organized">我发起的</a>
+    </nav>
+
+    <div class="event-grid" data-list="events-mine">
+        {% for event in events.items %}
+            {{ include('components/event-card.twig', { event: event }) }}
+        {% else %}
+        {{ include('components/empty-state.twig', {
+            icon: 'event_busy',
+            title: tab == 'joined' ? '还没有报名任何活动' : '还没有发起过活动',
+            text: tab == 'joined' ? '去活动列表看看有什么感兴趣的活动' : '发起一场活动，邀请同学们参加',
+            cta_href: tab == 'joined' ? '/events' : '/events/new',
+            cta_label: tab == 'joined' ? '浏览活动' : '发起活动',
+        }) }}
+        {% endfor %}
+    </div>
+
+    {{ include('components/load-more.twig', { pagination: events, base: baseUrl, target: 'events-mine' }) }}
+</section>
+{% endblock %}

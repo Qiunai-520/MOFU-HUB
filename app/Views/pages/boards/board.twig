@@ -1,0 +1,53 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}board{% endblock %}
+{% block title %}{{ board.name }} · {{ app.name }}{% endblock %}
+
+{% block content %}
+<div class="board-page">
+    <header class="board-hero">
+        <span class="board-hero__icon material-symbols-outlined" aria-hidden="true">{{ board.icon }}</span>
+        <div class="board-hero__info">
+            <h1 class="board-hero__name">{{ board.name }}</h1>
+            <p class="board-hero__desc">{{ board.description }}</p>
+        </div>
+        {% if currentUser %}
+        <a class="filled-btn filled-btn--sm" href="{{ board.url }}/new">
+            <span class="material-symbols-outlined" aria-hidden="true">edit</span> 发帖
+        </a>
+        {% endif %}
+    </header>
+
+    <div class="board-toolbar">
+        <nav class="feed-tabs" aria-label="排序">
+            <a class="feed-tab{{ sort == 'latest' ? ' is-active' : '' }}"{{ sort == 'latest' ? ' aria-current="page"' : '' }} href="{{ baseUrl }}sort=latest{{ filter != '' ? '&filter=' ~ filter : '' }}">最新</a>
+            <a class="feed-tab{{ sort == 'hot' ? ' is-active' : '' }}"{{ sort == 'hot' ? ' aria-current="page"' : '' }} href="{{ baseUrl }}sort=hot{{ filter != '' ? '&filter=' ~ filter : '' }}">热门</a>
+        </nav>
+
+        {% if filters|length > 0 %}
+        <div class="board-filters">
+            <a class="meta-chip{{ filter == '' ? ' meta-chip--accent' : '' }}" href="{{ baseUrl }}sort={{ sort }}">全部</a>
+            {% for f in filters %}
+            <a class="meta-chip{{ filter == f.key ? ' meta-chip--accent' : '' }}" href="{{ baseUrl }}sort={{ sort }}&filter={{ f.key }}">{{ f.label }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="entry-list" data-list="board-entries">
+        {% for entry in entries.items %}
+            {{ include('components/entry-card.twig', { entry: entry }) }}
+        {% else %}
+        {{ include('components/empty-state.twig', {
+            icon: board.icon,
+            title: '这里还没有帖子',
+            text: '来发布第一条内容吧',
+            cta_href: currentUser ? board.url ~ '/new' : '',
+            cta_label: '发帖',
+        }) }}
+        {% endfor %}
+    </div>
+
+    {{ include('components/load-more.twig', { pagination: entries, base: baseUrl ~ 'sort=' ~ sort ~ (filter != '' ? '&filter=' ~ filter : '') ~ '&', target: 'board-entries' }) }}
+</div>
+{% endblock %}

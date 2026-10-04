@@ -1,0 +1,70 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}首页轮播 · {{ app.name }}{% endblock %}
+
+{% macro bannerRow(image, title, summary, link) %}
+<div class="team-row" data-banner-row>
+    <div class="team-row__avatar">
+        <span class="team-row__avatar-preview team-row__avatar-preview--wide{{ image is empty ? ' is-empty' : '' }}"
+              data-banner-image-preview
+              {% if image is not empty %}style="background-image: url('{{ image|e('css') }}')"{% endif %}>
+            <span class="material-symbols-outlined" aria-hidden="true">image</span>
+        </span>
+        <input type="hidden" name="banner_image[]" value="{{ image }}" data-banner-image-input>
+        {# 文件选择控件不参与提交：上传成功后写回上面的隐藏字段 #}
+        <input class="team-row__file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" data-banner-image-file hidden>
+        <button class="outlined-btn outlined-btn--sm" type="button" data-banner-image-pick>
+            <span class="material-symbols-outlined" aria-hidden="true">upload</span> 图片
+        </button>
+    </div>
+    <div class="team-row__fields">
+        <input class="field__input" type="text" name="banner_title[]" value="{{ title }}"
+               maxlength="60" placeholder="标题">
+        <input class="field__input" type="text" name="banner_summary[]" value="{{ summary }}"
+               maxlength="120" placeholder="描述（可省略）">
+        <input class="field__input banner-row__link" type="text" name="banner_link[]" value="{{ link }}"
+               maxlength="255" placeholder="点击跳转链接：/posts/123 或 https://…（可省略）">
+    </div>
+    <button class="icon-btn team-row__remove" type="button" data-banner-remove aria-label="删除这张轮播图">
+        <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+    </button>
+</div>
+{% endmacro %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">首页轮播</h1>
+</div>
+
+{% if ok %}
+<div class="form-success" role="status">已保存</div>
+{% endif %}
+
+<p class="page-subtitle">
+    首页顶部的轮播图，按这里的顺序展示（最多 8 张）。留空标题且不上传图片的行会被忽略；
+    一张都不配时，首页会自动改用「置顶的已发布资讯」。
+</p>
+
+<form method="post" action="/admin/banners" data-banner-form>
+    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+    <div class="team-form__rows" data-banner-rows>
+        {% for item in items %}
+            {{ _self.bannerRow(item.image, item.title, item.summary, item.link) }}
+        {% endfor %}
+        {% if items|length == 0 %}
+            {{ _self.bannerRow('', '', '', '') }}
+        {% endif %}
+    </div>
+
+    <template data-banner-template>{{ _self.bannerRow('', '', '', '') }}</template>
+
+    <div class="team-form__foot">
+        <button class="outlined-btn" type="button" data-banner-add>
+            <span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span> 添加轮播图
+        </button>
+        <button class="filled-btn" type="submit">保存轮播</button>
+    </div>
+</form>
+{% endblock %}

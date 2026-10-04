@@ -1,0 +1,103 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}board-entry{% endblock %}
+{% block title %}{{ entry.title }} · {{ board.name }} · {{ app.name }}{% endblock %}
+
+{% block content %}
+<div class="board-entry-page">
+    <nav class="board-entry__crumb" aria-label="面包屑">
+        <a href="/boards">社区板块</a>
+        <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+        <a href="{{ entry.board.url }}">{{ board.name }}</a>
+    </nav>
+
+    <article class="board-entry">
+        <header class="board-entry__head">
+            {{ include('components/avatar.twig', { user: entry.author, size: 'lg' }) }}
+            <div class="board-entry__meta">
+                <a class="post-detail__author" href="{{ entry.author.url }}">{{ entry.author.nickname }}</a>
+                <div class="post-detail__sub">
+                    <time>{{ entry.time_ago }}</time>
+                    {% if entry.is_hidden %}<span class="meta-chip meta-chip--warn">已被隐藏</span>{% endif %}
+                </div>
+            </div>
+            {% if entry.can_manage %}
+            <div class="board-entry__manage">
+                {% if entry.state is not null %}
+                <form method="post" action="/boards/{{ board.slug }}/{{ entry.id }}/state">
+                    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                    <button class="outlined-btn outlined-btn--sm" type="submit">
+                        标记为{{ entry.state == 'pending' or entry.state == 'selling' ? entry.states|last : entry.states|first }}
+                    </button>
+                </form>
+                {% endif %}
+                <form method="post" action="/boards/{{ board.slug }}/{{ entry.id }}/delete">
+                    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                    <button class="outlined-btn outlined-btn--sm" type="submit" data-confirm="确定删除这条帖子吗？">删除</button>
+                </form>
+            </div>
+            {% endif %}
+        </header>
+
+        <h1 class="board-entry__title">{{ entry.title }}</h1>
+
+        {% if entry.badges|length > 0 %}
+        <div class="board-entry__badges">
+            {% for badge in entry.badges %}
+            <span class="meta-chip{{ badge.variant == 'accent' ? ' meta-chip--accent' : (badge.variant == 'warn' ? ' meta-chip--warn' : '') }}">{{ badge.label }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="post-content post-content--lg">{{ entry.content_html|raw }}</div>
+
+        <footer class="post-detail__foot">
+            <button class="post-action{{ entry.liked ? ' is-active' : '' }}" type="button"
+                    data-action="toggle-like" data-target-type="board_entry" data-target-id="{{ entry.id }}"
+                    aria-pressed="{{ entry.liked ? 'true' : 'false' }}">
+                <span class="material-symbols-outlined" aria-hidden="true">favorite</span>
+                <span class="post-action__count" data-like-count>{{ entry.like_count }}</span>
+            </button>
+            <a class="post-action" href="#comments">
+                <span class="material-symbols-outlined" aria-hidden="true">chat_bubble</span>
+                <span class="post-action__count">{{ entry.comment_count }}</span>
+            </a>
+            <button class="post-action{{ entry.favorited ? ' is-active' : '' }}" type="button"
+                    data-action="toggle-favorite" data-target-type="board_entry" data-target-id="{{ entry.id }}"
+                    aria-pressed="{{ entry.favorited ? 'true' : 'false' }}">
+                <span class="material-symbols-outlined" aria-hidden="true">bookmark</span>
+            </button>
+        </footer>
+    </article>
+
+    <section class="board-entry__comments" id="comments">
+        <h2 class="feed__title">回复（{{ entry.comment_count }}）</h2>
+
+        {% for comment in comments %}
+        <div class="entry-comment">
+            {{ include('components/avatar.twig', { user: comment.author, size: 'md' }) }}
+            <div class="entry-comment__body">
+                <div class="entry-comment__head">
+                    <a class="entry-comment__author" href="{{ comment.author.url }}">{{ comment.author.nickname }}</a>
+                    <time>{{ comment.time_ago }}</time>
+                </div>
+                <div class="entry-comment__content">{{ comment.content_html|raw }}</div>
+            </div>
+        </div>
+        {% else %}
+        {{ include('components/empty-state.twig', { compact: true, text: '还没有回复，来抢沙发' }) }}
+        {% endfor %}
+
+        {% if currentUser %}
+        <form class="entry-comment-form" method="post" action="/boards/{{ board.slug }}/{{ entry.id }}/comments">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <textarea class="field__input field__input--textarea" name="content" rows="3" maxlength="1000"
+                      placeholder="友善回复，共建友好社区" aria-label="回复内容" required></textarea>
+            <button class="filled-btn filled-btn--sm" type="submit">回复</button>
+        </form>
+        {% else %}
+        {{ include('components/empty-state.twig', { compact: true, icon: 'lock', text: '参与回复需要先登录', cta_href: '/login', cta_label: '去登录' }) }}
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

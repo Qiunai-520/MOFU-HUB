@@ -1,0 +1,28 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}topic{% endblock %}
+{% block title %}#{{ topic.name }} · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="topic-page">
+    <header class="topic-head">
+        <h1 class="topic-head__title">#{{ topic.name }}</h1>
+        <p class="topic-head__meta">共 {{ feed.total }} 条公开动态</p>
+    </header>
+
+    <div class="feed-list" data-list="topic-posts">
+        {% for post in feedItems %}
+            {{ include('components/post-card.twig', { post: post }) }}
+        {% else %}
+        <div class="empty-state">
+            <span class="material-symbols-outlined empty-state__icon" aria-hidden="true">tag</span>
+            <p class="empty-state__title">这个话题下还没有公开动态</p>
+            <p class="empty-state__text">发布动态时带上 #{{ topic.name }} 即可参与讨论</p>
+            {% if currentUser %}<a class="filled-btn" href="/compose">发布动态</a>{% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    {{ include('components/load-more.twig', { pagination: feed, base: '/topics/' ~ topic.slug|url_encode ~ '?', target: 'topic-posts' }) }}
+</section>
+{% endblock %}

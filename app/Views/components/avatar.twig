@@ -1,0 +1,6 @@
+{# 头像：有上传头像时渲染图片，否则退回文字头像 #}
+{% if user.avatar_url is defined and user.avatar_url is not empty %}
+<img class="avatar avatar--{{ size|default('md') }}" src="{{ user.avatar_url }}" alt="" loading="lazy" decoding="async">
+{% else %}
+<span class="avatar avatar--{{ size|default('md') }}" style="--avatar-hue: {{ user.hue }}" aria-hidden="true">{{ user.initial }}</span>
+{% endif %}

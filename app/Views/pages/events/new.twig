@@ -1,0 +1,86 @@
+{% extends 'layouts/app.twig' %}
+
+{% set isEdit = editing %}
+
+{% block page_id %}events-new{% endblock %}
+{% block title %}{{ isEdit ? '编辑活动' : '发起活动' }} · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="events-new">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">{{ isEdit ? '编辑活动' : '发起活动' }}</h1>
+            <p class="page-subtitle">填写活动信息，邀请同学们参加</p>
+        </div>
+    </header>
+
+    {% if errors.form is defined %}
+    <p class="form-alert" role="alert">{{ errors.form }}</p>
+    {% endif %}
+
+    <form class="board-form event-form" method="post"
+          action="{{ isEdit ? '/events/' ~ event.id : '/events' }}" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+        <label class="field">
+            <span class="field__label">活动标题</span>
+            <input class="field__input" type="text" name="title" value="{{ values.title }}" maxlength="60" required>
+        </label>
+
+        <div class="board-form__row">
+            <label class="field">
+                <span class="field__label">开始时间</span>
+                <input class="field__input" type="datetime-local" name="start_at" value="{{ values.start_at }}" required>
+            </label>
+            <label class="field">
+                <span class="field__label">结束时间（可选）</span>
+                <input class="field__input" type="datetime-local" name="end_at" value="{{ values.end_at }}">
+            </label>
+        </div>
+
+        <div class="board-form__row">
+            <label class="field">
+                <span class="field__label">活动地点（可选）</span>
+                <input class="field__input" type="text" name="location" value="{{ values.location }}" maxlength="80"
+                       placeholder="例如：大学生活动中心 301">
+            </label>
+            <label class="field">
+                <span class="field__label">报名截止（可选）</span>
+                <input class="field__input" type="datetime-local" name="signup_deadline" value="{{ values.signup_deadline }}">
+            </label>
+        </div>
+
+        <div class="board-form__row">
+            <label class="field">
+                <span class="field__label">名额（0 表示不限）</span>
+                <input class="field__input" type="number" name="capacity" value="{{ values.capacity }}" min="0" max="10000" step="1">
+            </label>
+            <label class="field">
+                <span class="field__label">封面图（可选）</span>
+                <input class="field__input" type="file" name="cover" accept="image/jpeg,image/png,image/webp,image/gif">
+                {% if isEdit and event.cover_media_id is not null %}
+                <span class="field__hint">当前已有封面，选择新图片将替换</span>
+                {% endif %}
+            </label>
+        </div>
+
+        <label class="settings-row">
+            <span class="settings-row__text"><strong>报名需要审核</strong>开启后报名进入待审核，需你批准后才算报名成功</span>
+            <span class="switch">
+                <input type="checkbox" name="requires_approval" value="1" {{ values.requires_approval == '1' ? 'checked' : '' }}>
+            </span>
+        </label>
+
+        <label class="field">
+            <span class="field__label">活动说明</span>
+            <textarea class="field__input field__input--textarea" name="description" rows="8" maxlength="5000" required data-counter
+                      placeholder="介绍一下活动内容、参与须知等">{{ values.description }}</textarea>
+        </label>
+
+        <div class="board-form__foot">
+            <a class="outlined-btn" href="{{ isEdit ? '/events/' ~ event.id : '/events' }}">取消</a>
+            <button class="filled-btn" type="submit">{{ isEdit ? '保存修改' : '发布活动' }}</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

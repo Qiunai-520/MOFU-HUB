@@ -1,0 +1,163 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}circle{% endblock %}
+{% block title %}{{ community.name }} · 圈子 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<div class="circle-page">
+    <header class="circle-hero">
+        <span class="circle-hero__icon material-symbols-outlined" aria-hidden="true">{{ community.icon }}</span>
+        <div class="circle-hero__info">
+            <h1 class="circle-hero__name">{{ community.name }}</h1>
+            <p class="circle-hero__meta">{{ counts.members }} 成员 · {{ counts.posts }} 动态 · {{ community.visibility == 'approval' ? '审批加入' : '自由加入' }}</p>
+            {% if community.description is not empty %}
+            <p class="circle-hero__desc">{{ community.description }}</p>
+            {% endif %}
+        </div>
+        <div class="circle-hero__actions">
+            {% if currentUser is null %}
+            <a class="filled-btn filled-btn--sm" href="/login">登录后加入</a>
+            {% elseif isMember %}
+            <a class="filled-btn filled-btn--sm" href="/circles/{{ community.slug }}/new">发布动态</a>
+            {% if not isOwner %}
+            <form method="post" action="/circles/{{ community.slug }}/leave">
+                <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                <button class="outlined-btn outlined-btn--sm" type="submit" data-confirm="确定退出这个圈子吗？">退出圈子</button>
+            </form>
+            {% endif %}
+            {% elseif membershipStatus == 'pending' %}
+            <span class="meta-chip meta-chip--warn">申请审批中</span>
+            {% else %}
+            <form method="post" action="/circles/{{ community.slug }}/join">
+                <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                <button class="filled-btn filled-btn--sm" type="submit">{{ community.visibility == 'approval' ? '申请加入' : '加入圈子' }}</button>
+            </form>
+            {% endif %}
+        </div>
+    </header>
+
+    {% set okMessages = { joined: '已加入圈子', pending: '申请已提交，等待圈主审批', left: '已退出圈子' } %}
+    {% if ok is defined and okMessages[ok] is defined %}
+    <div class="form-success" role="status">{{ okMessages[ok] }}</div>
+    {% endif %}
+
+    <nav class="feed-tabs circle-tabs" aria-label="圈子导航">
+        <a class="feed-tab{{ tab == 'feed' ? ' is-active' : '' }}"{{ tab == 'feed' ? ' aria-current="page"' : '' }} href="{{ baseUrl }}tab=feed">动态</a>
+        <a class="feed-tab{{ tab == 'members' ? ' is-active' : '' }}"{{ tab == 'members' ? ' aria-current="page"' : '' }} href="{{ baseUrl }}tab=members">成员</a>
+        <a class="feed-tab{{ tab == 'about' ? ' is-active' : '' }}"{{ tab == 'about' ? ' aria-current="page"' : '' }} href="{{ baseUrl }}tab=about">关于</a>
+    </nav>
+
+    {% if tab == 'feed' %}
+        {% if isMember %}
+        <section class="feed" data-feed data-feed-endpoint="/api/v1/communities/{{ community.id }}/posts">
+            <a class="compose-entry" href="/circles/{{ community.slug }}/new">
+                {{ include('components/avatar.twig', { user: currentUser, size: 'md' }) }}
+                <span class="compose-entry__hint">发布到「{{ community.name }}」…</span>
+                <span class="compose-entry__icon material-symbols-outlined" aria-hidden="true">edit_square</span>
+            </a>
+            <div class="feed-list" data-feed-list>
+                {% for post in feedItems %}
+                    {{ include('components/post-card.twig', { post: post }) }}
+                {% else %}
+                {{ include('components/empty-state.twig', {
+                    icon: 'groups',
+                    title: '圈子里还没有动态',
+                    text: '发一条动态，和圈子里的同学打个招呼吧',
+                }) }}
+                {% endfor %}
+            </div>
+            {% if feed.pages > 1 %}
+            {% set atEnd = feed.page >= feed.pages %}
+            <div class="load-more" data-load-more>
+                <button class="outlined-btn" type="button" data-action="load-more"
+                        data-next-page="{{ feed.page + 1 }}" data-pages="{{ feed.pages }}"
+                        {% if atEnd %}hidden{% endif %}>加载更多</button>
+                <p class="load-more__hint" data-load-more-hint{{ atEnd ? '' : ' hidden' }}>已经到底啦</p>
+            </div>
+            {% endif %}
+        </section>
+        {% else %}
+        <div class="empty-state">
+            <span class="material-symbols-outlined empty-state__icon" aria-hidden="true">lock</span>
+            <p class="empty-state__title">圈子动态仅成员可见</p>
+            <p class="empty-state__text">{{ membershipStatus == 'pending' ? '你的申请正在等待审批' : '加入圈子后即可查看和发布动态' }}</p>
+        </div>
+        {% endif %}
+
+    {% elseif tab == 'members' %}
+        <section class="circle-members">
+            {% if isManager and pendingMembers|length > 0 %}
+            <div class="card side-card">
+                <h2 class="side-card__title">待审批（{{ pendingMembers|length }}）</h2>
+                <div class="user-list">
+                    {% for member in pendingMembers %}
+                    {% embed 'components/user-row.twig' with { user: member, meta: '申请于 ' ~ member.joined_at } %}
+                        {% block actions %}
+                        <form method="post" action="/circles/{{ community.slug }}/members/{{ member.id }}/approve">
+                            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                            <button class="filled-btn filled-btn--sm" type="submit">通过</button>
+                        </form>
+                        <form method="post" action="/circles/{{ community.slug }}/members/{{ member.id }}/reject">
+                            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                            <button class="outlined-btn outlined-btn--sm" type="submit">拒绝</button>
+                        </form>
+                        {% endblock %}
+                    {% endembed %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="user-list" data-list="circle-members">
+                {% for member in members.items %}
+                {% embed 'components/user-row.twig' with { user: member, meta: member.role_label ~ ' · 加入于 ' ~ member.joined_at } %}
+                    {% block actions %}
+                    {% if isManager and member.role != 'owner' and currentUser.id != member.id %}
+                    <form method="post" action="/circles/{{ community.slug }}/members/{{ member.id }}/remove">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <button class="outlined-btn outlined-btn--sm" type="submit" data-confirm="确定将 TA 移出圈子吗？">移出</button>
+                    </form>
+                    {% endif %}
+                    {% endblock %}
+                {% endembed %}
+                {% endfor %}
+            </div>
+
+            {{ include('components/load-more.twig', { pagination: members, base: baseUrl ~ 'tab=members&', target: 'circle-members' }) }}
+        </section>
+
+    {% elseif tab == 'about' %}
+        <section class="circle-about">
+            <div class="card side-card">
+                <h2 class="side-card__title">圈子简介</h2>
+                <p class="side-card__text">{{ community.description is empty ? '圈主还没有填写简介' : community.description }}</p>
+                <ul class="circle-about__meta">
+                    <li>加入方式：{{ community.visibility == 'approval' ? '审批加入' : '自由加入' }}</li>
+                    <li>成员数：{{ counts.members }}</li>
+                    <li>动态数：{{ counts.posts }}</li>
+                    <li>创建于：{{ community.created_at }}</li>
+                </ul>
+            </div>
+
+            {% if isOwner %}
+            <form class="side-card circle-settings" method="post" action="/circles/{{ community.slug }}/update">
+                <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                <h2 class="side-card__title">圈子设置</h2>
+                <label class="field">
+                    <span class="field__label">圈子简介</span>
+                    <textarea class="field__input field__input--textarea" name="description" rows="4" maxlength="300">{{ community.description }}</textarea>
+                </label>
+                <label class="field">
+                    <span class="field__label">加入方式</span>
+                    <select class="field__input" name="visibility">
+                        <option value="public" {{ community.visibility == 'public' ? 'selected' : '' }}>自由加入</option>
+                        <option value="approval" {{ community.visibility == 'approval' ? 'selected' : '' }}>审批加入</option>
+                    </select>
+                </label>
+                <button class="filled-btn filled-btn--sm" type="submit">保存设置</button>
+            </form>
+            {% endif %}
+        </section>
+    {% endif %}
+</div>
+{% endblock %}

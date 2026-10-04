@@ -1,0 +1,54 @@
+{% extends 'layouts/app.twig' %}
+
+{% set isHole = board == 'hole' %}
+
+{% block page_id %}{{ isHole ? 'hole' : 'wall' }}{% endblock %}
+{% block title %}{{ boardLabel }} · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="board board--{{ board }}">
+    <header class="board__hero">
+        <h1 class="board__title">{{ isHole ? '树洞' : '表白墙' }}</h1>
+        <p class="board__subtitle">
+            {{ isHole ? '把心事悄悄说给树洞听，这里风会替你保守秘密' : '把想说的话写在这里，让校园替你传达' }}
+        </p>
+        <a class="filled-btn board__cta" href="/{{ board }}/new">
+            <span class="material-symbols-outlined" aria-hidden="true">{{ isHole ? 'forest' : 'favorite' }}</span>
+            {{ isHole ? '挖个树洞' : '写下表白' }}
+        </a>
+        {% if moderationEnabled %}
+        <p class="board__note">投稿会先经审核，通过后公开展示</p>
+        {% endif %}
+    </header>
+
+    <div class="board__filters">
+        <nav class="feed-tabs" aria-label="排序">
+            {% for key, label in sorts %}
+            <a class="feed-tab{{ sort == key ? ' is-active' : '' }}"{{ sort == key ? ' aria-current="page"' : '' }} href="?sort={{ key }}{{ category != '' ? '&category=' ~ category : '' }}">{{ label }}</a>
+            {% endfor %}
+        </nav>
+        <div class="board__categories">
+            <a class="topic-chip{{ category == '' ? ' is-active' : '' }}"{{ category == '' ? ' aria-current="true"' : '' }} href="?sort={{ sort }}">全部</a>
+            {% for key, label in categories %}
+            <a class="topic-chip{{ category == key ? ' is-active' : '' }}"{{ category == key ? ' aria-current="true"' : '' }} href="?sort={{ sort }}&category={{ key }}">{{ label }}</a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="board__list" data-list="confessions">
+        {% for item in items %}
+            {{ include('components/confession-card.twig', { item: item }) }}
+        {% else %}
+        {{ include('components/empty-state.twig', {
+            icon: isHole ? 'forest' : 'favorite',
+            title: isHole ? '树洞还很安静' : '还没有人写下告白',
+            text: '成为第一个在这里留下心声的人',
+            cta_href: '/' ~ board ~ '/new',
+            cta_label: isHole ? '挖个树洞' : '写下表白',
+        }) }}
+        {% endfor %}
+    </div>
+
+    {{ include('components/load-more.twig', { pagination: pagination, base: baseQuery, target: 'confessions' }) }}
+</section>
+{% endblock %}

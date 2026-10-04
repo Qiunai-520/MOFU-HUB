@@ -1,0 +1,47 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}板块外观 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">板块外观</h1>
+</div>
+
+{% if ok %}
+<div class="form-success" role="status">已保存</div>
+{% endif %}
+{% if error is not null %}
+<div class="form-alert" role="alert">{{ error }}</div>
+{% endif %}
+
+<p class="page-subtitle">为板块设置一张 Logo 图片（未设置时显示默认图标）。</p>
+
+<div class="board-logo-grid">
+    {% for b in boards %}
+    <div class="card board-logo-card">
+        <div class="board-logo-card__preview">
+            {% if b.logo is not empty %}
+            <img src="{{ b.logo }}" alt="{{ b.name }}">
+            {% else %}
+            <span class="material-symbols-outlined" aria-hidden="true">{{ b.icon }}</span>
+            {% endif %}
+        </div>
+        <div class="board-logo-card__body">
+            <strong>{{ b.name }}</strong>
+            <span class="board-logo-card__slug">/boards/{{ b.slug }}</span>
+        </div>
+        <form method="post" action="/admin/boards/{{ b.id }}/logo" enctype="multipart/form-data" class="board-logo-form">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <label class="outlined-btn outlined-btn--sm board-logo-form__pick">
+                选择图片
+                <input type="file" name="logo" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="this.form.submit()">
+            </label>
+            {% if b.logo is not empty %}
+            <button class="text-btn text-btn--sm text-btn--danger" type="submit" name="action" value="clear">清除</button>
+            {% endif %}
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

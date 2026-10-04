@@ -1,0 +1,61 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}register{% endblock %}
+{% block title %}注册 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<div class="auth-layout">
+    <section class="auth-card">
+        <h1 class="auth-card__title">加入 {{ app.name }}</h1>
+        <p class="auth-card__subtitle">创建账号，开启你的校园社区</p>
+
+        {% if not registrationOpen %}
+        <div class="form-alert" role="alert">当前暂未开放注册，请稍后再来。</div>
+        {% endif %}
+
+        {% if errors.register is defined %}
+        <div class="form-alert" role="alert">{{ errors.register }}</div>
+        {% endif %}
+
+        <form method="post" action="/register" class="auth-form" novalidate>
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+            <label class="field{{ errors.username is defined ? ' field--error' : '' }}" for="register-username">
+                <span class="field__label">用户名</span>
+                <input class="field__input" id="register-username" type="text" name="username" value="{{ values.username }}"
+                       pattern="[a-z0-9_]{3,20}" autocomplete="username" required{{ errors.username is defined ? ' aria-invalid="true"' : '' }}>
+                <span class="field__hint">3-20 位小写字母、数字或下划线，注册后不可修改</span>
+                {% if errors.username is defined %}<span class="field__error">{{ errors.username }}</span>{% endif %}
+            </label>
+
+                        <label class="field{{ errors.nickname is defined ? ' field--error' : '' }}" for="register-nickname">
+                <span class="field__label">昵称（可选）</span>
+                <input class="field__input" id="register-nickname" type="text" name="nickname" value="{{ values.nickname }}" maxlength="24"{{ errors.nickname is defined ? ' aria-invalid="true"' : '' }}>
+                {% if errors.nickname is defined %}<span class="field__error">{{ errors.nickname }}</span>{% endif %}
+            </label>
+            <label class="field{{ errors.email is defined ? ' field--error' : '' }}" for="register-email">
+                <span class="field__label">邮箱</span>
+                <input class="field__input" id="register-email" type="email" name="email" value="{{ values.email }}" autocomplete="email" required{{ errors.email is defined ? ' aria-invalid="true"' : '' }}>
+                {% if errors.email is defined %}<span class="field__error">{{ errors.email }}</span>{% endif %}
+            </label>
+
+            <label class="field{{ errors.password is defined ? ' field--error' : '' }}" for="register-password">
+                <span class="field__label">密码</span>
+                <input class="field__input" id="register-password" type="password" name="password" autocomplete="new-password" minlength="8" required{{ errors.password is defined ? ' aria-invalid="true"' : '' }}>
+                <span class="field__hint">至少 8 位</span>
+                {% if errors.password is defined %}<span class="field__error">{{ errors.password }}</span>{% endif %}
+            </label>
+
+            <label class="field{{ errors.password_confirm is defined ? ' field--error' : '' }}" for="register-password-confirm">
+                <span class="field__label">确认密码</span>
+                <input class="field__input" id="register-password-confirm" type="password" name="password_confirm" autocomplete="new-password" required{{ errors.password_confirm is defined ? ' aria-invalid="true"' : '' }}>
+                {% if errors.password_confirm is defined %}<span class="field__error">{{ errors.password_confirm }}</span>{% endif %}
+            </label>
+
+            <button class="filled-btn filled-btn--block" type="submit" {{ not registrationOpen ? 'disabled' : '' }}>注册</button>
+        </form>
+
+        <p class="auth-card__foot">已有账号？<a href="/login">直接登录</a></p>
+    </section>
+</div>
+{% endblock %}

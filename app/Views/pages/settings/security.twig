@@ -1,0 +1,109 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}settings{% endblock %}
+{% block title %}账号与安全 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="settings-layout">
+    {{ include('components/settings-nav.twig') }}
+
+    <div class="settings-main" data-tabs-panel>
+        <h1 class="page-title">账号与安全</h1>
+
+        {% if saved %}
+        <div class="form-success" role="status">操作已完成</div>
+        {% endif %}
+
+        <div class="settings-group">
+            <h2 class="settings-group__title">修改密码</h2>
+            <div class="settings-card settings-card--pad">
+                <form method="post" action="/settings/security" class="settings-form" novalidate>
+                    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+                    <label class="field{{ errors.current_password is defined ? ' field--error' : '' }}">
+                        <span class="field__label">当前密码</span>
+                        <input class="field__input" type="password" name="current_password" autocomplete="current-password" required>
+                        {% if errors.current_password is defined %}<span class="field__error">{{ errors.current_password }}</span>{% endif %}
+                    </label>
+
+                    <label class="field{{ errors.new_password is defined ? ' field--error' : '' }}">
+                        <span class="field__label">新密码（至少 8 位）</span>
+                        <input class="field__input" type="password" name="new_password" autocomplete="new-password" required>
+                        {% if errors.new_password is defined %}<span class="field__error">{{ errors.new_password }}</span>{% endif %}
+                    </label>
+
+                    <label class="field{{ errors.confirm_password is defined ? ' field--error' : '' }}">
+                        <span class="field__label">确认新密码</span>
+                        <input class="field__input" type="password" name="confirm_password" autocomplete="new-password" required>
+                        {% if errors.confirm_password is defined %}<span class="field__error">{{ errors.confirm_password }}</span>{% endif %}
+                    </label>
+
+                    <label class="settings-check">
+                        <input type="checkbox" name="revoke_others" value="1" checked>
+                        <span>同时退出其他所有设备</span>
+                    </label>
+
+                    <div class="settings-form__foot">
+                        <button class="filled-btn" type="submit">更新密码</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="settings-group">
+            <h2 class="settings-group__title">登录设备</h2>
+            <div class="settings-card">
+                <div class="session-list">
+                    {% for session in sessions %}
+                    <div class="session-item{{ session.current ? ' is-current' : '' }}">
+                        <span class="material-symbols-outlined session-item__icon" aria-hidden="true">{{ session.current ? 'smartphone' : 'devices' }}</span>
+                        <div class="session-item__info">
+                            <p class="session-item__device">
+                                {{ session.device }}
+                                {% if session.current %}<span class="meta-chip meta-chip--accent">当前设备</span>{% endif %}
+                            </p>
+                            <p class="session-item__meta">IP {{ session.ip }} · 最近活跃 {{ session.last_seen }} · 登录于 {{ session.created_at }}</p>
+                        </div>
+                        {% if not session.current %}
+                        <form method="post" action="/settings/security/sessions/{{ session.id }}/revoke"
+                              class="session-item__action" data-confirm="确定退出该设备吗？">
+                            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                            <button class="text-btn text-btn--sm text-btn--danger" type="submit">退出该设备</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <p class="settings-hint">暂无登录设备记录</p>
+                    {% endfor %}
+                </div>
+
+                {% if sessions|length > 1 %}
+                <form method="post" action="/settings/security/sessions/revoke-others" class="settings-row"
+                      data-confirm="确定退出其他所有设备吗？">
+                    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                    <span class="settings-row__text">
+                        <span class="settings-row__label">退出其他所有设备</span>
+                        <span class="settings-row__desc">保留当前设备，其余登录立即失效</span>
+                    </span>
+                    <button class="outlined-btn outlined-btn--sm" type="submit">退出其他设备</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="settings-group">
+            <h2 class="settings-group__title">退出登录</h2>
+            <div class="settings-card">
+                <form method="post" action="/logout" class="settings-row">
+                    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                    <span class="settings-row__text">
+                        <span class="settings-row__label">退出当前账号</span>
+                        <span class="settings-row__desc">退出后需要重新登录才能发布内容、查看消息与通知</span>
+                    </span>
+                    <button class="outlined-btn outlined-btn--sm" type="submit">退出登录</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

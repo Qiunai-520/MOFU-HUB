@@ -1,0 +1,56 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}mine{% endblock %}
+{% block title %}我的投稿 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="my-confessions">
+    <h1 class="page-title">我的投稿</h1>
+    <p class="page-subtitle">这里保存着你在表白墙和树洞留下的所有心声</p>
+
+    {% if not hasIdentity %}
+    <div class="empty-state">
+        <span class="material-symbols-outlined empty-state__icon" aria-hidden="true">lock</span>
+        <p class="empty-state__title">还没有投稿记录</p>
+        <p class="empty-state__text">登录后投稿会记入账号；未登录的匿名投稿凭证保存在当前设备上</p>
+        <div class="empty-state__actions">
+            <a class="filled-btn" href="/wall/new">去表白墙</a>
+            <a class="outlined-btn" href="/hole/new">去树洞</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="my-confessions__list">
+        {% for item in items %}
+        <article class="card my-confession">
+            <div class="my-confession__head">
+                <span class="meta-chip">{{ item.board_label }}</span>
+                {% if item.category_label %}<span class="meta-chip">{{ item.category_label }}</span>{% endif %}
+                {% if item.status_label %}<span class="meta-chip meta-chip--warn">{{ item.status_label }}</span>{% endif %}
+                <time class="my-confession__time">{{ item.time_ago }}</time>
+            </div>
+            <div class="my-confession__content">{{ item.excerpt }}</div>
+            <div class="my-confession__foot">
+                <span class="admin-table__sub">获得 {{ item.like_count }} 个喜欢 · {{ item.comment_count }} 条回应</span>
+                <div class="my-confession__actions">
+                    {% if item.status == 'approved' %}
+                    <a class="text-btn text-btn--sm" href="{{ item.url }}">查看</a>
+                    {% endif %}
+                    <button class="text-btn text-btn--sm text-btn--danger" type="button"
+                            data-action="delete-confession" data-confession-id="{{ item.id }}">删除</button>
+                </div>
+            </div>
+        </article>
+        {% else %}
+        <div class="empty-state">
+            <span class="material-symbols-outlined empty-state__icon" aria-hidden="true">article</span>
+            <p class="empty-state__title">还没有投稿</p>
+            <div class="empty-state__actions">
+                <a class="filled-btn" href="/wall/new">去表白墙</a>
+                <a class="outlined-btn" href="/hole/new">去树洞</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

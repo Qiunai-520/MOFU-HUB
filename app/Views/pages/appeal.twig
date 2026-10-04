@@ -1,0 +1,62 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}appeal{% endblock %}
+{% block title %}账号申诉 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<div class="auth-layout">
+    <section class="auth-card">
+        <h1 class="auth-card__title">账号申诉</h1>
+        <p class="auth-card__subtitle">如果你的账号被停用或封禁，可以在这里提交申诉</p>
+
+        {% if submitted %}
+        <div class="form-success" role="status">申诉已提交，我们会尽快处理</div>
+        {% endif %}
+
+        {% if errors.form is defined %}
+        <div class="form-alert" role="alert">{{ errors.form }}</div>
+        {% endif %}
+
+        {% if latest is not null %}
+        <div class="appeal-status">
+            <p class="appeal-status__line">
+                最近一条申诉：
+                {% if latest.status == 'pending' %}
+                <span class="meta-chip meta-chip--warn">处理中</span>
+                {% elseif latest.status == 'accepted' %}
+                <span class="meta-chip meta-chip--accent">已通过</span>
+                {% else %}
+                <span class="meta-chip">未通过</span>
+                {% endif %}
+            </p>
+            {% if latest.admin_reply is not empty %}
+            <p class="appeal-status__reply">处理说明：{{ latest.admin_reply }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <form method="post" action="/appeal" class="auth-form" novalidate>
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+            <label class="field">
+                <span class="field__label">用户名</span>
+                <input class="field__input" type="text" name="username" value="{{ username }}" autocomplete="username" required>
+            </label>
+
+            <label class="field">
+                <span class="field__label">密码（用于验证身份）</span>
+                <input class="field__input" type="password" name="password" autocomplete="current-password" required>
+            </label>
+
+            <label class="field">
+                <span class="field__label">申诉理由（最多 1000 字）</span>
+                <textarea class="field__input field__input--textarea" name="reason" rows="4" maxlength="1000" required></textarea>
+            </label>
+
+            <button class="filled-btn filled-btn--block" type="submit">提交申诉</button>
+        </form>
+
+        <p class="auth-card__foot"><a href="/login">返回登录</a></p>
+    </section>
+</div>
+{% endblock %}

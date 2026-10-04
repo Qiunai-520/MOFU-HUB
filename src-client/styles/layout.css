@@ -1,0 +1,1106 @@
+/* ============ 布局与外壳（v2 重设计） ============ */
+.mofu-body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- 顶部栏 ---------- */
+/* 粘性表面：玻璃材质（仅导航使用），不支持时 / 降低透明度偏好时回退纯色 */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background: var(--color-glass);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border-bottom: 1px solid var(--color-glass-border);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .app-header {
+    background: var(--color-surface);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .app-header {
+    background: var(--color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* 无 JavaScript 时隐藏交互外壳（<html class="no-js"> 标记，JS 启用后移除）
+   不用 <noscript><style>：swup 换页时 DOMParser 会把其中的 style 当成真实元素并入 head 而生效 */
+html.no-js .app-header,
+html.no-js .bottom-nav,
+html.no-js .side-nav {
+  display: none;
+}
+
+.app-header__inner {
+  max-width: var(--mofu-max-width);
+  margin: 0 auto;
+  height: var(--mofu-header-height);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 var(--mofu-space-4);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--md-sys-color-on-surface);
+  font-weight: 700;
+  font-size: var(--mofu-fs-title);
+  flex: none;
+}
+
+.brand:hover {
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  padding: 4px;
+  border-radius: var(--mofu-radius-sm);
+  /* 透明 Logo 含黑描边，深色模式下需要始终浅色的承载底才能清晰可辨 */
+  background: var(--color-brand-mark-bg);
+  border: 1px solid var(--color-border);
+  transition: transform var(--mofu-motion);
+}
+
+.brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.brand-mark--sm {
+  width: 34px;
+  height: 34px;
+}
+
+.brand-mark--xl {
+  width: 88px;
+  height: 88px;
+  padding: 8px;
+  border-radius: var(--mofu-radius-lg);
+}
+
+.brand:hover .brand-mark {
+  transform: scale(1.04);
+}
+
+.brand__name {
+  white-space: nowrap;
+}
+
+/* 全局搜索（视觉完成，功能第三阶段接入） */
+.global-search {
+  display: none;
+  flex: 1;
+  max-width: 460px;
+  margin: 0 auto;
+  position: relative;
+  align-items: center;
+}
+
+.global-search__icon {
+  position: absolute;
+  left: 14px;
+  font-size: var(--mofu-fs-title-lg);
+  color: var(--md-sys-color-on-surface-variant);
+  pointer-events: none;
+}
+
+.global-search__input {
+  width: 100%;
+  padding: 11px 16px 11px 44px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--md-sys-color-outline-variant) 60%, transparent);
+  background: color-mix(in srgb, var(--md-sys-color-surface-variant) 40%, var(--md-sys-color-surface));
+  color: var(--md-sys-color-on-surface);
+  font-family: inherit;
+  font-size: var(--mofu-fs-body-sm);
+  outline: none;
+  transition: border-color var(--mofu-motion), box-shadow var(--mofu-motion);
+}
+
+.global-search__input:focus {
+  border-color: var(--md-sys-color-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--md-sys-color-primary) 24%, transparent);
+}
+
+.global-search__input:disabled {
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+/* 平板（720–1023px）：底部 FAB 与侧栏 CTA 都不可见，保留顶部栏发布入口 */
+.app-header__compose {
+  display: none;
+}
+
+@media (min-width: 720px) and (max-width: 1023px) {
+  .app-header__compose {
+    display: inline-flex;
+  }
+}
+
+.app-header__actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.nav-toggle {
+  display: inline-flex;
+}
+
+.global-search__toggle {
+  display: inline-flex;
+}
+
+/* ---------- 用户下拉菜单 ---------- */
+.user-menu {
+  position: relative;
+}
+
+.user-menu__trigger {
+  display: inline-flex;
+  padding: 2px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: box-shadow var(--mofu-motion);
+}
+
+.user-menu__trigger:hover,
+.user-menu__trigger[aria-expanded="true"] {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-sys-color-primary) 18%, transparent);
+}
+
+.user-menu__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 220px;
+  padding: var(--mofu-space-2);
+  border-radius: var(--mofu-radius-lg);
+  background: var(--md-sys-color-surface-container);
+  box-shadow: var(--mofu-elev-3);
+  z-index: var(--z-menu);
+}
+
+/* 菜单入场动画：仅在允许动效时播放 */
+@media (prefers-reduced-motion: no-preference) {
+  .user-menu__panel {
+    animation: menu-in var(--mofu-dur-short) cubic-bezier(0.2, 0, 0, 1);
+  }
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.user-menu__header {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--md-sys-color-outline-variant) 40%, transparent);
+  margin-bottom: 6px;
+}
+
+.user-menu__header strong {
+  font-size: var(--mofu-fs-body-sm);
+}
+
+.user-menu__header span {
+  font-size: var(--mofu-fs-label-sm);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.user-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--mofu-radius-md);
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+  font-family: inherit;
+  font-size: var(--mofu-fs-body-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.user-menu__item .material-symbols-outlined {
+  font-size: 20px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.user-menu__item:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+  text-decoration: none;
+}
+
+.user-menu__form {
+  margin: 0;
+}
+
+/* ---------- 主体（三栏信息架构） ---------- */
+.app-body {
+  flex: 1;
+  width: 100%;
+  max-width: var(--mofu-max-width);
+  margin: 0 auto;
+  display: flex;
+  gap: 28px;
+  padding: var(--mofu-space-6) 16px var(--mofu-space-6);
+}
+
+.side-nav {
+  display: none;
+}
+
+.page-main {
+  flex: 1;
+  min-width: 0;
+  outline: none;
+}
+
+/* ---------- 自定义背景图（用户偏好，仅登录用户且已设置时渲染） ---------- */
+.site-background {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-below);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+/* 左侧导航（桌面） */
+.side-nav__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 16px 12px;
+  margin-bottom: var(--mofu-space-1);
+  border-bottom: 1px solid color-mix(in srgb, var(--md-sys-color-outline-variant) 40%, transparent);
+}
+
+.side-nav__brand-name {
+  font-size: var(--mofu-fs-title);
+  font-weight: 700;
+  color: var(--md-sys-color-on-surface);
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-nav__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* 侧栏分组标签（浏览 / 我的 / 管理） */
+.side-nav__label {
+  margin: var(--mofu-space-4) 0 var(--mofu-space-1);
+  padding: 0 16px;
+  font-size: var(--mofu-fs-label-sm);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.side-nav__label:first-child {
+  margin-top: var(--mofu-space-1);
+}
+
+.side-nav__item {
+  display: flex;
+  align-items: center;
+  gap: var(--mofu-space-3);
+  min-height: 48px;
+  padding: 11px 16px;
+  border-radius: var(--mofu-radius-md);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--mofu-fs-body-sm);
+  font-weight: 500;
+  transition: background var(--mofu-motion), color var(--mofu-motion);
+}
+
+.side-nav__item .material-symbols-outlined {
+  font-size: 22px;
+}
+
+.side-nav__item:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--mofu-state-hover), transparent);
+  text-decoration: none;
+}
+
+/* 侧栏项内未读角标：靠右悬浮，不挤压文字 */
+.side-nav__item .nav-badge {
+  margin-left: auto;
+  flex: none;
+}
+
+.side-nav__item.is-active {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  font-weight: 600;
+}
+
+.side-nav__divider {
+  height: 1px;
+  margin: var(--mofu-space-2) var(--mofu-space-3);
+  background: color-mix(in srgb, var(--md-sys-color-outline-variant) 40%, transparent);
+}
+
+.side-nav__cta {
+  margin: var(--mofu-space-1) 0 var(--mofu-space-2);
+  width: 100%;
+}
+
+.side-nav__form {
+  margin: 0;
+}
+
+.side-nav__item--button {
+  width: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--mofu-fs-body-sm);
+}
+
+/* ---------- 底部导航（移动端）：苹果式悬浮大圆角 pill ---------- */
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  z-index: var(--z-sticky);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  will-change: transform;
+  transition: transform var(--mofu-motion-spatial), opacity var(--mofu-motion);
+}
+
+/* 个人主页（/u/*）与设置页：从「我的」点进去的二级页以返回为主，不再展示悬浮主导航
+   （「我的」首页本身仍然展示，它仍是主导航的顶级分区） */
+html[data-nav-compact] .bottom-nav {
+  display: none;
+}
+
+/* 主导航收起后，悬浮按钮下移贴安全区，不留空洞 */
+html[data-nav-compact] .fab-stack {
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+
+/* 正在写长文本（评论 / 发布 / 内联回复）：导航与发布、音乐按钮全部让位，
+   否则浮在键盘上方挡住正文。搜索框等短输入不受影响。 */
+html[data-composing] .bottom-nav,
+html[data-composing] .fab-stack {
+  display: none;
+}
+
+/* 下滑浏览时收起、上滑/回顶时浮出（Apple 式悬浮导航） */
+.bottom-nav.is-hidden {
+  transform: translateY(calc(100% + 32px));
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav {
+    transition: opacity var(--mofu-motion);
+  }
+
+  .bottom-nav.is-hidden {
+    transform: none;
+  }
+}
+
+/* 悬浮胶囊本体：Liquid Glass 表面（半透明 + 背景模糊 + 细腻描边 + 柔和投影），
+   不使用重磨砂；无 backdrop-filter 时回退为实色表面 */
+.bottom-nav__bar {
+  pointer-events: auto;
+  position: relative;
+  width: min(420px, calc(100% - 28px));
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height: var(--mofu-nav-h);
+  padding: var(--mofu-nav-inset);
+  border-radius: var(--mofu-nav-radius);
+  background: color-mix(in srgb, var(--color-surface-elevated) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+  box-shadow:
+    0 1px 1px color-mix(in srgb, var(--md-sys-color-on-surface) 6%, transparent),
+    0 10px 30px -10px color-mix(in srgb, var(--md-sys-color-on-surface) 30%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #FFFFFF 14%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  will-change: transform;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .bottom-nav__bar {
+    background: var(--color-surface-elevated);
+  }
+}
+
+/* 系统要求降低透明度：回退实色，不叠加模糊 */
+@media (prefers-reduced-transparency: reduce) {
+  .bottom-nav__bar {
+    background: var(--color-surface-elevated);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* 收起时导航已在屏外，不必继续保留背景模糊（省一次全屏后处理） */
+.bottom-nav.is-hidden .bottom-nav__bar {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* 接近 Apple 连续圆角的视觉效果（支持时启用，不支持则保持普通大圆角） */
+@supports (corner-shape: squircle) {
+  .bottom-nav__bar,
+  .bottom-nav__thumb {
+    corner-shape: squircle;
+  }
+}
+
+/* 选中滑块：与导航项盒子完全重合（尺寸由 JS 按实际 rect 写入） */
+.bottom-nav__thumb {
+  position: absolute;
+  top: var(--mofu-nav-inset);
+  left: 0;
+  height: calc(100% - var(--mofu-nav-inset) * 2);
+  width: 0;
+  border-radius: var(--mofu-nav-item-radius);
+  background: color-mix(in srgb, var(--color-accent-subtle) 92%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand-foreground) 12%, transparent);
+  transform: translateX(0);
+  transition: transform var(--mofu-motion-spatial), opacity var(--mofu-motion);
+  will-change: transform;
+  z-index: var(--z-base);
+}
+
+/* 品牌标不再放入悬浮导航（保持 4 段对称） */
+
+.bottom-nav__item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  padding: 4px 8px;
+  border-radius: var(--mofu-nav-item-radius);
+  color: var(--color-label-secondary);
+  position: relative;
+  z-index: var(--z-raised);
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--mofu-motion);
+}
+
+@media (hover: hover) {
+  .bottom-nav__item:hover {
+    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--mofu-state-hover), transparent);
+  }
+}
+
+/* 触摸设备点击会触发 :hover，若沿用全局 a:hover 会出现下划线（看起来像一条“线”），显式禁止 */
+.bottom-nav__item,
+.bottom-nav__item:hover,
+.bottom-nav__item:focus {
+  text-decoration: none;
+}
+
+/* 键盘焦点：用底色块指示，避免点击时出现描边“线” */
+.bottom-nav__item:focus {
+  outline: none;
+}
+
+.bottom-nav__item:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--color-brand-foreground) 14%, transparent);
+}
+
+.bottom-nav__item[aria-disabled='true'] {
+  color: var(--color-label-disabled);
+  pointer-events: none;
+}
+
+.bottom-nav__item .material-symbols-outlined {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  max-width: 100%;
+  height: 24px;
+  border-radius: 12px;
+  font-size: 22px;
+  transition: color var(--mofu-motion), transform var(--mofu-motion-effects);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bottom-nav__item:active .material-symbols-outlined {
+    transform: scale(0.92);
+  }
+}
+
+.bottom-nav__item.is-active {
+  color: var(--color-on-accent-subtle);
+}
+
+.bottom-nav__item.is-active .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+}
+
+.bottom-nav__item.is-active .bottom-nav__label {
+  font-weight: 600;
+}
+
+/* 平板：整条略放大，圆角与项高随 --mofu-nav-h 同步推导（占位高度一并跟随） */
+@media (min-width: 720px) {
+  :root {
+    --mofu-nav-h: 68px;
+  }
+
+  .bottom-nav__bar {
+    width: min(440px, calc(100% - 40px));
+  }
+}
+
+/* 桌面端：主页/板块已在侧边栏，悬浮栏不再重复展示，避免双导航重复 */
+@media (min-width: 1024px) {
+  .bottom-nav__item[data-nav-item='/'],
+  .bottom-nav__item[data-nav-item='/boards'] {
+    display: none;
+  }
+
+  /* 只剩两项时按内容收宽，避免选中块被拉成一大片 */
+  .bottom-nav__bar {
+    width: auto;
+  }
+
+  .bottom-nav__item {
+    flex: 0 0 auto;
+    min-width: 96px;
+  }
+}
+
+/* 未读角标：悬浮在图标右上角，不占用布局空间 */
+.bottom-nav__badge-wrap {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(13px);
+  display: flex;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.bottom-nav__badge-wrap .nav-badge--offset {
+  margin-left: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bottom-nav__item:active .material-symbols-outlined {
+    transform: scale(0.9);
+  }
+}
+
+.bottom-nav__label {
+  font-size: var(--mofu-fs-label-xs);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- 右下角悬浮操作（发布 / 音乐，竖排） ---------- */
+.fab-stack {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--mofu-bottom-nav-h) + 28px);
+  z-index: var(--z-float);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* 容器不拦截点击，仅按钮可点（避免遮盖下方内容） */
+  pointer-events: none;
+  transition: opacity var(--mofu-motion), transform var(--mofu-motion-spatial);
+}
+
+/* 跟随悬浮导航收起（比导航晚一拍） */
+.fab-stack.is-hidden {
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab-stack {
+    transition: opacity var(--mofu-motion);
+  }
+
+  .fab-stack.is-hidden {
+    transform: none;
+  }
+}
+
+.fab-btn {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: var(--mofu-radius-md);
+  background: var(--color-surface-elevated);
+  color: var(--color-brand-foreground);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--mofu-elev-3);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--mofu-motion), transform var(--mofu-motion-effects);
+}
+
+.fab-btn:hover {
+  background: var(--color-fill-secondary);
+  text-decoration: none;
+}
+
+.fab-btn .material-symbols-outlined {
+  font-size: 24px;
+}
+
+.fab-btn--primary {
+  background: var(--color-brand-primary);
+  color: var(--color-on-accent);
+  border-color: transparent;
+}
+
+.fab-btn--primary:hover {
+  background: var(--color-brand-hover);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fab-btn:active {
+    transform: scale(0.94);
+  }
+}
+
+/* 后台页不显示悬浮操作 */
+/* 后台不显示发布/音乐，但保留回到顶部（后台列表往往很长） */
+html[data-page='admin'] .fab-stack > :not(.back-to-top) {
+  display: none;
+}
+
+/* 后台无页脚：自行给悬浮导航留出空间 */
+html[data-page='admin'] .app-body {
+  padding-bottom: calc(var(--mofu-bottom-nav-h) + var(--mofu-space-6));
+}
+
+/* ---------- 首页布局 ---------- */
+.home-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 26px;
+}
+
+.home-side {
+  display: none;
+}
+
+.side-card {
+  padding: var(--mofu-space-5);
+  margin-bottom: var(--mofu-space-4);
+}
+
+.side-card__title {
+  font-size: var(--mofu-fs-title);
+  margin-bottom: 14px;
+}
+
+.side-card__text,
+
+.topic-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mofu-space-2);
+}
+
+/* ---------- 后台与设置布局 ---------- */
+.admin-layout,
+.settings-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.admin-nav,
+.settings-nav {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.admin-nav::-webkit-scrollbar,
+.settings-nav::-webkit-scrollbar {
+  display: none;
+}
+
+/* 窄屏：横向标签栏加可见轨道背景 */
+@media (max-width: 1023px) {
+  .admin-nav,
+  .settings-nav {
+    padding: 4px;
+    border-radius: 999px;
+    background: var(--color-fill-tertiary);
+  }
+}
+
+.admin-nav__item,
+.settings-nav__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mofu-space-2);
+  min-height: 34px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--mofu-fs-body-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background var(--mofu-motion);
+}
+
+.admin-nav__item:hover,
+.settings-nav__item:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--mofu-state-hover), transparent);
+  text-decoration: none;
+}
+
+.admin-nav__item.is-active,
+.settings-nav__item.is-active {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+/* ---------- 横向标签栏滑块（后台导航 / 设置导航 / 个人主页 / 信息流 / 筛选共用） ----------
+   选中不再用静态底色，而是由滑块滑到目标项：点击即滑动，不靠整页刷新。 */
+[data-tabs] {
+  position: relative;
+}
+
+[data-tabs] > :not(.tabs-thumb) {
+  position: relative;
+  z-index: 1;
+}
+
+.tabs-thumb {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  height: calc(100% - 8px);
+  width: 0;
+  border-radius: 999px;
+  background: var(--color-accent-subtle);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand-foreground) 12%, transparent);
+  transform: translateX(0);
+  opacity: 0;
+  transition: transform var(--mofu-slide), width var(--mofu-slide), opacity var(--mofu-dur-short) var(--mofu-ease-out);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.tabs-thumb.is-ready {
+  opacity: 1;
+}
+
+/* 选中底色交给滑块；文字颜色与字重仍由各组件自己控制 */
+[data-tabs] > a.is-active,
+[data-tabs] > button.is-active {
+  background: transparent;
+}
+
+/* 桌面端后台/设置导航转为纵向列表：隐藏滑块，退回底色高亮 */
+@media (min-width: 1024px) {
+  .admin-nav > .tabs-thumb,
+  .settings-nav > .tabs-thumb {
+    display: none;
+  }
+
+  .admin-nav > a.is-active,
+  .settings-nav > a.is-active {
+    background: var(--md-sys-color-secondary-container);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabs-thumb {
+    transition: opacity var(--mofu-dur-short) linear;
+  }
+}
+
+/* ---------- swup 页面切换：只做进场淡入，不做离场淡出 ----------
+   离场淡出会在网络慢时留下长时间空白（看起来像刷新），
+   所以旧内容一直保留到新内容到位，替换后再淡入。 */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+html.is-rendering .transition-swup {
+  animation: page-enter 260ms var(--mofu-ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.is-rendering .transition-swup {
+    animation: none;
+  }
+}
+
+/* 标签栏切页（设置 / 后台 / 个人主页）：标签栏本身保持不动，
+   只让内容区淡入。否则整页重绘会“闪一下”。 */
+@keyframes content-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+html.is-tab-switch .transition-swup {
+  animation: none;
+}
+
+html.is-tab-switch [data-tabs-panel] {
+  animation: content-fade 180ms var(--mofu-ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.is-tab-switch [data-tabs-panel] {
+    animation: none;
+  }
+}
+
+/* ---------- 个人主页标签页（同分段切换：可见轨道 + 胶囊选中） ---------- */
+.profile-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: var(--mofu-space-3);
+  border-radius: 999px;
+  background: var(--color-fill-tertiary);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.profile-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.profile-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  color: var(--color-label-secondary);
+  font-size: var(--mofu-fs-body-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background var(--mofu-motion), color var(--mofu-motion);
+}
+
+.profile-tab:hover {
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .profile-tab:hover {
+    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--mofu-state-hover), transparent);
+  }
+}
+
+.profile-tab.is-active {
+  background: var(--color-accent-subtle);
+  color: var(--color-on-accent-subtle);
+  font-weight: 600;
+}
+
+/* ---------- 响应式（断点刻度：600 移动细节 / 720 外壳切换 / 1024 桌面 / 1200 宽屏） ---------- */
+@media (min-width: 720px) {
+  .app-body {
+    padding-bottom: var(--mofu-space-6);
+  }
+
+  .global-search {
+    display: flex;
+  }
+
+  .global-search__toggle {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .side-nav {
+    display: block;
+    width: 232px;
+    flex: none;
+    position: sticky;
+    top: calc(var(--mofu-header-height) + 24px);
+    align-self: flex-start;
+  }
+
+  /* 右栏在 1024 与左导航同步出现：720–1023 区间主内容会被双栏挤压，故不再提前展示 */
+  .home-layout {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+
+  .home-side {
+    display: block;
+  }
+
+  .admin-layout,
+  .settings-layout {
+    grid-template-columns: 210px minmax(0, 1fr);
+  }
+
+  .admin-nav,
+  .settings-nav {
+    flex-direction: column;
+    overflow: visible;
+    gap: 2px;
+  }
+
+  .admin-nav__item,
+  .settings-nav__item {
+    border-radius: var(--mofu-radius-md);
+  }
+}
+
+@media (min-width: 1200px) {
+  .home-layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+
+/* 移动端抽屉状态：滑入滑出过渡（flex 保留，仅移动位置） */
+@media (max-width: 1023px) {
+  .side-nav {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: var(--z-drawer);
+    width: min(82vw, 320px);
+    flex: none;
+    padding: var(--mofu-space-5) var(--mofu-space-3);
+    background: var(--md-sys-color-surface-container-low);
+    box-shadow: var(--mofu-elev-4);
+    overflow-y: auto;
+    visibility: hidden;
+    transform: translateX(-100%);
+    transition: transform var(--mofu-motion-spatial), visibility 0s linear 300ms;
+  }
+
+  .side-nav.is-open {
+    visibility: visible;
+    transform: translateX(0);
+    transition: transform var(--mofu-motion-spatial), visibility 0s;
+  }
+
+  .side-nav.is-open .side-nav__item {
+    border-radius: var(--mofu-radius-md);
+  }
+
+  .side-nav-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-scrim);
+    background: var(--mofu-scrim);
+    opacity: 0;
+    transition: opacity var(--mofu-motion);
+  }
+
+  .side-nav-scrim:not([hidden]) {
+    opacity: 1;
+  }
+
+  body.nav-open {
+    overflow: hidden;
+  }
+}
+
+/* ---------- 页面切换加载指示 ---------- */
+.page-loading {
+  position: fixed;
+  top: calc(var(--mofu-header-height) + 14px);
+  left: 50%;
+  translate: -50% 0;
+  z-index: var(--z-indicator);
+  pointer-events: none;
+  --m3e-loading-indicator-size: 30px;
+}
+
+/* Swup 过渡（尊重减少动效偏好） */
+@media (prefers-reduced-motion: no-preference) {
+  html.is-changing .page-main {
+    transition: opacity var(--mofu-motion), transform var(--mofu-motion-effects);
+  }
+
+  html.is-leaving .page-main {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}

@@ -1,0 +1,27 @@
+{# 资讯卡片 #}
+<article class="card news-card{{ news.is_pinned ? ' is-pinned' : '' }}">
+    <a class="news-card__cover" href="{{ news.url }}">
+        {% if news.cover_url is not empty %}
+        <img src="{{ news.cover_url }}" alt="" loading="lazy" decoding="async">
+        {% else %}
+        <span class="news-card__cover-fallback material-symbols-outlined" aria-hidden="true">newspaper</span>
+        {% endif %}
+    </a>
+
+    <div class="news-card__body">
+        <div class="news-card__chips">
+            {% if news.is_pinned %}<span class="meta-chip meta-chip--accent">置顶</span>{% endif %}
+            <span class="meta-chip">{{ news.category_label }}</span>
+        </div>
+
+        <a class="news-card__title" href="{{ news.url }}">{{ news.title }}</a>
+        <p class="news-card__summary">{{ news.summary_text }}</p>
+
+        <div class="news-card__foot">
+            <span>{{ news.published_text }}</span>
+            <span class="news-card__views">
+                <span class="material-symbols-outlined" aria-hidden="true">visibility</span>{{ news.view_count }}
+            </span>
+        </div>
+    </div>
+</article>

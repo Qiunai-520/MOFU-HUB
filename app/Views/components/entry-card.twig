@@ -1,0 +1,29 @@
+<article class="card entry-card">
+    <div class="entry-card__head">
+        {{ include('components/avatar.twig', { user: entry.author, size: 'sm' }) }}
+        <a class="entry-card__author" href="{{ entry.author.url }}">{{ entry.author.nickname }}</a>
+        <time class="entry-card__time">{{ entry.time_ago }}</time>
+    </div>
+
+    <a class="entry-card__body" href="{{ entry.url }}">
+        <h3 class="entry-card__title">{{ entry.title }}</h3>
+        <p class="entry-card__excerpt">{{ entry.excerpt }}</p>
+    </a>
+
+    {% if entry.badges|length > 0 %}
+    <div class="entry-card__badges">
+        {% for badge in entry.badges %}
+        <span class="meta-chip{{ badge.variant == 'accent' ? ' meta-chip--accent' : (badge.variant == 'warn' ? ' meta-chip--warn' : '') }}">{{ badge.label }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="entry-card__foot">
+        <span class="entry-card__stat">
+            <span class="material-symbols-outlined" aria-hidden="true">favorite</span>{{ entry.like_count }}
+        </span>
+        <span class="entry-card__stat">
+            <span class="material-symbols-outlined" aria-hidden="true">chat_bubble</span>{{ entry.comment_count }}
+        </span>
+    </div>
+</article>

@@ -1,0 +1,35 @@
+{# 活动卡片 #}
+<article class="card event-card{{ event.state == 'cancelled' ? ' is-cancelled' : '' }}">
+    <a class="event-card__cover" href="{{ event.url }}">
+        {% if event.cover_url is not empty %}
+        <img src="{{ event.cover_url }}" alt="" loading="lazy" decoding="async">
+        {% else %}
+        <span class="event-card__cover-fallback material-symbols-outlined" aria-hidden="true">celebration</span>
+        {% endif %}
+        <span class="meta-chip event-card__state{{ event.state_variant == 'accent' ? ' meta-chip--accent' : (event.state_variant == 'warn' ? ' meta-chip--warn' : '') }}">{{ event.state_label }}</span>
+    </a>
+
+    <div class="event-card__body">
+        <a class="event-card__title" href="{{ event.url }}">{{ event.title }}</a>
+
+        <p class="event-card__meta">
+            <span class="material-symbols-outlined" aria-hidden="true">schedule</span>{{ event.time_text }}
+        </p>
+
+        {% if event.location is not empty %}
+        <p class="event-card__meta">
+            <span class="material-symbols-outlined" aria-hidden="true">location_on</span>{{ event.location }}
+        </p>
+        {% endif %}
+
+        <div class="event-card__foot">
+            <span class="event-card__count">{{ event.capacity_text }}</span>
+            <span class="event-card__badges">
+                {% if event.is_full %}<span class="meta-chip meta-chip--warn">已满</span>{% endif %}
+                {% if event.requires_approval %}<span class="meta-chip">需审核</span>{% endif %}
+                {% if event.my_status == 'approved' %}<span class="meta-chip meta-chip--accent">已报名</span>
+                {% elseif event.my_status == 'pending' %}<span class="meta-chip meta-chip--warn">待审核</span>{% endif %}
+            </span>
+        </div>
+    </div>
+</article>

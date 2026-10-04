@@ -1,0 +1,109 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}表白墙 / 树洞审核 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">表白墙 / 树洞</h1>
+    <div class="filter-tabs">
+        <a class="filter-tab{{ status == '' ? ' is-active' : '' }}" href="/admin/confessions">全部</a>
+        <a class="filter-tab{{ status == 'pending' ? ' is-active' : '' }}" href="/admin/confessions?status=pending">待审核</a>
+        <a class="filter-tab{{ status == 'approved' ? ' is-active' : '' }}" href="/admin/confessions?status=approved">已通过</a>
+        <a class="filter-tab{{ status == 'rejected' ? ' is-active' : '' }}" href="/admin/confessions?status=rejected">未通过</a>
+        <a class="filter-tab{{ status == 'hidden' ? ' is-active' : '' }}" href="/admin/confessions?status=hidden">已下架</a>
+    </div>
+</div>
+
+{% if moderationPre %}
+<div class="form-alert">当前为「先审后发」模式：新投稿需审核通过后才会公开展示</div>
+{% endif %}
+
+<div class="table-wrap">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>内容</th>
+                <th>板块</th>
+                <th>作者</th>
+                <th>状态</th>
+                <th>互动</th>
+                <th>时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items.items %}
+            <tr>
+                <td data-label="内容" class="admin-table__content">
+                    <a href="{{ item.url }}">{{ item.excerpt }}</a>
+                    {% if item.report_count > 0 %}<span class="meta-chip meta-chip--warn">被举报 {{ item.report_count }}</span>{% endif %}
+                </td>
+                <td data-label="板块">{{ item.board_label }}{% if item.category_label %}<span class="admin-table__sub">{{ item.category_label }}</span>{% endif %}</td>
+                <td data-label="作者">
+                    {% if item.author.kind == 'named' %}
+                        {{ item.author.display }}
+                    {% else %}
+                        <span class="admin-table__sub">匿名{% if item.creator_username is not empty %}（账号：{{ item.creator_username }}）{% endif %}</span>
+                    {% endif %}
+                </td>
+                <td data-label="状态">
+                    {% if item.status == 'approved' %}<span class="status-dot status-dot--ok"></span>已通过
+                    {% elseif item.status == 'pending' %}<span class="status-dot status-dot--warn"></span>待审核
+                    {% elseif item.status == 'rejected' %}<span class="status-dot status-dot--danger"></span>未通过
+                    {% else %}<span class="status-dot status-dot--danger"></span>已下架{% endif %}
+                    {% if item.is_featured %}<span class="meta-chip meta-chip--accent">精选</span>{% endif %}
+                </td>
+                <td data-label="互动" class="admin-table__sub">赞 {{ item.like_count }} · 评 {{ item.comment_count }}</td>
+                <td data-label="时间" class="admin-table__sub">{{ item.time_ago }}</td>
+                <td class="admin-table__actions">
+                    {% if item.status == 'pending' %}
+                    <form method="post" action="/admin/confessions/{{ item.id }}/moderate" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="approve">
+                        <button class="text-btn text-btn--sm" type="submit">通过</button>
+                    </form>
+                    <form method="post" action="/admin/confessions/{{ item.id }}/moderate" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="reject">
+                        <button class="text-btn text-btn--sm text-btn--danger" type="submit">拒绝</button>
+                    </form>
+                    {% endif %}
+
+                    {% if item.status == 'approved' %}
+                    <form method="post" action="/admin/confessions/{{ item.id }}/moderate" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="{{ item.is_featured ? 'unfeature' : 'feature' }}">
+                        <button class="text-btn text-btn--sm" type="submit">{{ item.is_featured ? '取消精选' : '精选' }}</button>
+                    </form>
+                    <form method="post" action="/admin/confessions/{{ item.id }}/moderate" class="inline-form" data-confirm="确定下架这条投稿吗？">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="hide">
+                        <button class="text-btn text-btn--sm" type="submit">下架</button>
+                    </form>
+                    {% endif %}
+
+                    {% if item.status == 'hidden' or item.status == 'rejected' %}
+                    <form method="post" action="/admin/confessions/{{ item.id }}/moderate" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="restore">
+                        <button class="text-btn text-btn--sm" type="submit">恢复</button>
+                    </form>
+                    {% endif %}
+
+                    <form method="post" action="/admin/confessions/{{ item.id }}/moderate" class="inline-form" data-confirm="确定删除这条投稿吗？">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <input type="hidden" name="action" value="delete">
+                        <button class="text-btn text-btn--sm text-btn--danger" type="submit">删除</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="admin-table__empty">没有匹配的投稿</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include 'components/pagination.twig' with { pagination: items, base: '/admin/confessions?status=' ~ status } %}
+{% endblock %}
