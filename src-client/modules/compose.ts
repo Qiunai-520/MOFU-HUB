@@ -1,4 +1,4 @@
-import { api } from '@/core/api';
+import { api, uploadWithProgress } from '@/core/api';
 import { $, el } from '@/core/dom';
 import { setButtonLoading } from '@/core/loading';
 import { toast, toastError } from '@/core/toast';
@@ -60,14 +60,20 @@ function parseMediaArray(raw: string | undefined): EditMediaPreview[] {
 
     return decoded
       .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
-      .map((item) => ({ thumb: typeof item['thumb'] === 'string' ? item['thumb'] : '' }))
-      .filter((item) => item.thumb !== '');
+      .map((item) => ({
+        id: typeof item['id'] === 'number' ? item['id'] : 0,
+        kind: typeof item['kind'] === 'string' ? item['kind'] : 'image',
+        thumb: typeof item['thumb'] === 'string' ? item['thumb'] : '',
+      }))
+      .filter((item) => item.id > 0 && item.thumb !== '');
   } catch {
     return [];
   }
 }
 
 interface EditMediaPreview {
+  id: number;
+  kind: string;
   thumb: string;
 }
 
@@ -113,13 +119,19 @@ function setupEmojiPanel(input: HTMLTextAreaElement, root: HTMLElement): () => v
     }
   });
 
-  document.addEventListener('click', (event) => {
+  const onDocumentClick = (event: MouseEvent): void => {
     if (!panel.contains(event.target as Node) && !toggle.contains(event.target as Node)) {
       hide();
     }
-  });
+  };
 
-  return hide;
+  document.addEventListener('click', onDocumentClick);
+
+  // document 级监听必须随面板一起清理，否则每次进入发布页都会多挂一个
+  return (): void => {
+    document.removeEventListener('click', onDocumentClick);
+    hide();
+  };
 }
 
 /** 在 textarea 光标处插入文本。 */
@@ -312,21 +324,29 @@ function setupDraft(
         }
       }
     } catch {
-      localStorage.removeItem(key);
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // 存储不可用时忽略
+      }
     }
   };
 
   const save = (): void => {
-    if (input.value.trim() === '') {
-      localStorage.removeItem(key);
-      hint.hidden = true;
-      return;
-    }
+    try {
+      if (input.value.trim() === '') {
+        localStorage.removeItem(key);
+        hint.hidden = true;
+        return;
+      }
 
-    const savedAt = new Date().toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-    localStorage.setItem(key, JSON.stringify({ content: input.value, savedAt }));
-    hint.textContent = `已自动保存草稿 ${savedAt}`;
-    hint.hidden = false;
+      const savedAt = new Date().toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+      localStorage.setItem(key, JSON.stringify({ content: input.value, savedAt }));
+      hint.textContent = `已自动保存草稿 ${savedAt}`;
+      hint.hidden = false;
+    } catch {
+      // 隐私模式/配额满时 setItem 会抛错；它运行在 setTimeout 里，异常会触发全局兜底，这里静默降级
+    }
   };
 
   const onInput = (): void => {
@@ -354,9 +374,34 @@ export const init: PageModule['init'] = (): (() => void) | void => {
   const input = $<HTMLTextAreaElement>('[data-compose-input]', root);
   const fileInput = $<HTMLInputElement>('[data-compose-file]', root);
   const mediaBox = $<HTMLElement>('[data-compose-media]', root);
+  const statusEl = $<HTMLElement>('[data-compose-status]', root);
+
+  /** 上传进度提示（XHR 提供百分比） */
+  const showUploadProgress = (percent: number): void => {
+    if (statusEl === null) {
+      return;
+    }
+
+    statusEl.textContent = `上传中 ${percent}%`;
+    statusEl.removeAttribute('hidden');
+  };
+
+  const hideUploadProgress = (): void => {
+    statusEl?.setAttribute('hidden', '');
+  };
   const chipsBox = $<HTMLElement>('[data-compose-chips]', root);
   const topicInput = $<HTMLInputElement>('[data-topic-input]', root);
   const visibilitySelect = $<HTMLSelectElement>('[data-compose-visibility]', root);
+  const paidSelect = $<HTMLSelectElement>('[data-compose-paid]', root);
+  const priceSelect = $<HTMLSelectElement>('[data-compose-price]', root);
+  const priceWrap = $<HTMLElement>('[data-compose-price-wrap]', root);
+
+  // 选了「付费」才显示价格选择
+  paidSelect?.addEventListener('change', () => {
+    if (priceWrap !== null) {
+      priceWrap.hidden = paidSelect.value !== '1';
+    }
+  });
   const submitButton = $<HTMLButtonElement>('[data-compose-submit]', root);
   const errorBox = $<HTMLElement>('[data-compose-error]', root);
 
@@ -373,6 +418,54 @@ export const init: PageModule['init'] = (): (() => void) | void => {
   const mediaIds: number[] = [];
   const topics: string[] = [];
   let videoId: number | null = null;
+
+  // 标签：从后台维护的标签库里选（Lv.3+ 才渲染可选按钮）
+  const MAX_TAGS = 5;
+  const selectedTags = new Set<string>(parseStringArray(root.dataset.editTags));
+
+  const syncTagChips = (): void => {
+    for (const chip of Array.from(root.querySelectorAll<HTMLElement>('[data-tag-pick]'))) {
+      const slug = chip.dataset.tagSlug ?? '';
+      const on = selectedTags.has(slug);
+      chip.classList.toggle('is-active', on);
+      chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+  };
+
+  const onTagClick = (event: Event): void => {
+    const target = event.target;
+
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    const chip = target.closest<HTMLElement>('[data-tag-pick]');
+
+    if (chip === null || chip.hasAttribute('disabled')) {
+      return;
+    }
+
+    const slug = chip.dataset.tagSlug ?? '';
+
+    if (slug === '') {
+      return;
+    }
+
+    if (selectedTags.has(slug)) {
+      selectedTags.delete(slug);
+    } else if (selectedTags.size >= MAX_TAGS) {
+      toast(`最多选择 ${MAX_TAGS} 个标签`, 'info');
+
+      return;
+    } else {
+      selectedTags.add(slug);
+    }
+
+    syncTagChips();
+  };
+
+  root.addEventListener('click', onTagClick);
+  syncTagChips();
 
   const autoGrow = (): void => {
     input.style.height = 'auto';
@@ -401,15 +494,6 @@ export const init: PageModule['init'] = (): (() => void) | void => {
       ),
     );
   };
-
-  // 编辑模式：展示已有图片（只读）并预填话题
-  if (mediaBox !== null && editMedia.length > 0) {
-    mediaBox.removeAttribute('hidden');
-
-    for (const media of editMedia) {
-      mediaBox.append(el('div', { class: 'compose-media__item' }, [el('img', { src: media.thumb, alt: '已有图片' })]));
-    }
-  }
 
   if (editTopics.length > 0) {
     topics.push(...editTopics);
@@ -500,6 +584,21 @@ export const init: PageModule['init'] = (): (() => void) | void => {
     mediaBox.append(item);
   };
 
+  // 编辑模式：预填已有媒体（可逐张移除），并计入提交时的 media_ids
+  if (mediaBox !== null && editMedia.length > 0) {
+    mediaBox.removeAttribute('hidden');
+
+    for (const media of editMedia) {
+      mediaIds.push(media.id);
+
+      if (media.kind === 'video') {
+        addVideoPreview({ id: media.id, url: media.thumb, thumb: '' });
+      } else {
+        addPreview({ id: media.id, url: media.thumb, thumb: media.thumb });
+      }
+    }
+  }
+
   const onFileChange = async (): Promise<void> => {
     if (fileInput === null) {
       return;
@@ -533,11 +632,13 @@ export const init: PageModule['init'] = (): (() => void) | void => {
           const formData = new FormData();
           formData.append('file', file);
           formData.append('kind', 'video');
-          const { data } = await api.postForm<UploadResponse>('/api/v1/uploads', formData);
+          const data = await uploadWithProgress<UploadResponse>('/api/v1/uploads', formData, showUploadProgress);
           videoId = data.id;
           addVideoPreview(data);
         } catch (error) {
           toastError(error);
+        } finally {
+          hideUploadProgress();
         }
 
         continue;
@@ -556,11 +657,13 @@ export const init: PageModule['init'] = (): (() => void) | void => {
       try {
         const formData = new FormData();
         formData.append('file', file);
-        const { data } = await api.postForm<UploadResponse>('/api/v1/uploads', formData);
+        const data = await uploadWithProgress<UploadResponse>('/api/v1/uploads', formData, showUploadProgress);
         mediaIds.push(data.id);
         addPreview(data);
       } catch (error) {
         toastError(error);
+      } finally {
+        hideUploadProgress();
       }
     }
   };
@@ -590,7 +693,10 @@ export const init: PageModule['init'] = (): (() => void) | void => {
           content,
           visibility: visibilitySelect?.value ?? 'public',
           topics,
-          media_ids: mediaIds,
+          tags: Array.from(selectedTags),
+          media_ids: videoId !== null ? [videoId] : mediaIds,
+          is_paid: paidSelect?.value === '1',
+          price: Number(priceSelect?.value ?? 1),
         });
 
         toast('已保存修改', 'success');
@@ -598,17 +704,21 @@ export const init: PageModule['init'] = (): (() => void) | void => {
         return;
       }
 
-      const { data } = await api.post<{ id: number; url: string }>('/api/v1/posts', {
+      const { data } = await api.post<{ id: number; url: string; feed_url?: string }>('/api/v1/posts', {
         content,
         visibility: visibilitySelect?.value ?? 'public',
         topics,
+        tags: Array.from(selectedTags),
         media_ids: videoId !== null ? [videoId] : mediaIds,
         community_id: communityId === '' ? 0 : Number(communityId),
+        is_paid: paidSelect?.value === '1',
+        price: Number(priceSelect?.value ?? 1),
       });
 
       localStorage.removeItem(DRAFT_PREFIX + (communityId === '' ? 'post' : `circle-${communityId}`));
       toast('发布成功', 'success');
-      window.location.href = data.url;
+      // 发布后先回到信息流，让新帖在列表中加载出来；点卡片再进入详情。
+      window.location.href = data.feed_url ?? `/?tab=latest&published=${data.id}`;
     } catch (error) {
       // 内联错误区：toast 会消失，错误需要留得住
       if (errorBox !== null) {

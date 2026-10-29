@@ -184,8 +184,9 @@ final class EventService
     /** @param array<string, mixed> $event */
     public function canEdit(array $event, int $userId): bool
     {
+        // 待审核（pending）也要允许组织者继续改内容；开始后或已取消则不允许
         return (int) $event['user_id'] === $userId
-            && (string) $event['status'] === 'published'
+            && in_array((string) $event['status'], ['published', 'pending'], true)
             && strtotime((string) $event['start_at']) > time();
     }
 

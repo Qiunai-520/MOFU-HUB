@@ -18,11 +18,13 @@
             <h2 class="settings-group__title">头像</h2>
             <div class="settings-card settings-card--pad">
                 <div class="avatar-settings">
-                    {% if profile.avatar_url is defined and profile.avatar_url is not empty %}
-                    <img class="avatar avatar--xl" src="{{ profile.avatar_url }}" alt="当前头像">
-                    {% else %}
-                    <span class="avatar avatar--xl" style="--avatar-hue: {{ currentUser.hue }}" aria-hidden="true">{{ currentUser.initial }}</span>
-                    {% endif %}
+                    {% set avatarProfile = profile|merge({
+                        initial: currentUser.initial,
+                        hue: currentUser.hue,
+                        avatar_url: profile.avatar_url|default(currentUser.avatar_url),
+                        avatar_frame_class: profile.avatar_frame_class|default(currentUser.avatar_frame_class|default(''))
+                    }) %}
+                    {{ include('components/avatar.twig', { user: avatarProfile, size: 'xl' }) }}
                     <form method="post" action="/settings/avatar" enctype="multipart/form-data" class="avatar-settings__form">
                         <input type="hidden" name="_csrf" value="{{ csrfToken }}">
                         <input class="field__input avatar-settings__file" type="file" name="avatar"
@@ -79,6 +81,17 @@
                         <span class="field__label">昵称</span>
                         <input class="field__input" id="profile-nickname" type="text" name="nickname" value="{{ profile.nickname|default('') }}" maxlength="24" required>
                         {% if errors.nickname is defined %}<span class="field__error">{{ errors.nickname }}</span>{% endif %}
+                        {% if nicknameStatus is defined %}
+                        <span class="field__hint">
+                            首次修改免费；之后每次 6 M币，且距上次修改需满 3 天。
+                            {% if nicknameStatus.free %}当前：首次免费{% else %}已修改 {{ nicknameStatus.changed_count }} 次{% endif %}
+                            {% if nicknameStatus.can_change %}
+                            · 现在可以修改{% if not nicknameStatus.free %}（需 6 M币）{% endif %}
+                            {% else %}
+                            · {{ nicknameStatus.reason }}
+                            {% endif %}
+                        </span>
+                        {% endif %}
                     </label>
 
                     <label class="field{{ errors.bio is defined ? ' field--error' : '' }}" for="profile-bio">

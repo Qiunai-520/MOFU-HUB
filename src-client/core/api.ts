@@ -1,5 +1,8 @@
 import type { PaginationMeta } from '@/types';
 
+/** 统一请求超时：避免服务端挂起时请求永久 pending、按钮一直 loading */
+const REQUEST_TIMEOUT_MS = 15000;
+
 export class ApiError extends Error {
   constructor(
     public readonly code: string,
@@ -43,6 +46,8 @@ async function request<T>(method: string, url: string, body?: unknown, form?: Fo
   }
 
   let response: Response;
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
     response = await fetch(url, {
@@ -50,9 +55,12 @@ async function request<T>(method: string, url: string, body?: unknown, form?: Fo
       headers,
       credentials: 'same-origin',
       body: payload,
+      signal: controller.signal,
     });
   } catch {
-    throw new ApiError('network_error', '网络异常，请检查连接后重试', 0);
+    throw new ApiError('network_error', '网络异常或超时，请检查连接后重试', 0);
+  } finally {
+    window.clearTimeout(timer);
   }
 
   let envelope: ApiEnvelope<T> | null = null;
@@ -97,3 +105,52 @@ export const api = {
   delete: <T>(url: string): Promise<ApiResult<T>> => request<T>('DELETE', url),
   postForm: <T>(url: string, form: FormData): Promise<ApiResult<T>> => request<T>('POST', url, undefined, form),
 };
+
+/**
+ * 带上传进度的表单提交：fetch 无法获取上传进度，因此单走 XHR。
+ * 返回值与 api.postForm 不同（直接返回 data），便于上传处直接使用。
+ */
+export function uploadWithProgress<T>(
+  url: string,
+  form: FormData,
+  onProgress: (percent: number) => void,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.setRequestHeader('X-CSRF-Token', csrfToken());
+
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable && event.total > 0) {
+        onProgress(Math.min(99, Math.round((event.loaded / event.total) * 100)));
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      let envelope: ApiEnvelope<T> | null = null;
+
+      try {
+        envelope = JSON.parse(xhr.responseText) as ApiEnvelope<T>;
+      } catch {
+        envelope = null;
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300 && envelope !== null && envelope.ok === true) {
+        onProgress(100);
+        resolve(envelope.data as T);
+
+        return;
+      }
+
+      const code = envelope?.error?.code ?? `http_${xhr.status}`;
+      reject(new ApiError(code, envelope?.error?.message ?? defaultMessage(xhr.status), xhr.status));
+    });
+
+    xhr.addEventListener('error', () => reject(new ApiError('network_error', '网络异常或超时，请检查连接后重试', 0)));
+    xhr.addEventListener('abort', () => reject(new ApiError('aborted', '上传已取消', 0)));
+
+    xhr.send(form);
+  });
+}

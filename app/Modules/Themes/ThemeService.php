@@ -60,35 +60,19 @@ final class ThemeService
             throw HttpException::badRequest('主题名称需为 1-24 字');
         }
 
-        $sourceColor = strtoupper((string) ($input['source_color'] ?? ''));
-
-        if (!preg_match('/^#[0-9A-F]{6}$/', $sourceColor)) {
-            throw HttpException::badRequest('主题色格式无效');
-        }
-
+        // The brand accent is fixed. Appearance is the only user-controlled
+        // dimension; legacy palette fields are accepted for API compatibility
+        // but deliberately ignored.
+        $sourceColor = '#FFCC38';
         $scheme = (string) ($input['scheme'] ?? 'auto');
-        $contrast = (string) ($input['contrast'] ?? 'standard');
-        $variant = (string) ($input['variant'] ?? 'tonalSpot');
-        $motion = (string) ($input['motion'] ?? 'standard');
-        $density = (int) ($input['density'] ?? 0);
+        $contrast = 'standard';
+        $variant = 'tonalSpot';
+        $motion = 'standard';
+        $density = 0;
 
         if (!in_array($scheme, ['auto', 'light', 'dark'], true)) {
             throw HttpException::badRequest('明暗方案无效');
         }
-
-        if (!in_array($contrast, ['standard', 'medium', 'high'], true)) {
-            throw HttpException::badRequest('对比度无效');
-        }
-
-        if (!in_array($variant, self::VARIANTS, true)) {
-            throw HttpException::badRequest('调色板策略无效');
-        }
-
-        if (!in_array($motion, ['standard', 'expressive'], true)) {
-            throw HttpException::badRequest('动效方案无效');
-        }
-
-        $density = max(-3, min(1, $density));
 
         // css_vars 结构为 {"light": {...}, "dark": {...}}，分别白名单校验后合并
         $cssVars = [];
@@ -102,7 +86,11 @@ final class ThemeService
         }
 
         if (($cssVars['light'] ?? []) === [] && ($cssVars['dark'] ?? []) === []) {
-            throw HttpException::badRequest('主题数据无效');
+            // Appearance-only clients may omit the legacy palette payload.
+            $cssVars = [
+                'light' => ['--md-sys-color-primary' => '#FFCC38'],
+                'dark' => ['--md-sys-color-primary' => '#FFCC38'],
+            ];
         }
 
         $now = date('Y-m-d H:i:s');

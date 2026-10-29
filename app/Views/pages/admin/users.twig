@@ -4,6 +4,9 @@
 {% block title %}用户管理 · {{ app.name }}{% endblock %}
 
 {% block admin_content %}
+{# 角色 slug → 中文角色名，避免直接显示 super_admin,user 这种内部标识 #}
+{% set roleNames = {} %}
+{% for r in allRoles %}{% set roleNames = roleNames|merge({ (r.slug): r.name }) %}{% endfor %}
 <div class="admin-head">
     <h1 class="page-title">用户管理</h1>
     <form class="admin-search" method="get" action="/admin/users">
@@ -32,7 +35,10 @@
                     {% if u.nickname is not empty and u.nickname != u.username %}<span class="admin-table__sub">{{ u.nickname }}</span>{% endif %}
                 </td>
                 <td data-label="邮箱" class="admin-table__sub">{{ u.email }}</td>
-                <td data-label="角色">{{ u.role_slugs ?: 'user' }}</td>
+                <td data-label="角色">
+                    {% set slugs = u.role_slugs is empty ? ['user'] : u.role_slugs|split(',') %}
+                    {% for slug in slugs %}{{ not loop.first ? ' · ' }}{{ roleNames[slug] ?? slug }}{% endfor %}
+                </td>
                 <td data-label="状态">
                     {% if u.status == 'active' %}<span class="status-dot status-dot--ok"></span>正常
                     {% elseif u.status == 'suspended' %}<span class="status-dot status-dot--warn"></span>限制
@@ -40,6 +46,7 @@
                 </td>
                 <td data-label="注册时间" class="admin-table__sub">{{ u.created_at }}</td>
                 <td class="admin-table__actions">
+                    {% if u.can_manage %}
                     <form method="post" action="/admin/users/{{ u.id }}/status" class="inline-form">
                         <input type="hidden" name="_csrf" value="{{ csrfToken }}">
                         <select name="status" aria-label="调整状态">
@@ -53,11 +60,15 @@
                         <input type="hidden" name="_csrf" value="{{ csrfToken }}">
                         <select name="role" aria-label="调整角色">
                             {% for r in roles %}
-                            <option value="{{ r.slug }}" {{ u.role_slugs == r.slug ? 'selected' : '' }}>{{ r.name }}</option>
+                            <option value="{{ r.slug }}" {{ u.primary_role_slug == r.slug ? 'selected' : '' }}>{{ r.name }}</option>
                             {% endfor %}
                         </select>
                         <button class="text-btn text-btn--sm" type="submit">设置</button>
                     </form>
+                    <a class="text-btn text-btn--sm text-btn--danger" href="/admin/users/{{ u.id }}/ban?return={{ '/admin/users'|url_encode }}">处罚</a>
+                    {% else %}
+                    <span class="hint">{{ u.is_self ? '当前账号，需在账号安全页处理' : '同级或更高权限，当前账号不可操作' }}</span>
+                    {% endif %}
                 </td>
             </tr>
             {% else %}

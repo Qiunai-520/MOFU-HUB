@@ -1,0 +1,28 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}payment{% endblock %}
+{% block title %}支付结果 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="payment-result">
+    {% if status == 'paid' %}
+    <span class="material-symbols-outlined payment-result__icon is-ok" aria-hidden="true">check_circle</span>
+    <h1 class="page-title">支付成功</h1>
+    <p class="page-subtitle">订单 {{ orderNo }} 已完成，权益已发放到你的账号。</p>
+    {% elseif status == 'pending' %}
+    <span class="material-symbols-outlined payment-result__icon" aria-hidden="true">hourglass_top</span>
+    <h1 class="page-title">支付处理中</h1>
+    <p class="page-subtitle">订单 {{ orderNo }} 尚未确认到账，稍后刷新本页查看结果。</p>
+    {% else %}
+    <span class="material-symbols-outlined payment-result__icon is-warn" aria-hidden="true">error</span>
+    <h1 class="page-title">没有找到订单</h1>
+    <p class="page-subtitle">订单号 {{ orderNo }}，请返回会员中心重新下单。</p>
+    {% endif %}
+
+    <div class="payment-result__actions">
+        <a class="filled-btn" href="/membership">会员中心</a>
+        <a class="outlined-btn" href="/shop">MOFU小店</a>
+        <a class="text-btn" href="/">返回首页</a>
+    </div>
+</section>
+{% endblock %}

@@ -1,5 +1,5 @@
-{# 表白墙 / 树洞卡片 #}
-<article class="card confession-card" data-confession-id="{{ item.id }}" data-board="{{ item.board }}">
+{# 表白墙 / 树洞卡片：整卡可点进详情（core/nav.ts 的 setupCardLinks 负责委托，点内部按钮/链接/图片不拦截）#}
+<article class="card confession-card" data-confession-id="{{ item.id }}" data-board="{{ item.board }}" data-post-link="{{ item.url }}">
     <header class="confession-card__head">
         <span class="avatar avatar--md" style="--avatar-hue: {{ item.author.hue }}" aria-hidden="true">{{ item.author.initial }}</span>
         <div class="confession-card__meta">
@@ -52,8 +52,5 @@
                 aria-pressed="{{ item.favorited ? 'true' : 'false' }}" aria-label="收藏">
             <span class="material-symbols-outlined" aria-hidden="true">bookmark</span>
         </button>
-        <a class="caction caction--tail" href="{{ item.url }}" aria-label="查看详情">
-            <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
-        </a>
     </footer>
 </article>

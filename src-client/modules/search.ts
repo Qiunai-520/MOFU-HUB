@@ -53,12 +53,20 @@ function setupSuggest(input: HTMLInputElement, box: HTMLElement): () => void {
     items = [];
     active = -1;
     input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
   };
 
   const highlight = (): void => {
     Array.from(box.querySelectorAll<HTMLElement>('.search-suggest__item')).forEach((el, i) => {
       el.classList.toggle('is-active', i === active);
+      el.setAttribute('aria-selected', i === active ? 'true' : 'false');
     });
+
+    if (active >= 0) {
+      input.setAttribute('aria-activedescendant', `search-suggest-option-${active}`);
+    } else {
+      input.removeAttribute('aria-activedescendant');
+    }
   };
 
   const render = (data: SuggestResponse): void => {
@@ -76,7 +84,8 @@ function setupSuggest(input: HTMLInputElement, box: HTMLElement): () => void {
     box.innerHTML = items
       .map(
         (item, i) =>
-          `<a class="search-suggest__item" role="option" href="${escapeHtml(item.url)}" data-index="${i}">` +
+          `<a class="search-suggest__item" id="search-suggest-option-${i}" role="option" aria-selected="false" ` +
+          `href="${escapeHtml(item.url)}" data-index="${i}">` +
           `<span class="search-suggest__label">${escapeHtml(item.label)}</span>` +
           `<span class="search-suggest__sub">${escapeHtml(item.sub)}</span></a>`,
       )

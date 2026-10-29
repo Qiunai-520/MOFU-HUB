@@ -26,17 +26,19 @@
 
 ## 1. 项目概览与架构总览
 
-MOFU社区是一套面向高校场景的综合性社区平台：校园动态、匿名表白墙与树洞、关注与通知、个性化主题中心、内容审核与管理后台。设计体系严格遵循 Google **Material 3 Expressive（M3E）**。
+MOFU社区是一套面向高校场景的综合性社区平台：校园动态、匿名表白墙与树洞、关注与通知、个性化外观、内容审核与管理后台。全站采用一套 Apple 风格设计系统：系统字体栈、固定品牌强调色 `#FFCC38`、克制的圆角与阴影，以及 Light / Dark / System 三种外观。
 
 **技术栈一览**
 
 | 层 | 技术 |
 | --- | --- |
-| 后端 | PHP ≥ 8.1 · Slim 4 · Twig 3 · vlucas/phpdotenv |
+| 后端 | PHP 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12+ · Slim 4 · Twig 3 · vlucas/phpdotenv |
 | 数据库 | MySQL / MariaDB（utf8mb4）· 项目内置迁移器 |
-| 前端 | TypeScript（strict）· Vite 5 · Swup 4 · @m3e/web（M3E 组件） |
-| 设计系统 | M3E · HCT 动态配色（Material Color Utilities）· Material Symbols · Roboto |
-| 测试 | PHPUnit 10（后端）· Vitest 2（前端） |
+| 前端 | TypeScript（strict）· Vite 8 · Swup 4 · Three.js · nanostores |
+| 设计系统 | Apple-inspired tokens · 系统字体栈 · Light / Dark / System · Material Symbols |
+| 测试 | PHPUnit 10（后端）· Vitest 5（前端） |
+
+> 安全基线：PHP2Shell（CVE-2026-109618 / CVE-2026-109619）修复版本为 8.2.35、8.3.36、8.4.27、8.5.12。PHP 8.3.35 / 8.4.26 / 8.5.11 仍然受影响；临时缓解与升级步骤见 `docs/security/php2shell.md`。
 
 **架构总览**
 
@@ -102,7 +104,7 @@ composer serve      # http://127.0.0.1:8000
 配置读取逻辑在 `app/Bootstrap/Config.php`（基于 vlucas/phpdotenv）。**自动生成**区段如下：
 
 <!-- AUTO-GEN:env:start -->
-共 18 项。配置读取逻辑见 `app/Bootstrap/Config.php`，未配置时使用默认值。
+共 32 项。配置读取逻辑见 `app/Bootstrap/Config.php`，未配置时使用默认值。
 
 **基础**
 
@@ -112,6 +114,7 @@ composer serve      # http://127.0.0.1:8000
 | `APP_ENV` | — | `local` |
 | `APP_DEBUG` | — | `true` |
 | `APP_URL` | — | `http://127.0.0.1:8000` |
+| `APP_KEY` | 通过 /install 向导安装时会自动生成。 | （留空） |
 
 **数据库（MySQL / MariaDB）**
 
@@ -147,10 +150,28 @@ composer serve      # http://127.0.0.1:8000
 
 | 变量 | 说明 | 示例 / 默认值 |
 | --- | --- | --- |
-| `THEME_DEFAULT_COLOR` | — | `#775A0D` |
+| `THEME_DEFAULT_COLOR` | — | `#FFCC38` |
+
+**音乐播放器（独立应用，部署在 Cloudflare Pages）**
+
+| 变量 | 说明 | 示例 / 默认值 |
+| --- | --- | --- |
+| `MUSIC_APP_URL` | 填了就会在 /music 内嵌播放器；留空则显示占位说明。代码在 music-app/，部署见该目录 README | （留空） |
 | `TWIKOO_ENV_ID` | Twikoo 评论系统（留空 TWIKOO_ENV_ID 则只用站内评论） | （留空） |
 | `TWIKOO_SCRIPT_URL` | 评论脚本地址：默认用站内自托管副本（public/vendor/twikoo.all.min.js），可改为自建 CDN | `/vendor/twikoo.all.min.js` |
 | `TWIKOO_LANG` | 评论语言：zh-CN 已内嵌在主包里（不产生额外请求） | `zh-CN` |
+| `TWIKOO_EMOTION_CDN` | 表情包（OwO JSON）：默认站内自带的 Apple 表情包，前端通过覆写 GET_CONFIG 生效 | `/vendor/emoji-apple.json` |
+| `MAIL_MAILER` | 生产请改为 smtp 并填写下面几项 | `log` |
+| `MAIL_HOST` | — | （留空） |
+| `MAIL_PORT` | — | `465` |
+| `MAIL_ENCRYPTION` | 加密：ssl（465 直连）\| tls（587 STARTTLS）\| 留空（25 明文） | `ssl` |
+| `MAIL_USERNAME` | — | （留空） |
+| `MAIL_PASSWORD` | — | （留空） |
+| `MAIL_FROM` | 发件人地址（留空时用 no-reply@<当前域名>） | （留空） |
+| `APP_KEY` | 应用密钥：用于邮箱验证码哈希等；安装向导会自动生成；留空时退化为由数据库口令派生（仅服务端可见） | （留空） |
+| `EZFP_API` | 易支付（V1，MD5 签名）：接口地址 / 商户 ID / 商户密钥 | `https://www.ezfp.cn/` |
+| `EZFP_PID` | — | （留空） |
+| `EZFP_KEY` | — | （留空） |
 <!-- AUTO-GEN:env:end -->
 
 > 生产环境务必：关闭 `APP_DEBUG`、设置强数据库密码、按域名设置 `APP_URL`。
@@ -175,7 +196,7 @@ composer migrate:status
 **自动生成**的数据表清单：
 
 <!-- AUTO-GEN:tables:start -->
-共 38 张数据表，按迁移顺序创建。
+共创建 78 张数据表（其中 2 张已在后续迁移中删除）。
 
 | 迁移文件 | 创建的数据表 |
 | --- | --- |
@@ -200,6 +221,32 @@ composer migrate:status
 | `019_appeal_token.sql` | （结构 / 数据变更，无新表） |
 | `020_board_logo.sql` | （结构 / 数据变更，无新表） |
 | `021_brand_color.sql` | （结构 / 数据变更，无新表） |
+| `022_community_systems.sql` | `user_bans`、`announcements`、`announcement_reads`、`user_wallets`、`wallet_transactions`、`level_configs`、`user_levels`、`user_stats`、`titles`、`user_titles`、`achievements`、`user_achievements`、`check_ins`、`check_in_rewards`、`shop_products`、`shop_orders`、`user_inventory`、`games`、`game_records`、`growth_daily_counters` |
+| `023_membership_and_coins.sql` | `email_verifications`、`quiz_questions`、`quiz_attempts`、`post_coins` |
+| `024_user_tasks.sql` | `user_tasks` |
+| `025_drop_games.sql` | 删除：`game_records`、`games` |
+| `026_integrity_and_fk.sql` | （结构 / 数据变更，无新表） |
+| `027_search_and_list_index.sql` | （结构 / 数据变更，无新表） |
+| `028_flash_level.sql` | （结构 / 数据变更，无新表） |
+| `029_wallet_decimals_and_paid_posts.sql` | `post_purchases` |
+| `030_message_recall.sql` | （结构 / 数据变更，无新表） |
+| `031_message_media.sql` | （结构 / 数据变更，无新表） |
+| `032_tags.sql` | `tags`、`post_tags` |
+| `033_levels_and_permissions.sql` | （结构 / 数据变更，无新表） |
+| `034_memberships.sql` | `membership_orders` |
+| `035_payment_and_shop.sql` | `payment_orders` |
+| `036_invites.sql` | `invite_codes` |
+| `037_jury.sql` | `jury_applications`、`jury_members`、`jury_cases`、`jury_votes`、`jury_stipends` |
+| `038_jail_and_lab.sql` | `lab_features`、`lab_access` |
+| `039_nickname.sql` | `nickname_change_log` |
+| `040_view_reward_and_special_follow.sql` | `view_reward_settlements` |
+| `041_flash_term.sql` | （结构 / 数据变更，无新表） |
+| `042_payment_payload.sql` | （结构 / 数据变更，无新表） |
+| `043_lab_seed.sql` | （结构 / 数据变更，无新表） |
+| `044_quiz_category.sql` | （结构 / 数据变更，无新表） |
+| `045_system_manage_permission.sql` | （结构 / 数据变更，无新表） |
+| `046_scene_banners_and_profile_decor.sql` | （结构 / 数据变更，无新表） |
+| `047_fixed_apple_brand.sql` | （结构 / 数据变更，无新表） |
 <!-- AUTO-GEN:tables:end -->
 
 ---
@@ -220,14 +267,16 @@ composer migrate:status
 ├─ docs/  # 项目文档（本教程 + 双语 README）
 ├─ font/
 ├─ migrations/  # 数据库迁移（按序执行的 SQL 文件）
+├─ music-app/
 ├─ public/  # Web 根目录（单入口 + 静态资源）
 ├─ scripts/  # 工程脚本（构建与文档生成）
 ├─ src-client/  # 前端 TypeScript 源码
 │  ├─ core/  # 前端内核：API、状态、导航与全局交互
 │  ├─ modules/  # 页面级客户端模块（懒加载）
 │  ├─ pwa/
-│  ├─ styles/  # 样式（基础 / 布局 / 页面）
-│  ├─ theme/  # HCT 动态配色与主题引擎
+│  ├─ styles/  # 样式（设计令牌 / 布局 / 页面 / 组件层）
+│  ├─ theme/  # Light / Dark / System 外观引擎
+│  ├─ types/
 │  ├─ main.ts
 │  ├─ sw.ts
 │  └─ types.ts
@@ -236,20 +285,24 @@ composer migrate:status
 ├─ 数据/
 ├─ .env.example  # 环境配置样例（复制为 .env 使用）
 ├─ .gitignore
+├─ 10.zip
+├─ CHANGELOG.md
 ├─ README.md
-├─ ZipFile-1791077367249.zip
+├─ SECURITY.md
+├─ VERSION
 ├─ app-download.html
 ├─ composer.json
 ├─ exectest.sh
 ├─ logo.png
 ├─ mofu-deploy.zip
+├─ music-app.zip
 ├─ package.json
 ├─ phpunit.xml
 ├─ tsconfig.json
 ├─ vite.config.ts
-├─ 提示词.txt
+├─ 秋奈字体.ttf
 ├─ 维护.html
-└─ 维护.html.bak
+└─ 题目.txt
 ```
 <!-- AUTO-GEN:tree:end -->
 
@@ -296,11 +349,12 @@ composer migrate:status
 **自动生成**（来自各模块 `routes.php`）：
 
 <!-- AUTO-GEN:routes:start -->
-共 158 条路由。约定：页面路由直接返回 HTML（SSR）；`/api/v1` 前缀为 JSON 接口，由前端模块异步调用。
+共 265 条路由。约定：页面路由直接返回 HTML（SSR）；`/api/v1` 前缀为 JSON 接口，由前端模块异步调用。
 
 | 模块 | 方法 | 路径 | 处理器 |
 | --- | --- | --- | --- |
-| Admin | `GET` | `/admin` | `AdminController::dashboard()` |
+| Admin | `GET` | `/admin` | `AdminController::index()` |
+| Admin | `GET` | `/admin/dashboard` | `AdminController::dashboard()` |
 | Admin | `GET` | `/admin/users` | `AdminController::users()` |
 | Admin | `GET` | `/admin/posts` | `AdminController::posts()` |
 | Admin | `GET` | `/admin/comments` | `AdminController::comments()` |
@@ -315,6 +369,48 @@ composer migrate:status
 | Admin | `GET` | `/admin/comments/export-twikoo` | `AdminController::exportCommentsTwikoo()` |
 | Admin | `GET` | `/admin/events` | `AdminController::events()` |
 | Admin | `GET` | `/admin/news` | `AdminController::news()` |
+| Admin | `GET` | `/admin/announcements` | `AdminController::announcements()` |
+| Admin | `GET` | `/admin/titles` | `AdminController::titles()` |
+| Admin | `GET` | `/admin/tags` | `AdminController::tags()` |
+| Admin | `GET` | `/admin/jury` | `AdminController::jury()` |
+| Admin | `GET` | `/admin/lab` | `AdminController::lab()` |
+| Admin | `GET` | `/admin/shop` | `AdminController::shop()` |
+| Admin | `GET` | `/admin/checkin` | `AdminController::checkin()` |
+| Admin | `GET` | `/admin/membership` | `AdminController::membership()` |
+| Admin | `GET` | `/admin/growth` | `AdminController::growth()` |
+| Admin | `GET` | `/admin/economy` | `AdminController::economy()` |
+| Admin | `POST` | `/admin/announcements` | `AdminController::saveAnnouncement()` |
+| Admin | `POST` | `/admin/announcements/{id:[0-9]+}/save` | `AdminController::saveAnnouncement()` |
+| Admin | `POST` | `/admin/announcements/{id:[0-9]+}/delete` | `AdminController::deleteAnnouncement()` |
+| Admin | `POST` | `/admin/titles` | `AdminController::saveTitle()` |
+| Admin | `POST` | `/admin/tags` | `AdminController::saveTag()` |
+| Admin | `POST` | `/admin/tags/{id:[0-9]+}/save` | `AdminController::saveTag()` |
+| Admin | `POST` | `/admin/tags/{id:[0-9]+}/delete` | `AdminController::deleteTag()` |
+| Admin | `POST` | `/admin/jury/applications/{id:[0-9]+}/decide` | `AdminController::decideJuryApplication()` |
+| Admin | `POST` | `/admin/jury/members/{id:[0-9]+}/rate` | `AdminController::rateJuryMember()` |
+| Admin | `POST` | `/admin/jury/members/{id:[0-9]+}/remove` | `AdminController::removeJuryMember()` |
+| Admin | `POST` | `/admin/jury/cases` | `AdminController::openJuryCase()` |
+| Admin | `POST` | `/admin/jury/cases/{id:[0-9]+}/close` | `AdminController::closeJuryCase()` |
+| Admin | `POST` | `/admin/jury/stipend` | `AdminController::payJuryStipend()` |
+| Admin | `POST` | `/admin/jury/settle` | `AdminController::settleJuryYear()` |
+| Admin | `POST` | `/admin/lab` | `AdminController::saveLab()` |
+| Admin | `POST` | `/admin/lab/{id:[0-9]+}/save` | `AdminController::saveLab()` |
+| Admin | `POST` | `/admin/lab/{id:[0-9]+}/toggle` | `AdminController::toggleLab()` |
+| Admin | `POST` | `/admin/lab/{id:[0-9]+}/delete` | `AdminController::deleteLab()` |
+| Admin | `POST` | `/admin/titles/grant` | `AdminController::grantTitle()` |
+| Admin | `POST` | `/admin/titles/achievements` | `AdminController::saveAchievement()` |
+| Admin | `POST` | `/admin/titles/{id:[0-9]+}/save` | `AdminController::saveTitle()` |
+| Admin | `POST` | `/admin/titles/{id:[0-9]+}/delete` | `AdminController::deleteTitle()` |
+| Admin | `POST` | `/admin/shop/products` | `AdminController::saveProduct()` |
+| Admin | `POST` | `/admin/shop/products/{id:[0-9]+}/save` | `AdminController::saveProduct()` |
+| Admin | `POST` | `/admin/shop/products/{id:[0-9]+}/action` | `AdminController::productAction()` |
+| Admin | `POST` | `/admin/checkin/rewards` | `AdminController::saveCheckinRewards()` |
+| Admin | `POST` | `/admin/membership/levels` | `AdminController::saveLevels()` |
+| Admin | `POST` | `/admin/membership/questions` | `AdminController::saveQuestion()` |
+| Admin | `POST` | `/admin/membership/questions/{id:[0-9]+}/delete` | `AdminController::deleteQuestion()` |
+| Admin | `POST` | `/admin/membership/grant` | `AdminController::grantGrowth()` |
+| Admin | `GET` | `/admin/users/{id:[0-9]+}/ban` | `AdminController::userBanForm()` |
+| Admin | `POST` | `/admin/users/{id:[0-9]+}/moderate` | `AdminController::userModerate()` |
 | Admin | `GET` | `/admin/news/new` | `AdminController::newsNew()` |
 | Admin | `POST` | `/admin/users/{id:[0-9]+}/status` | `AdminController::setUserStatus()` |
 | Admin | `POST` | `/admin/users/{id:[0-9]+}/role` | `AdminController::setUserRole()` |
@@ -326,6 +422,8 @@ composer migrate:status
 | Admin | `POST` | `/admin/appeals/{id:[0-9]+}/resolve` | `AdminController::resolveAppeal()` |
 | Admin | `POST` | `/admin/circles/{id:[0-9]+}/active` | `AdminController::setCircleActive()` |
 | Admin | `POST` | `/admin/circles/{id:[0-9]+}/delete` | `AdminController::deleteCircle()` |
+| Admin | `POST` | `/admin/boards/create` | `AdminController::createBoardEntry()` |
+| Admin | `POST` | `/admin/boards/{id:[0-9]+}/save` | `AdminController::saveBoardEntry()` |
 | Admin | `POST` | `/admin/boards/{id:[0-9]+}/status` | `AdminController::setEntryStatus()` |
 | Admin | `POST` | `/admin/boards/{id:[0-9]+}/delete` | `AdminController::deleteEntry()` |
 | Admin | `POST` | `/admin/boards/{id:[0-9]+}/logo` | `AdminController::saveBoardLogo()` |
@@ -339,13 +437,26 @@ composer migrate:status
 | Admin | `POST` | `/admin/news/{id:[0-9]+}/status` | `AdminController::newsStatus()` |
 | Admin | `POST` | `/admin/news/{id:[0-9]+}/pin` | `AdminController::newsPin()` |
 | Admin | `POST` | `/admin/news/{id:[0-9]+}/delete` | `AdminController::newsDelete()` |
+| Admin | `GET` | `/admin/system` | `AdminController::system()` |
+| Admin | `POST` | `/admin/system/migrate` | `AdminController::runMigrations()` |
+| Admin | `POST` | `/admin/system/backup` | `AdminController::exportBackup()` |
+| Admin | `GET` | `/admin/changelog` | `AdminController::changelog()` |
+| Admin | `POST` | `/admin/changelog` | `AdminController::saveChangelog()` |
+| Announcements | `GET` | `/api/v1/announcements` | — |
+| Announcements | `POST` | `/api/v1/announcements/read` | — |
+| Announcements | `POST` | `/api/v1/announcements/{id:[0-9]+}/dismiss` | — |
 | Appeals | `GET` | `/appeal` | `AppealController::show()` |
 | Appeals | `POST` | `/appeal` | `AppealController::submit()` |
-| Auth | `GET` | `/login` | `AuthController::showLogin()` |
-| Auth | `POST` | `/login` | `AuthController::login()` |
-| Auth | `GET` | `/register` | `AuthController::showRegister()` |
-| Auth | `POST` | `/register` | `AuthController::register()` |
-| Auth | `POST` | `/logout` | `AuthController::logout()` |
+| Auth | `GET` | `/login` | — |
+| Auth | `POST` | `/login` | — |
+| Auth | `POST` | `/logout` | — |
+| Auth | `GET` | `/register` | — |
+| Auth | `POST` | `/register` | — |
+| Auth | `GET` | `/register/verify` | — |
+| Auth | `POST` | `/register/verify` | — |
+| Auth | `GET` | `/password/reset` | — |
+| Auth | `POST` | `/password/reset` | — |
+| Auth | `POST` | `/password/reset/verify` | — |
 | Boards | `GET` | `/boards` | `BoardController::index()` |
 | Boards | `GET` | `/boards/{slug}/new` | `BoardController::new()` |
 | Boards | `POST` | `/boards/{slug}` | `BoardController::create()` |
@@ -396,27 +507,66 @@ composer migrate:status
 | Events | `POST` | `/events/{id:[0-9]+}/cancel` | `EventController::cancel()` |
 | Events | `POST` | `/events/{id:[0-9]+}/delete` | `EventController::delete()` |
 | Follows | `POST` | `/api/v1/follows/toggle` | `FollowApiController::toggle()` |
+| Growth | `GET` | `/growth` | `GrowthController::index()` |
+| Growth | `GET` | `/me/growth` | `GrowthController::index()` |
+| Growth | `GET` | `/shop` | `ShopController::index()` |
+| Growth | `GET` | `/api/v1/growth` | — |
+| Growth | `GET` | `/api/v1/growth/wallet` | — |
+| Growth | `POST` | `/api/v1/growth/checkin` | — |
+| Growth | `GET` | `/api/v1/growth/calendar` | — |
+| Growth | `POST` | `/api/v1/growth/title` | — |
+| Growth | `GET` | `/api/v1/shop` | — |
+| Growth | `POST` | `/api/v1/shop/{id:[0-9]+}/purchase` | — |
+| Growth | `POST` | `/api/v1/shop/{id:[0-9]+}/pay` | — |
+| Growth | `GET` | `/api/v1/shop/orders` | — |
+| Growth | `GET` | `/api/v1/posts/{id:[0-9]+}/coins` | — |
+| Growth | `POST` | `/api/v1/posts/{id:[0-9]+}/coins` | — |
 | History | `GET` | `/history` | `HistoryController::index()` |
 | History | `POST` | `/history/clear` | `HistoryController::clear()` |
 | Home | `GET` | `/` | `HomeController::index()` |
 | Home | `GET` | `/about` | `HomeController::about()` |
+| Home | `GET` | `/about/changelog` | `HomeController::changelog()` |
 | Home | `GET` | `/robots.txt` | `HomeController::robots()` |
 | Home | `GET` | `/sitemap.xml` | `HomeController::sitemap()` |
 | Home | `GET` | `/music` | `HomeController::music()` |
+| Home | `GET` | `/konbini` | `HomeController::konbini()` |
+| Invites | `GET` | `/invites` | `InviteController::index()` |
+| Invites | `GET` | `/api/v1/invites` | — |
+| Invites | `POST` | `/api/v1/invites/purchase` | — |
+| Jail | `GET` | `/jail` | `JailController::index()` |
+| Jury | `GET` | `/jury` | — |
+| Jury | `POST` | `/jury/apply` | — |
+| Jury | `POST` | `/jury/cases/{id:[0-9]+}/vote` | — |
+| Lab | `GET` | `/lab` | — |
+| Lab | `POST` | `/lab/{key:[a-z0-9\-_]+}/join` | — |
+| Lab | `POST` | `/lab/{key:[a-z0-9\-_]+}/leave` | — |
 | Media | `POST` | `/api/v1/uploads` | `MediaApiController::upload()` |
+| Membership | `GET` | `/membership` | `MembershipController::index()` |
+| Membership | `GET` | `/api/v1/membership` | — |
+| Membership | `POST` | `/api/v1/membership/tasks/{source:[a-z_]+}` | — |
+| Membership | `GET` | `/api/v1/membership/quiz` | — |
+| Membership | `POST` | `/api/v1/membership/quiz/submit` | — |
+| Membership | `POST` | `/api/v1/membership/premium-bonus` | — |
+| Membership | `POST` | `/api/v1/membership/purchase` | — |
 | Messages | `GET` | `/messages` | `MessageController::index()` |
 | Messages | `GET` | `/messages/with/{username}` | `MessageController::openWith()` |
 | Messages | `GET` | `/messages/{id:[0-9]+}` | `MessageController::show()` |
 | Messages | `GET` | `/api/v1/messages/unread-count` | `MessageApiController::unreadCount()` |
 | Messages | `GET` | `/api/v1/conversations/{id:[0-9]+}/messages` | `MessageApiController::messages()` |
 | Messages | `POST` | `/api/v1/conversations/{id:[0-9]+}/messages` | `MessageApiController::send()` |
+| Messages | `POST` | `/api/v1/messages/{id:[0-9]+}/recall` | `MessageApiController::recall()` |
 | Messages | `POST` | `/api/v1/conversations/{id:[0-9]+}/read` | `MessageApiController::markRead()` |
+| Moderation | `GET` | `/banned` | `BannedController::show()` |
+| Moderation | `GET` | `/api/v1/me/ban` | `BanApiController::status()` |
 | News | `GET` | `/news` | `NewsController::index()` |
 | News | `GET` | `/news/{id:[0-9]+}` | `NewsController::show()` |
 | Notifications | `GET` | `/notifications` | `MessageController::inbox()` |
 | Notifications | `GET` | `/api/v1/notifications` | `NotificationApiController::index()` |
 | Notifications | `GET` | `/api/v1/notifications/unread-count` | `NotificationApiController::unreadCount()` |
 | Notifications | `POST` | `/api/v1/notifications/read` | `NotificationApiController::markRead()` |
+| Payment | `GET` | `/pay/{orderNo}` | `PaymentController::pay()` |
+| Payment | `GET` | `/payment/result` | `PaymentController::result()` |
+| Payment | `GET` | `/api/v1/payment/ezfp/notify` | `PaymentController::notify()` |
 | Posts | `GET` | `/posts/{id:[0-9]+}` | `PostController::show()` |
 | Posts | `GET` | `/posts/{id:[0-9]+}/edit` | `PostController::edit()` |
 | Posts | `GET` | `/compose` | `PostController::compose()` |
@@ -427,11 +577,13 @@ composer migrate:status
 | Posts | `PATCH` | `/api/v1/posts/{id:[0-9]+}` | `PostApiController::update()` |
 | Posts | `DELETE` | `/api/v1/posts/{id:[0-9]+}` | `PostApiController::destroy()` |
 | Posts | `POST` | `/api/v1/posts/{id:[0-9]+}/repost` | `PostApiController::repost()` |
+| Posts | `POST` | `/api/v1/posts/{id:[0-9]+}/purchase` | `PostApiController::purchase()` |
 | Posts | `DELETE` | `/api/v1/posts/{id:[0-9]+}/repost` | `PostApiController::undoRepost()` |
 | Reactions | `POST` | `/api/v1/reactions/toggle` | `ReactionApiController::toggle()` |
 | Reports | `POST` | `/api/v1/reports` | `ReportApiController::store()` |
 | Search | `GET` | `/search` | `SearchController::index()` |
 | Search | `GET` | `/api/v1/search/suggest` | `SearchController::suggest()` |
+| Settings | `GET` | `/settings` | `SettingsController::index()` |
 | Settings | `GET` | `/settings/profile` | `SettingsController::profile()` |
 | Settings | `POST` | `/settings/profile` | `SettingsController::saveProfile()` |
 | Settings | `POST` | `/settings/avatar` | `SettingsController::uploadAvatar()` |
@@ -439,16 +591,22 @@ composer migrate:status
 | Settings | `POST` | `/settings/cover/remove` | `SettingsController::removeCover()` |
 | Settings | `GET` | `/settings/security` | `SettingsController::security()` |
 | Settings | `POST` | `/settings/security` | `SettingsController::changePassword()` |
+| Settings | `POST` | `/settings/security/email` | `SettingsController::sendEmailChange()` |
+| Settings | `POST` | `/settings/security/email/verify` | `SettingsController::verifyEmailChange()` |
 | Settings | `POST` | `/settings/security/sessions/revoke-others` | `SettingsController::revokeOtherSessions()` |
 | Settings | `POST` | `/settings/security/sessions/{id:[a-f0-9]{64}}/revoke` | `SettingsController::revokeSession()` |
 | Settings | `GET` | `/settings/notifications` | `SettingsController::notifications()` |
 | Settings | `POST` | `/settings/notifications` | `SettingsController::saveNotifications()` |
 | Settings | `GET` | `/settings/privacy` | `SettingsController::privacy()` |
 | Settings | `POST` | `/settings/privacy` | `SettingsController::savePrivacy()` |
+| Settings | `GET` | `/settings/decorations` | `SettingsController::decorations()` |
+| Settings | `POST` | `/settings/decorations` | `SettingsController::saveDecorations()` |
 | Settings | `GET` | `/settings/background` | `SettingsController::background()` |
 | Settings | `POST` | `/settings/background` | `SettingsController::saveBackground()` |
 | Settings | `POST` | `/settings/background/upload` | `SettingsController::uploadBackground()` |
 | Stream | `GET` | `/api/v1/stream` | `StreamController::stream()` |
+| Tags | `GET` | `/tags` | `TagController::index()` |
+| Tags | `GET` | `/tags/{slug}` | `TagController::show()` |
 | Themes | `GET` | `/settings/appearance` | `ThemeController::index()` |
 | Themes | `GET` | `/api/v1/themes` | `ThemeApiController::index()` |
 | Themes | `POST` | `/api/v1/themes` | `ThemeApiController::save()` |
@@ -456,6 +614,8 @@ composer migrate:status
 | Themes | `DELETE` | `/api/v1/themes/{id:[0-9]+}` | `ThemeApiController::destroy()` |
 | Users | `GET` | `/me` | `UserController::me()` |
 | Users | `GET` | `/u/{username:[a-z0-9_]+}` | `UserController::show()` |
+| Users | `GET` | `/u/{username:[a-z0-9_]+}/posts` | `UserController::show()` |
+| Users | `GET` | `/avatar/{hash:[0-9a-fA-F]{32,64}}` | `UserController::avatar()` |
 | Users | `POST` | `/api/v1/blocks/toggle` | `BlockApiController::toggle()` |
 | Users | `GET` | `/api/v1/users/search` | `UserController::search()` |
 <!-- AUTO-GEN:routes:end -->
@@ -466,8 +626,8 @@ composer migrate:status
 
 ### 9.1 启动顺序（`src-client/main.ts`）
 
-1. 导入 `@m3e/web/theme`（`m3e-theme` 元素）与 `@m3e/web/loading-indicator`（M3E 加载动画组件）、Material Symbols 字体、Roboto 与全局样式；
-2. `bootstrap()`：`initTheme()`（主题引擎）→ `setupGlobalActions()`（全局事件委托：点赞/收藏/关注/举报/灯箱/用户菜单等）→ `setupFormLoading()`（原生表单提交的按钮加载态）→ `setupNavDrawer()`（移动端抽屉导航）→ `setupSwup()`（平滑切页）；
+1. 导入 Material Symbols 子集字体与全局样式；
+2. `bootstrap()`：`initTheme()`（应用 Light / Dark / System 外观）→ `setupGlobalActions()`（全局事件委托：点赞/收藏/关注/举报/灯箱/用户菜单等）→ `setupFormLoading()`（原生表单提交的按钮加载态）→ `setupNavDrawer()`（移动端抽屉导航）→ `setupSwup()`（平滑切页）；
 3. Swup 每次完成切页（`page:view`）后：重新挂载当前页面的客户端模块，并刷新未读通知角标。
 
 ### 9.2 页面模块
@@ -486,20 +646,23 @@ composer migrate:status
 | `search` | `src-client/modules/search.ts` |
 | `messages` | `src-client/modules/messages.ts` |
 | `admin` | `src-client/modules/admin.ts` |
+| `growth` | `src-client/modules/growth.ts` |
+| `shop` | `src-client/modules/shop.ts` |
 | `about` | `src-client/modules/about.ts` |
+| `konbini` | `src-client/modules/konbini.ts` |
 <!-- AUTO-GEN:frontend-modules:end -->
 
 ### 9.3 Swup 约定
 
 - 仅替换 `#swup` 容器内的主内容；应用外壳（导航、主题、Toast、灯箱）持久存在；
 - `@swup/head-plugin` 保持 head 资源不重复加载；`@swup/preload-plugin` 预取站内链接；`@swup/a11y-plugin` 处理焦点与无障碍；`@swup/scroll-plugin` 管理滚动位置；
-- 页面切换加载指示器：`visit:start` 延迟 150ms 显示顶部 M3E 加载指示器（避免快速/预加载导航闪烁），`visit:end` / `visit:abort` / `visit:fail` 隐藏。
+- 页面切换加载指示器：`visit:start` 延迟 1000ms 显示顶部加载指示器（避免快速/预加载导航闪烁），`visit:end` / `visit:abort` / `visit:fail` 隐藏。
 
-### 9.4 加载动画体系（M3E）
+### 9.4 加载动画体系
 
 | 场景 | 实现 | 说明 |
 | --- | --- | --- |
-| 按钮加载（表单提交、加载更多、关注、主题保存等） | `core/loading.ts` 的 `setButtonLoading()` + `.is-loading` | 按钮内嵌入 `<m3e-loading-indicator>`（M3E 变形动画），文字/图标透明但保持尺寸 |
+| 按钮加载（表单提交、加载更多、关注、外观保存等） | `core/loading.ts` 的 `setButtonLoading()` + `.is-loading` | 按钮内嵌入 `.mofu-spinner`，文字/图标透明但保持尺寸 |
 | 原生表单 | `setupFormLoading()`（document submit 监听） | 未被 JS 拦截的表单提交自动进入按钮加载态 |
 | 页面切换 | `.page-loading`（`app.twig`）+ Swup 钩子 | 顶部居中指示器，延迟出现 |
 | 静默防重（点赞/收藏的乐观 UI） | `.is-busy` | 仅禁指针，不显示动画 |
@@ -510,22 +673,19 @@ composer migrate:status
 
 ## 10. 设计系统与主题定制
 
-- **M3E 组件**：按需导入 `@m3e/web/<组件>`（本项目当前使用 `theme`、`loading-indicator`）。组件通过 `--md-sys-*` / `--m3e-*` 自定义属性取色，全部位于 `<m3e-theme>` 元素内部即可继承主题。
-- **动态配色**：`src-client/theme/` 基于 HCT（`@material/material-color-utilities`）从源色生成完整色彩方案，支持 8 大调色板：`tonalSpot`、`vibrant`、`expressive`、`content`、`fidelity`、`neutral`、`monochrome`、`rainbow`；另有对比度（standard/medium/high）、明暗（auto/light/dark）、密度（-3~1）、动效（standard/expressive）与壁纸取色。
-- **主题中心**（`/settings/appearance`）：预设色、自定义取色、壁纸提取主题色、保存多套主题并应用；游客的主题保存在 `localStorage`，登录用户持久化到数据库。
-- **CSS 变量约定**：
-  - 颜色/形状等一律使用 `--md-sys-color-*` 等主题令牌，禁止硬编码颜色；
-  - 项目级令牌在 `src-client/styles/base.css` 的 `:root`（`--mofu-*`），动效三件套：`--mofu-motion`（颜色过渡）、`--mofu-motion-effects`、`--mofu-motion-spatial`（引用 M3E spring 令牌，随主题的动效设置切换）。
-- **图标**：Material Symbols 连字图标（`<span class="material-symbols-outlined">home</span>`），激活态用 `font-variation-settings: 'FILL' 1`。
-- **组件与令牌合同**（`src-client/styles/base.css`）：
-  - 按钮族：`.filled-btn`（主操作）、`.tonal-btn`（中强调，`secondary-container` 族）、`.outlined-btn`、`.text-btn`、`.icon-btn`，统一 `--sm` 小尺寸与加载指示色，危险确认用 `.filled-btn--danger`；
-  - 筛选/标签导航：一律用 `<nav>` + `<a>` + `aria-current`（不使用半套 `role="tablist"/"tab"` + `aria-selected`；键盘 ←/→ 漫游由客户端统一提供）；空状态统一走 `components/empty-state.twig`；
-  - 导航信息架构：顶部栏（品牌 / 全局搜索 / 发布入口 / 用户菜单）、侧栏分「浏览 / 我的 / 管理」三组（`.side-nav__label`；≥1024px 常驻，窄屏为抽屉）、移动端底部导航两态（未登录：首页/表白墙/树洞/搜索/登录；已登录：首页/表白墙/发布/通知/我的）。发布入口分端：桌面侧栏 CTA、手机底部 FAB、平板（720–1023px）顶部栏 `.app-header__compose`；
-  - 后台表格：桌面为表格，**≤ 1023px 自动转为信息卡**（字段名由单元格 `data-label` 生成，模板只维护一份表格结构；空状态跨列单元格按卡片内文本呈现，操作列置底分隔）；
-  - 列表加载：用户端列表**统一为「加载更多」**（`components/load-more.twig` + `src-client/core/load-more.ts`：抓取下一页 SSR HTML 并提取同名容器追加；无 JS 时 `<noscript>` 内退化为上一页/下一页）。约定：列表容器带 `data-list="<名称>"`，组件按钮 `data-action="load-more-page"` 携带 endpoint / next-page / pages / target；后台表格仍保留分页（数据密度与跳页需求不同）；首页与圈子动态、评论仍是 API 版加载更多（`modules/feed.ts`、`post-page.ts`）；
-  - 字体三角色：`--font-body`（西文与默认正文，Outfit Medium）、`--font-cjk`（中日韩，`MOFU CJK`）、`--font-mono`（代码与等宽，JetBrains Mono Medium）；组合别名 `--mofu-font = var(--font-body), var(--font-cjk)`，`code/pre/kbd/samp` 走等宽角色。自托管字体在 `public/fonts/`，`@font-face` 见 `base.css` 头部；CJK 字体由 `font/QiunaiMedium.ttf`（127MB 可变字体）子集化而来（woff2 约 1.4MB，覆盖 GB2312 + ASCII + 假名），重新生成命令：`python3 scripts/gen-cjk-subset.py`（依赖 fonttools/brotli，子集外的生僻字回退系统中文字体）；
-  - `.settings-row` 设置行（文本在左、`.switch` / 单选在右，覆盖通知偏好 / 隐私设置 / 活动与资讯表单）、`.switch` 开关（52×32、弹簧动效）、`[data-tooltip]` 工具提示、`[data-counter]` 字数统计（`src-client/core/form-enhance.ts`）、通用对话框 `openDialog()` / `confirmDialog()`（`src-client/core/dialog.ts`，≤600px 自动转底部面板）；
-  - 字号只用 `--mofu-fs-*` 阶梯（图标/头像/徽标微字除外）、间距 `--mofu-space-*`、阴影 `--mofu-elev-*`（禁硬编码 rgba 阴影）、圆角五档 `--mofu-radius-*`，悬停/按下用状态层 `--mofu-state-hover/ press`；
+- **设计语言**：Apple iOS / iPadOS / macOS 取向的克制界面。设计令牌集中在 `src-client/styles/base.css`，共享组件覆盖层在 `src-client/styles/design-system.css`；页面 CSS 只负责局部布局，不得另起一套颜色/字体/圆角。
+- **品牌色**：固定 `#FFCC38`（`--color-accent`），主按钮/选中态/焦点使用；黄色底上的文字统一使用深色 `#241D0B`。中文字面正文不能使用纯黄，使用高对比文字令牌 `--color-accent-text`。
+- **外观**：Light / Dark / System 三种模式，通过 `<html data-appearance>` + `color-scheme` + `light-dark()` 令牌实现；System 模式自动响应操作系统。`/settings/appearance` 只保存外观模式，游客保存在 `localStorage`，登录用户持久化到数据库。
+- **字体**：不下载、不托管 SF Pro / SF Mono。使用平台系统字体栈（`-apple-system, BlinkMacSystemFont, "SF Pro Text"...`），Windows / Android / Linux 依次回退到 Segoe UI / 系统无衬线 / 系统中文字体；代码使用 `ui-monospace` 栈。
+- **字号阶梯**：`--font-size-caption-2` (11) / `caption` (12) / `footnote` (13) / `subheadline` (15) / `body` (16) / `title-3` (20) / `title-2` (24) / `title-1` (28) / `large-title` (34)，并保留 `--mofu-fs-*` 兼容别名。
+- **形状与层级**：圆角 6 / 8 / 12 / 16 / 20 / 24 / pill；阴影三档 `--shadow-sm/md/lg`，普通卡片默认无阴影，仅浮层使用 `md/lg`。
+- **图标**：Material Symbols 连字图标（`<span class="material-symbols-outlined">home</span>`），统一 20px、400 字重，激活态用 `font-variation-settings: 'FILL' 1`。
+- **组件合同**：
+  - 按钮族：`.filled-btn`（品牌黄 + 深色文字）、`.tonal-btn`（中性表面）、`.outlined-btn`、`.text-btn`、`.icon-btn`，统一 40/32px 高度与 10px 圆角；
+  - 导航：桌面 macOS 式侧栏，移动端 iOS 式全宽底部标签栏（非悬浮胶囊）；当前项使用浅黄容器；
+  - 列表：首页动态、表白墙、通知、会话、板块帖子采用连续分组列表 + 细分隔线，不把每条内容都做成悬浮卡片；
+  - 设置：`.settings-row` 分组列表、`.switch` 51×31 开关、`[data-tooltip]`、`[data-counter]`、通用对话框 `openDialog()` / `confirmDialog()`；
+  - 后台表格：桌面为表格，**≤ 1023px 自动转为信息卡**（字段名由单元格 `data-label` 生成，模板只维护一份表格结构）；
   - 键盘可达性：全站 `:focus-visible` 焦点环，Tabs 组 ←/→/Home/End 漫游，对话框/用户菜单/导航抽屉的焦点圈与还原。
 
 ---
@@ -537,8 +697,7 @@ composer migrate:status
 1. 同步源码到构建目录（`/root/mofu-build`，见[快速开始的说明](#3-快速开始)）并在缺依赖时安装；
 2. `vite build` 输出到 `public/assets`（`emptyOutDir`）；
 3. 打包 Service Worker：esbuild 将 `src-client/sw.ts` 输出为 `public/sw.js`，并注入构建版本号（缓存名随构建自动更新）；
-4. 生成默认主题产物 `theme-default.css` / `theme-default.json`（由 `scripts/build-theme.mjs` 完成）；
-5. 自动刷新本教程的**自动区段**（`scripts/gen-docs.mjs`）。
+4. 自动刷新本教程的**自动区段**（`scripts/gen-docs.mjs`）。
 
 > `vite.config.ts` 中构建 `base` 为 `/assets/`，与 PHP 侧 `ViteAssets`（硬编码 `/assets/` 前缀）对应；若改动发布路径需同步两处，否则会出现字体/样式 404。
 
@@ -547,27 +706,27 @@ composer migrate:status
 **自动生成**的最近一次构建产物：
 
 <!-- AUTO-GEN:build:start -->
-最近构建时间：2026/10/4 23:02:38
+最近构建时间：2026/10/21 23:46:57
 
 | 文件 | 说明 | 大小 |
 | --- | --- | --- |
-| `main-B6LIP8Um.css` | 全站样式（含字体声明） | 117.4 KB |
-| `main-CNPx2KPJ.js` | 应用入口 JS（含 M3E 组件与全站交互） | 397.5 KB |
-| `manifest.json` | 构建清单（`ViteAssets` 读取） | 3.3 KB |
-| `theme-default.css` | 默认主题产物（`ThemeBootstrap` 读取） | 4.7 KB |
-| `theme-default.json` | 默认主题产物（`ThemeBootstrap` 读取） | 5.8 KB |
+| `main-B43tn5Am.js` | 应用入口 JS（含 Swup 与全站交互） | 200.7 KB |
+| `main-KlWqyPvU.css` | 全站样式（设计令牌 / 布局 / 组件） | 236.6 KB |
+| `manifest.json` | 构建清单（`ViteAssets` 读取） | 3.8 KB |
 | `material-symbols-outlined-Bgl3Icaq.woff2` | 图标字体：Material Symbols | 3.7 MB |
-| `about-fKVxMC-i.js` | 页面模块懒加载 chunk | 2.9 KB |
-| `admin--lkJgqw9.js` | 页面模块懒加载 chunk | 2.7 KB |
-| `comment-render-BPIbLVtz.js` | 页面模块懒加载 chunk | 2.1 KB |
-| `compose-CahHNzzj.js` | 页面模块懒加载 chunk | 8.7 KB |
-| `confessions-BfqFgM_J.js` | 页面模块懒加载 chunk | 6.1 KB |
-| `feed-BgRbVMm2.js` | 页面模块懒加载 chunk | 7.0 KB |
-| `messages-CPkfN8vf.js` | 页面模块懒加载 chunk | 3.0 KB |
-| `post-page-C-SBpFFt.js` | 页面模块懒加载 chunk | 6.4 KB |
-| `search-zzZFXAL2.js` | 页面模块懒加载 chunk | 3.1 KB |
-| `settings-DBrwJW9v.js` | 页面模块懒加载 chunk | 0.7 KB |
-| `theme-center-DwXnN-AK.js` | 页面模块懒加载 chunk | 16.4 KB |
+| `about-D163O3bi.js` | 页面模块懒加载 chunk | 2.9 KB |
+| `admin-DrP2c4bB.js` | 页面模块懒加载 chunk | 4.0 KB |
+| `compose-ClPf7cj7.js` | 页面模块懒加载 chunk | 9.9 KB |
+| `confessions-Dn01JNTs.js` | 页面模块懒加载 chunk | 8.9 KB |
+| `feed-BwU-GpNJ.js` | 页面模块懒加载 chunk | 11.9 KB |
+| `growth-CRt778tO.js` | 页面模块懒加载 chunk | 4.6 KB |
+| `konbini-BDNS5Qhw.js` | 页面模块懒加载 chunk | 507.1 KB |
+| `messages-dr7aAg8L.js` | 页面模块懒加载 chunk | 12.0 KB |
+| `post-page-QLk_6edu.js` | 页面模块懒加载 chunk | 1.9 KB |
+| `search-B3OolmOX.js` | 页面模块懒加载 chunk | 3.3 KB |
+| `settings-DXJdIObc.js` | 页面模块懒加载 chunk | 1.3 KB |
+| `shop-yu3ySRkQ.js` | 页面模块懒加载 chunk | 0.8 KB |
+| `theme-center-Cd4jkGgG.js` | 页面模块懒加载 chunk | 2.8 KB |
 <!-- AUTO-GEN:build:end -->
 
 ---
@@ -731,3 +890,4 @@ Material Symbols 字体未加载。检查构建产物 CSS 中 `@font-face` 的 `
   - 每次构建后自动刷新（`bin/fe-build.sh` 末尾调用）；
   - 手动刷新：`npm run docs`（或 `node scripts/gen-docs.mjs`）。
 - 注意：**不要直接编辑自动区段内的内容**——下次构建会被覆盖；应修改数据源（`.env.example`、路由文件、迁移、源码）或调整生成器。
+

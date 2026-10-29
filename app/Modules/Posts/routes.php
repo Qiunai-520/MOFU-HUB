@@ -21,6 +21,7 @@ return static function (App $app, Container $container): void {
         $group->patch('/posts/{id:[0-9]+}', fn ($rq, $rs, $args) => $container->get(PostApiController::class)->update($rq, $rs, $args));
         $group->delete('/posts/{id:[0-9]+}', fn ($rq, $rs, $args) => $container->get(PostApiController::class)->destroy($rq, $rs, $args));
         $group->post('/posts/{id:[0-9]+}/repost', fn ($rq, $rs, $args) => $container->get(PostApiController::class)->repost($rq, $rs, $args));
+        $group->post('/posts/{id:[0-9]+}/purchase', fn ($rq, $rs, $args) => $container->get(PostApiController::class)->purchase($rq, $rs, $args));
         $group->delete('/posts/{id:[0-9]+}/repost', fn ($rq, $rs, $args) => $container->get(PostApiController::class)->undoRepost($rq, $rs, $args));
     });
 };

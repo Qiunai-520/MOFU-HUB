@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Mofu\Modules\Posts;
 
+use Mofu\Core\Database\Query;
 use Mofu\Core\Support\Text;
+use Mofu\Modules\Growth\LevelService;
+use Mofu\Modules\Growth\TitleService;
+use Mofu\Modules\Tags\TagService;
 
 /**
  * 信息流组装：为一批动态行批量补充媒体、话题、点赞/转发状态与转发引用卡，
@@ -12,8 +16,13 @@ use Mofu\Core\Support\Text;
  */
 final class FeedService
 {
-    public function __construct(private readonly PostRepository $posts)
-    {
+    public function __construct(
+        private readonly PostRepository $posts,
+        private readonly Query $query,
+        private readonly LevelService $levels,
+        private readonly PaidPostService $paidPosts,
+        private readonly TagService $tags,
+    ) {
     }
 
     /**
@@ -32,6 +41,9 @@ final class FeedService
         $likedSet = array_flip($this->posts->likedPostIds($postIds, $viewerId));
         $favoritedSet = array_flip($this->posts->favoritedPostIds($postIds, $viewerId));
         $reposts = $this->posts->myReposts($postIds, $viewerId);
+        $badges = $this->authorBadges(array_map(static fn (array $row): int => (int) $row['user_id'], $rows));
+        $purchased = $this->paidPosts->purchasedMap($postIds, $viewerId);
+        $tagMap = $this->tags->forPosts($postIds);
 
         [$originals, $originMedia] = $this->quoteMaps($rows);
 
@@ -47,10 +59,76 @@ final class FeedService
                     'favorited' => isset($favoritedSet[(int) $post['id']]),
                     'reposted' => isset($reposts[(int) $post['id']]),
                     'repost' => $this->buildQuote($post, $originals, $originMedia),
+                    'authorBadge' => $badges[(int) $post['user_id']] ?? null,
+                    'purchased' => isset($purchased[(int) $post['id']]),
+                    'tags' => $tagMap[(int) $post['id']] ?? [],
                 ],
             ),
             $rows,
         );
+    }
+
+    /**
+     * 批量取作者等级与佩戴称号（列表页展示用，避免逐条查询）。
+     *
+     * @param list<int> $userIds
+     * @return array<int, array{level: int, is_formal: bool, is_flash: bool, is_premium: bool, title: array{name: string, icon: string}|null}>
+     */
+    private function authorBadges(array $userIds): array
+    {
+        $userIds = array_values(array_unique(array_filter($userIds)));
+
+        if ($userIds === []) {
+            return [];
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($userIds), '?'));
+        $rows = $this->query->all(
+            sprintf(
+                'SELECT u.id, u.is_formal, u.is_flash, u.membership, COALESCE(l.xp, 0) AS xp, t.name AS title_name, t.icon AS title_icon
+                 FROM users u
+                 LEFT JOIN user_levels l ON l.user_id = u.id
+                 LEFT JOIN titles t ON t.id = COALESCE(u.equipped_title_id, %s) AND t.active = 1
+                 WHERE u.id IN (%s)',
+                TitleService::equippedTitleExpr('u.id'),
+                $placeholders,
+            ),
+            $userIds,
+        );
+
+        $thresholds = $this->levels->levels();
+        $out = [];
+
+        foreach ($rows as $row) {
+            $isFormal = (int) $row['is_formal'] === 1;
+
+            $out[(int) $row['id']] = [
+                'level' => $isFormal ? self::levelForXp($thresholds, (int) $row['xp']) : 0,
+                'is_formal' => $isFormal,
+                'is_flash' => $isFormal && (int) ($row['is_flash'] ?? 0) === 1,
+                'is_premium' => (string) ($row['membership'] ?? 'normal') === 'premium',
+                'title' => $row['title_name'] === null ? null : [
+                    'name' => (string) $row['title_name'],
+                    'icon' => (string) ($row['title_icon'] ?? 'military_tech'),
+                ],
+            ];
+        }
+
+        return $out;
+    }
+
+    /** @param list<array<string, mixed>> $thresholds */
+    private static function levelForXp(array $thresholds, int $xp): int
+    {
+        $level = 0;
+
+        foreach ($thresholds as $row) {
+            if ($xp >= (int) $row['xp_required']) {
+                $level = max($level, (int) $row['level']);
+            }
+        }
+
+        return $level;
     }
 
     /**
@@ -79,6 +157,8 @@ final class FeedService
                 'favorited' => in_array($postId, $favorited, true),
                 'reposted' => isset($reposts[$postId]),
                 'repost' => $this->buildQuote($post, $originals, $originMedia),
+                'purchased' => $viewerId !== null && $this->paidPosts->hasPurchased($viewerId, $postId),
+                'tags' => $this->tags->forPost($postId),
             ],
         );
     }

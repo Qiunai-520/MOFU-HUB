@@ -1,0 +1,44 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}更新日志 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">更新日志</h1>
+    <p class="admin-head__hint">
+        支持 Markdown（标题、列表、加粗、链接、行内代码）。前台入口：关于页面 →「更新日志」。
+        文本框留空并保存会报错；若想恢复内置默认日志，把下面内置内容粘贴回去即可。
+    </p>
+</div>
+
+{% if ok %}<div class="form-success" role="status">已保存</div>{% endif %}
+{% if error is not empty %}<div class="form-alert" role="alert">{{ error }}</div>{% endif %}
+
+<section class="admin-card">
+    <h2 class="admin-card__title">
+        编辑内容
+        {% if updatedAt is not empty %}<span class="admin-table__sub">最后更新 {{ updatedAt }}</span>{% endif %}
+    </h2>
+
+    <form class="admin-form" method="post" action="/admin/changelog" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+        <label class="field">
+            <span class="field__label">Markdown 正文</span>
+            <textarea class="field__input" name="content" rows="18" spellcheck="false"
+                      placeholder="# 更新日志&#10;&#10;## V1.0.1&#10;&#10;- 新增：……">{{ content }}</textarea>
+        </label>
+
+        <label class="field">
+            <span class="field__label">或上传 .md 文件（以文件内容为准，最大 512KB）</span>
+            <input class="field__input" type="file" name="file" accept=".md,.markdown,text/markdown,text/plain">
+        </label>
+
+        <div class="admin-form__actions">
+            <button class="filled-btn" type="submit">保存更新日志</button>
+            <a class="outlined-btn" href="/about/changelog" target="_blank" rel="noopener">预览前台效果</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

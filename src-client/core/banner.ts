@@ -7,7 +7,40 @@
 const INTERVAL_MS = 5000;
 const SWIPE_THRESHOLD = 40;
 
+/**
+ * 首页横幅是持久节点（data-swup-persist="home-banner"）：换页后同一个 DOM 会被复用。
+ * 若每次 page:view 都重新初始化，圆点会被重复追加、自动轮播被打回第一张。
+ * 所以每个节点只绑定一次（dataset 守卫），节点级监听随节点一起存活。
+ * 文档级 visibilitychange 只绑一次，通过注册表统一调度所有还在页面上的横幅。
+ */
+const activeBanners = new Set<{ start: () => void; stop: () => void }>();
+let visibilityBound = false;
+
+function bindVisibility(): void {
+  if (visibilityBound) {
+    return;
+  }
+
+  visibilityBound = true;
+
+  document.addEventListener('visibilitychange', () => {
+    for (const banner of activeBanners) {
+      if (document.hidden) {
+        banner.stop();
+      } else {
+        banner.start();
+      }
+    }
+  });
+}
+
 export function setupBanner(root: HTMLElement): () => void {
+  if (root.dataset.bannerBound === '1') {
+    return () => undefined;
+  }
+
+  root.dataset.bannerBound = '1';
+
   const track = root.querySelector<HTMLElement>('[data-banner-track]');
   const slides = Array.from(root.querySelectorAll<HTMLElement>('[data-banner-slide]'));
   const dotsHost = root.querySelector<HTMLElement>('[data-banner-dots]');
@@ -72,7 +105,17 @@ export function setupBanner(root: HTMLElement): () => void {
     }
 
     stop();
-    timer = window.setInterval(() => go(index + 1), INTERVAL_MS);
+    timer = window.setInterval(() => {
+      // 横幅节点可能已经随换页被移除：停表并退出注册表，避免空跑
+      if (!root.isConnected) {
+        stop();
+        activeBanners.delete(controller);
+
+        return;
+      }
+
+      go(index + 1);
+    }, INTERVAL_MS);
   };
 
   const restart = (): void => {
@@ -104,20 +147,14 @@ export function setupBanner(root: HTMLElement): () => void {
     restart();
   };
 
-  const onVisibility = (): void => {
-    if (document.hidden) {
-      stop();
-    } else {
-      start();
-    }
+  const onCancel = (): void => {
+    dragging = false;
+    restart();
   };
 
   root.addEventListener('pointerdown', onPointerDown);
   root.addEventListener('pointerup', onPointerUp);
-  root.addEventListener('pointercancel', () => {
-    dragging = false;
-    restart();
-  });
+  root.addEventListener('pointercancel', onCancel);
 
   // 没配跳转链接的轮播（href="#"）不应把页面弹回顶部
   const onClick = (event: Event): void => {
@@ -133,14 +170,25 @@ export function setupBanner(root: HTMLElement): () => void {
   root.addEventListener('mouseleave', start);
   root.addEventListener('focusin', stop);
   root.addEventListener('focusout', start);
-  document.addEventListener('visibilitychange', onVisibility);
+
+  const controller = { start, stop };
+  activeBanners.add(controller);
+  bindVisibility();
 
   go(0);
   start();
 
   return () => {
+    activeBanners.delete(controller);
     stop();
+    root.removeEventListener('pointerdown', onPointerDown);
+    root.removeEventListener('pointerup', onPointerUp);
+    root.removeEventListener('pointercancel', onCancel);
     root.removeEventListener('click', onClick);
-    document.removeEventListener('visibilitychange', onVisibility);
+    root.removeEventListener('mouseenter', stop);
+    root.removeEventListener('mouseleave', start);
+    root.removeEventListener('focusin', stop);
+    root.removeEventListener('focusout', start);
+    delete root.dataset.bannerBound;
   };
 }

@@ -14,15 +14,36 @@
             <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
         </a>
         {{ include('components/avatar.twig', { user: other, size: 'sm' }) }}
-        <a class="chat__name" href="{{ other.url }}">{{ other.nickname }}</a>
+        <a class="chat__name" href="{{ other.url }}">{{ other.nickname }}{{ include('components/name-badge.twig', { user: other }) }}</a>
         <span class="chat__status" data-chat-status hidden>实时连接已断开，正在定时刷新</span>
     </header>
 
     <div class="chat__thread" data-chat-thread>
         {% for message in messages %}
-        <div class="msg{{ message.mine ? ' msg--mine' : '' }}" data-message-id="{{ message.id }}">
-            <div class="msg__bubble">{{ message.content }}</div>
-            <time class="msg__time" datetime="{{ message.created_at }}">{{ message.time }}</time>
+        <div class="msg{{ message.mine ? ' msg--mine' : '' }}{{ message.deleted ? ' msg--deleted' : '' }}"
+             data-message-id="{{ message.id }}"
+             data-recallable="{{ message.mine and not message.deleted ? '1' : '0' }}"
+             data-content="{{ message.deleted ? '' : message.content }}">
+            <div class="msg__bubble">
+                {% if message.deleted %}
+                消息已撤回
+                {% else %}
+                {% if message.media %}
+                {% if message.media.kind == 'video' %}
+                <video class="msg__video" controls preload="metadata" playsinline src="{{ message.media.url }}"></video>
+                {% else %}
+                <img class="msg__image" src="{{ message.media.thumb }}" alt="" loading="lazy" decoding="async">
+                {% endif %}
+                {% endif %}
+                {% if message.content is not empty %}<span class="msg__text">{{ message.content }}</span>{% endif %}
+                {% endif %}
+            </div>
+            <div class="msg__meta">
+                <time class="msg__time" datetime="{{ message.created_at }}">{{ message.time }}</time>
+                {% if message.mine and message.receipts and not message.deleted %}
+                <span class="msg__read{{ message.read ? ' is-read' : '' }}">{{ message.read ? '已读' : '未读' }}</span>
+                {% endif %}
+            </div>
         </div>
         {% else %}
         {{ include('components/empty-state.twig', { compact: true, extra_class: 'chat__empty', text: '还没有消息，打个招呼吧' }) }}
@@ -31,9 +52,26 @@
 
     {% if canSend %}
     <form class="chat__composer" data-chat-form>
-        <textarea class="field__input chat__input" name="content" rows="1" maxlength="1000"
-                  placeholder="输入消息…（回车发送，Shift+回车换行）" aria-label="消息内容" required data-chat-input></textarea>
-        <button class="filled-btn filled-btn--sm" type="submit" data-chat-send>发送</button>
+        <div class="chat__attachment" data-chat-attachment hidden>
+            <img class="chat__attachment-thumb" data-chat-attachment-thumb alt="" hidden>
+            <span class="chat__attachment-name" data-chat-attachment-name></span>
+            <button class="icon-btn icon-btn--sm" type="button" data-chat-attachment-remove aria-label="移除附件">
+                <span class="material-symbols-outlined" aria-hidden="true">close</span>
+            </button>
+        </div>
+        <div class="chat__composer-row">
+            <textarea class="field__input chat__input" name="content" rows="1" maxlength="1000"
+                      placeholder="输入消息…（回车发送，Shift+回车换行）" aria-label="消息内容" data-chat-input></textarea>
+            <label class="icon-btn chat__attach" aria-label="选择图片或视频">
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden data-chat-file>
+                <span class="material-symbols-outlined" aria-hidden="true">add</span>
+            </label>
+            <button class="icon-btn" type="button" data-action="toggle-chat-emoji" aria-label="插入表情" aria-expanded="false">
+                <span class="material-symbols-outlined" aria-hidden="true">sentiment_satisfied</span>
+            </button>
+            <button class="filled-btn filled-btn--sm" type="submit" data-chat-send>发送</button>
+        </div>
+        <div class="emoji-panel emoji-panel--chat" data-chat-emoji-panel hidden role="listbox" aria-label="表情"></div>
     </form>
     {% else %}
     <p class="chat__locked">

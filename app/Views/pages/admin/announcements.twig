@@ -1,0 +1,127 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}公告管理 · {{ app.name }}{% endblock %}
+
+{% macro fields(item) %}
+    <label class="field">
+        <span class="field__label">标题</span>
+        <input class="field__input" type="text" name="title" maxlength="120" required value="{{ item.title|default('') }}">
+    </label>
+    <label class="field">
+        <span class="field__label">内容</span>
+        <textarea class="field__input" name="content" rows="3" maxlength="5000" required>{{ item.content|default('') }}</textarea>
+    </label>
+    <div class="admin-form__grid">
+        <label class="field">
+            <span class="field__label">类型</span>
+            <select class="field__input" name="type">
+                {% for value, label in types %}
+                <option value="{{ value }}" {{ item is defined and item.type == value ? 'selected' : '' }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="field">
+            <span class="field__label">状态</span>
+            <select class="field__input" name="status">
+                {% for value, label in statuses %}
+                <option value="{{ value }}" {{ item is defined and item.status == value ? 'selected' : '' }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="field">
+            <span class="field__label">优先级</span>
+            <input class="field__input" type="number" name="priority" value="{{ item.priority|default(0) }}">
+        </label>
+    </div>
+    <div class="admin-form__grid">
+        <label class="field">
+            <span class="field__label">开始时间</span>
+            <input class="field__input" type="datetime-local" name="starts_at"
+                   value="{{ item.starts_at ? item.starts_at|date('Y-m-d\\TH:i') : '' }}">
+        </label>
+        <label class="field">
+            <span class="field__label">结束时间</span>
+            <input class="field__input" type="datetime-local" name="ends_at"
+                   value="{{ item.ends_at ? item.ends_at|date('Y-m-d\\TH:i') : '' }}">
+        </label>
+    </div>
+    <div class="admin-form__grid">
+        <label class="field">
+                <span class="field__label">置顶</span>
+                <select class="field__input" name="pinned">
+                    <option value="0" {{ item is defined and item.pinned ? '' : 'selected' }}>否</option>
+                    <option value="1" {{ item is defined and item.pinned ? 'selected' : '' }}>是</option>
+                </select>
+            </label>
+        <label class="field">
+                <span class="field__label">强制显示（不可直接关闭）</span>
+                <select class="field__input" name="forced">
+                    <option value="0" {{ item is defined and item.forced ? '' : 'selected' }}>否</option>
+                    <option value="1" {{ item is defined and item.forced ? 'selected' : '' }}>是</option>
+                </select>
+            </label>
+        <label class="field">
+                <span class="field__label">每次访问都弹</span>
+                <select class="field__input" name="repeat_show">
+                    <option value="0" {{ item is defined and item.repeat_show ? '' : 'selected' }}>否</option>
+                    <option value="1" {{ item is defined and item.repeat_show ? 'selected' : '' }}>是</option>
+                </select>
+            </label>
+        <label class="field">
+                <span class="field__label">允许关闭</span>
+                <select class="field__input" name="closable">
+                    <option value="0" {{ item is not defined or item.closable ? '' : 'selected' }}>否</option>
+                    <option value="1" {{ item is not defined or item.closable ? 'selected' : '' }}>是</option>
+                </select>
+            </label>
+    </div>
+{% endmacro %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">公告管理</h1>
+    <p class="admin-head__hint">公告会以弹窗形式展示给用户；重要公告可禁止直接关闭。</p>
+</div>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">新建公告</h2>
+    <form class="admin-form" method="post" action="/admin/announcements">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        {{ _self.fields({}) }}
+        <div class="admin-form__actions">
+            <button class="filled-btn filled-btn--sm" type="submit">保存并发布</button>
+        </div>
+    </form>
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">现有公告（{{ items|length }}）</h2>
+    {% for item in items %}
+    <details class="admin-row">
+        <summary class="admin-row__summary">
+            <span class="admin-row__title">{{ item.title }}</span>
+            <span class="tag">{{ item.type_label }}</span>
+            <span class="tag">{{ item.status_label }}</span>
+            {% if item.forced %}<span class="tag tag--warn">强制</span>{% endif %}
+            {% if item.pinned %}<span class="tag">置顶</span>{% endif %}
+            <span class="admin-row__meta">{{ item.created_at }}</span>
+        </summary>
+        <form class="admin-form" method="post" action="/admin/announcements/{{ item.id }}/save">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            {{ _self.fields(item) }}
+            <div class="admin-form__actions">
+                <button class="filled-btn filled-btn--sm" type="submit">保存修改</button>
+            </div>
+        </form>
+        <form class="inline-form" method="post" action="/admin/announcements/{{ item.id }}/delete"
+              data-confirm="确定删除这条公告吗？">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <button class="text-btn text-btn--danger text-btn--sm" type="submit">删除</button>
+        </form>
+    </details>
+    {% else %}
+    <p class="admin-empty">还没有公告</p>
+    {% endfor %}
+</section>
+{% endblock %}

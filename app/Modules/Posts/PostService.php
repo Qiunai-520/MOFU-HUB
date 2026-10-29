@@ -8,7 +8,9 @@ use Mofu\Core\Database\Query;
 use Mofu\Core\Http\HttpException;
 use Mofu\Core\Support\Text;
 use Mofu\Modules\Communities\CommunityService;
+use Mofu\Modules\Growth\LevelGate;
 use Mofu\Modules\Notifications\NotificationService;
+use Mofu\Modules\Tags\TagService;
 
 final class PostService
 {
@@ -22,6 +24,8 @@ final class PostService
         private readonly PostRepository $posts,
         private readonly CommunityService $communities,
         private readonly NotificationService $notifications,
+        private readonly TagService $tags,
+        private readonly LevelGate $levelGate,
     ) {
     }
 
@@ -48,11 +52,18 @@ final class PostService
 
         $type = $videoCount === 1 ? 'video' : ($mediaIds === [] ? 'text' : 'image');
 
+        // 付费动态：价格限定 1 ~ 15 M币（服务端钳制，未开启则价格归零）
+        $isPaid = !empty($input['is_paid']);
+        $price = $isPaid ? PaidPostService::normalizePrice($input['price'] ?? 1) : 0.0;
+
         $communityId = $this->resolveCommunity($userId, $input);
+
+        // 标签：仅 Lv3+ 可为自己的投稿选择标签（从后台维护的标签库里选）
+        $tagIds = $this->resolveTagIds($userId, $input);
 
         $now = date('Y-m-d H:i:s');
 
-        return $this->query->transaction(function (Query $q) use ($userId, $content, $visibility, $mediaIds, $topics, $communityId, $type, $now): int {
+        return $this->query->transaction(function (Query $q) use ($userId, $content, $visibility, $mediaIds, $topics, $communityId, $type, $now, $isPaid, $price, $tagIds): int {
             $postId = $q->insert('posts', [
                 'user_id' => $userId,
                 'community_id' => $communityId,
@@ -60,6 +71,8 @@ final class PostService
                 'title' => '',
                 'content' => $content,
                 'visibility' => $visibility,
+                'is_paid' => $isPaid ? 1 : 0,
+                'price' => $price,
                 'status' => 'published',
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -75,12 +88,16 @@ final class PostService
 
             $this->syncTopics($q, $postId, [], $topics, $now);
 
+            if ($tagIds !== []) {
+                $this->tags->syncPostTags($q, $postId, $tagIds);
+            }
+
             return $postId;
         });
     }
 
     /**
-     * 编辑动态（文本、可见范围与话题；图片编辑留待后续）。
+     * 编辑动态（文本、可见范围、话题、标签与媒体增删）。
      *
      * @param array<string, mixed> $input
      */
@@ -89,12 +106,29 @@ final class PostService
         $post = $this->findOrFail($postId);
         $this->assertCanEdit($post, $userId, $canModerate);
 
-        [$content, $visibility, , $topics] = $this->validate($input, requireMediaOrContent: false);
+        [$content, $visibility, $mediaIds, $topics] = $this->validate($input, requireMediaOrContent: false);
 
-        $hasMedia = (int) $this->query->value(
-            'SELECT COUNT(*) FROM post_media WHERE post_id = :id',
-            ['id' => $postId],
-        ) > 0;
+        // 媒体：只有带了 media_ids 才改（支持增删与排序）；不带则保留原有媒体
+        $mediaProvided = array_key_exists('media_ids', $input);
+
+        if ($mediaProvided) {
+            $this->assertMediaOwnership($userId, $mediaIds);
+            [$videoCount, $imageCount] = $this->mediaKindCounts($userId, $mediaIds);
+
+            if ($videoCount > 1) {
+                throw HttpException::badRequest('一条动态只能包含 1 个视频');
+            }
+
+            if ($videoCount === 1 && ($imageCount > 0 || count($mediaIds) > 1)) {
+                throw HttpException::badRequest('视频不能与图片同时发布');
+            }
+
+            $type = $videoCount === 1 ? 'video' : ($mediaIds === [] ? 'text' : 'image');
+        }
+
+        $hasMedia = $mediaProvided
+            ? $mediaIds !== []
+            : (int) $this->query->value('SELECT COUNT(*) FROM post_media WHERE post_id = :id', ['id' => $postId]) > 0;
 
         if ($content === '' && !$hasMedia) {
             throw HttpException::badRequest('写点什么或配张图吧');
@@ -102,12 +136,39 @@ final class PostService
 
         $now = date('Y-m-d H:i:s');
 
-        $this->query->transaction(function (Query $q) use ($postId, $content, $visibility, $topics, $now): void {
-            $q->update('posts', [
-                'content' => $content,
-                'visibility' => $visibility,
-                'updated_at' => $now,
-            ], 'id = :id', ['id' => $postId]);
+        // 只有前端确实带了 tags 字段才改标签（否则保留原有标签）
+        $tagIds = array_key_exists('tags', $input) ? $this->resolveTagIds($userId, $input) : null;
+
+        $payload = [
+            'content' => $content,
+            'visibility' => $visibility,
+            'updated_at' => $now,
+        ];
+
+        if (array_key_exists('is_paid', $input)) {
+            $isPaid = !empty($input['is_paid']);
+            $payload['is_paid'] = $isPaid ? 1 : 0;
+            $payload['price'] = $isPaid ? PaidPostService::normalizePrice($input['price'] ?? 1) : 0.0;
+        }
+
+        if ($mediaProvided) {
+            $payload['type'] = $type;
+        }
+
+        $this->query->transaction(function (Query $q) use ($postId, $payload, $topics, $now, $tagIds, $mediaProvided, $mediaIds): void {
+            $q->update('posts', $payload, 'id = :id', ['id' => $postId]);
+
+            if ($mediaProvided) {
+                $q->run('DELETE FROM post_media WHERE post_id = :id', ['id' => $postId]);
+
+                foreach ($mediaIds as $index => $mediaId) {
+                    $q->insert('post_media', [
+                        'post_id' => $postId,
+                        'media_id' => $mediaId,
+                        'sort_order' => $index,
+                    ]);
+                }
+            }
 
             $current = $q->all(
                 'SELECT t.id, t.name FROM post_topics pt JOIN topics t ON t.id = pt.topic_id WHERE pt.post_id = :id',
@@ -115,6 +176,10 @@ final class PostService
             );
 
             $this->syncTopics($q, $postId, $current, $topics, $now);
+
+            if ($tagIds !== null) {
+                $this->tags->syncPostTags($q, $postId, $tagIds);
+            }
         });
     }
 
@@ -159,6 +224,19 @@ final class PostService
         $now = date('Y-m-d H:i:s');
 
         $repostId = $this->query->transaction(function (Query $q) use ($userId, $postId, $now): int {
+            // 锁定原帖行，使同一原帖的并发转发串行化；再在事务内复查一次，
+            // 否则两个并发请求都会通过上面的检查而重复插入。
+            $q->one('SELECT id FROM posts WHERE id = :id FOR UPDATE', ['id' => $postId]);
+
+            $existing = $q->value(
+                'SELECT id FROM posts WHERE user_id = :user AND repost_of_id = :target AND deleted_at IS NULL FOR UPDATE',
+                ['user' => $userId, 'target' => $postId],
+            );
+
+            if ($existing !== null) {
+                throw HttpException::badRequest('你已转发过这条动态');
+            }
+
             $id = $q->insert('posts', [
                 'user_id' => $userId,
                 'repost_of_id' => $postId,
@@ -310,6 +388,33 @@ final class PostService
         }
 
         return [$content, $visibility, $mediaIds, $topics];
+    }
+
+    /**
+     * 从输入解析标签（tags 为标签 slug 列表）。非空时必须 Lv3+。
+     *
+     * @param array<string, mixed> $input
+     * @return list<int>
+     */
+    private function resolveTagIds(int $userId, array $input): array
+    {
+        $slugs = array_values(array_filter(
+            array_map(
+                static fn (mixed $tag): string => is_string($tag) ? trim($tag) : '',
+                (array) ($input['tags'] ?? []),
+            ),
+            static fn (string $tag): bool => $tag !== '',
+        ));
+
+        if ($slugs === []) {
+            return [];
+        }
+
+        if ((int) ($this->levelGate->levelOf($userId)) < 3) {
+            throw HttpException::forbidden('达到 Lv.3 才能为帖子添加标签');
+        }
+
+        return $this->tags->idsBySlugs($slugs);
     }
 
     /** @return list<string> */

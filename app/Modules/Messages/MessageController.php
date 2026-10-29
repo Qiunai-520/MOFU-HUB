@@ -11,6 +11,7 @@ use Mofu\Core\View\Page;
 use Mofu\Core\View\Present;
 use Mofu\Modules\Notifications\NotificationService;
 use Mofu\Modules\Users\UserRepository;
+use Mofu\Modules\Users\ProfileDecorations;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -26,20 +27,23 @@ final class MessageController
 
     public function index(Request $request, Response $response): Response
     {
-        return $this->inbox($request, $response, 'messages');
+        return $this->inbox($request, $response, 'auto');
     }
 
     /**
      * 消息中心：私信与通知在**同一页面内**切换（客户端切换，不整页刷新）。
      * /messages 与 /notifications 都渲染这一个页面，仅默认标签不同。
+     *
+     * `$defaultTab` 传 'auto'（/messages）时按未读私信决定：有未读进私信，否则进通知。
+     * 浏览器端还会用 localStorage 记住上次所在标签并覆盖这里的选择。
      */
-    public function inbox(Request $request, Response $response, string $defaultTab = 'messages'): Response
+    public function inbox(Request $request, Response $response, string $defaultTab = 'auto'): Response
     {
         $user = Guard::requireLogin(Ctx::user($request));
         $userId = (int) $user['id'];
         $query = $request->getQueryParams();
 
-        $tab = ($query['tab'] ?? $defaultTab) === 'notifications' ? 'notifications' : 'messages';
+        $tab = $this->resolveTab($query['tab'] ?? null, $defaultTab, $userId);
         $page = max(1, (int) ($query['page'] ?? 1));
         $filter = ($query['filter'] ?? '') === 'unread' ? 'unread' : 'all';
 
@@ -50,6 +54,20 @@ final class MessageController
             'filter' => $filter,
             'unreadCount' => $this->notifications->unreadCount($userId),
         ]);
+    }
+
+    /** 显式 ?tab= 优先；其次路由给的固定标签；'auto' 则按未读私信决定 */
+    private function resolveTab(?string $requested, string $defaultTab, int $userId): string
+    {
+        if ($requested === 'notifications' || $requested === 'messages') {
+            return $requested;
+        }
+
+        if ($defaultTab === 'notifications' || $defaultTab === 'messages') {
+            return $defaultTab;
+        }
+
+        return $this->messages->unreadCount($userId) > 0 ? 'messages' : 'notifications';
     }
 
     /** @param array<string, string> $args */
@@ -116,6 +134,7 @@ final class MessageController
                 isset($other['avatar_thumb']) ? (string) $other['avatar_thumb'] : null,
                 isset($other['avatar_path']) ? (string) $other['avatar_path'] : null,
             ),
+            ...ProfileDecorations::present($other),
         ];
 
         $check = $this->messages->canMessage($viewerId, $otherId);

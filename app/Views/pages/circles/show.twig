@@ -41,12 +41,13 @@
     <div class="form-success" role="status">{{ okMessages[ok] }}</div>
     {% endif %}
 
-    <nav class="feed-tabs circle-tabs" aria-label="圈子导航">
+    <nav class="feed-tabs circle-tabs" aria-label="圈子导航" data-swup-persist="circle-{{ community.slug }}-tabs">
         <a class="feed-tab{{ tab == 'feed' ? ' is-active' : '' }}"{{ tab == 'feed' ? ' aria-current="page"' : '' }} href="{{ baseUrl }}tab=feed">动态</a>
         <a class="feed-tab{{ tab == 'members' ? ' is-active' : '' }}"{{ tab == 'members' ? ' aria-current="page"' : '' }} href="{{ baseUrl }}tab=members">成员</a>
         <a class="feed-tab{{ tab == 'about' ? ' is-active' : '' }}"{{ tab == 'about' ? ' aria-current="page"' : '' }} href="{{ baseUrl }}tab=about">关于</a>
     </nav>
 
+    <div class="circle-panel" data-tabs-panel>
     {% if tab == 'feed' %}
         {% if isMember %}
         <section class="feed" data-feed data-feed-endpoint="/api/v1/communities/{{ community.id }}/posts">
@@ -159,5 +160,6 @@
             {% endif %}
         </section>
     {% endif %}
+    </div>
 </div>
 {% endblock %}

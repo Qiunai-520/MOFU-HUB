@@ -1,0 +1,66 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}系统与升级 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">系统与升级</h1>
+    <p class="admin-head__hint">仅超级管理员可执行升级与整库备份。升级前系统会自动生成一份数据库备份。</p>
+</div>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">数据库迁移</h2>
+
+    <p class="admin-head__hint">
+        已应用 <strong>{{ appliedCount }}</strong> / {{ totalCount }} 个迁移{% if latestApplied is not empty %}，最新：<code>{{ latestApplied }}</code>{% endif %}。
+    </p>
+
+    {% if failed is not empty %}
+    <div class="form-alert" role="alert">升级失败：{{ failed }}</div>
+    {% endif %}
+
+    {% if ok %}
+    <div class="form-success" role="status">升级完成{% if ran is not empty %}：{{ ran }}{% endif %}</div>
+    {% endif %}
+
+    {% if pending is empty %}
+    <div class="form-success" role="status">数据库结构已是最新，无需升级。</div>
+    {% else %}
+    <div class="form-alert" role="alert">
+        有 {{ pending|length }} 个待应用的迁移：<code>{{ pending|join('、') }}</code>
+    </div>
+
+    <p class="admin-head__hint">
+        迁移用于调整数据库结构；任何批量替换题库、标签等业务数据的操作都必须走独立入口，并先完成备份与恢复演练。
+    </p>
+
+    <form method="post" action="/admin/system/migrate" data-confirm="确定执行数据库升级吗？建议先备份。">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <div class="admin-form__actions">
+            <button class="filled-btn" type="submit">执行数据库升级</button>
+        </div>
+    </form>
+    {% endif %}
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">数据库备份</h2>
+    <p class="admin-head__hint">导出一份完整的 SQL 备份（表结构 + 数据）。虚拟主机没有终端，这里是替代方式；文件较大时请耐心等待几秒。</p>
+    <form method="post" action="/admin/system/backup">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <div class="admin-form__actions">
+            <button class="outlined-btn" type="submit">导出数据库备份（.sql）</button>
+        </div>
+    </form>
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">升级出问题怎么办</h2>
+    <ul class="plain hint">
+        <li>执行失败时，页面会显示具体 SQL 错误；先保留现场和自动备份，再由运维定位。</li>
+        <li>若迁移执行到一半出错，「已应用」数量会停在出错前；修复根因后再继续。</li>
+        <li>需要回退时，从 <code>storage/backups/mofu-pre-upgrade-*.sql</code> 恢复，并在测试环境先演练。</li>
+    </ul>
+</section>
+{% endblock %}

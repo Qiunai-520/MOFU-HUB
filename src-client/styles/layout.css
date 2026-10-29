@@ -144,17 +144,6 @@ html.no-js .side-nav {
   opacity: 0.75;
 }
 
-/* 平板（720–1023px）：底部 FAB 与侧栏 CTA 都不可见，保留顶部栏发布入口 */
-.app-header__compose {
-  display: none;
-}
-
-@media (min-width: 720px) and (max-width: 1023px) {
-  .app-header__compose {
-    display: inline-flex;
-  }
-}
-
 .app-header__actions {
   margin-left: auto;
   display: flex;
@@ -171,45 +160,153 @@ html.no-js .side-nav {
   display: inline-flex;
 }
 
-/* ---------- 用户下拉菜单 ---------- */
-.user-menu {
-  position: relative;
+/* 后台仪表盘图表（纯 SVG，无外部图表库） */
+.admin-chart {
+  width: 100%;
+  height: auto;
+  max-height: 180px;
 }
 
-.user-menu__trigger {
-  display: inline-flex;
-  padding: 2px;
-  border: none;
+.admin-chart--pie {
+  max-width: 180px;
+  transform: rotate(-90deg);
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: transparent;
+  margin-right: 6px;
+}
+
+/* 发布页：次要选项折叠，让页面保持简洁 */
+.compose-form__more {
+  margin-top: var(--mofu-space-2);
+  font-size: 0.9rem;
+}
+
+.compose-form__more summary {
   cursor: pointer;
-  transition: box-shadow var(--mofu-motion);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
-.user-menu__trigger:hover,
-.user-menu__trigger[aria-expanded="true"] {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-sys-color-primary) 18%, transparent);
+.compose-form__more[open] > summary {
+  margin-bottom: var(--mofu-space-2);
 }
 
-.user-menu__panel {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 10px);
-  min-width: 220px;
-  padding: var(--mofu-space-2);
-  border-radius: var(--mofu-radius-lg);
-  background: var(--md-sys-color-surface-container);
-  box-shadow: var(--mofu-elev-3);
-  z-index: var(--z-menu);
+/* 私信已读标记 */
+.msg__receipt {
+  font-size: 0.75em;
+  opacity: 0.85;
 }
 
-/* 菜单入场动画：仅在允许动效时播放 */
+/* ============================================================
+   动效层：统一缓动与入场动画
+   原则：只动 transform / opacity（合成层动画，不触发重排）；
+        全部包在 prefers-reduced-motion: no-preference 内。
+   ============================================================ */
+
+@keyframes mofu-rise-in {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes mofu-pop-in {
+  0% { transform: scale(0.86); }
+  60% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+@keyframes mofu-fab-in {
+  from { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.92); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
 @media (prefers-reduced-motion: no-preference) {
-  .user-menu__panel {
-    animation: menu-in var(--mofu-dur-short) cubic-bezier(0.2, 0, 0, 1);
+  /* 列表卡片错峰入场：只前 8 项加延迟，长列表不会一次性排队播动画 */
+  :is(.post-card, .confession-card, .news-card, .event-card, .entry-card, .user-card, .notification) {
+    animation: mofu-rise-in var(--mofu-dur-long) var(--mofu-ease-emphasized) both;
+  }
+
+  :is(.post-card, .confession-card, .news-card, .event-card, .entry-card, .user-card, .notification):nth-child(2) { animation-delay: 30ms; }
+  :is(.post-card, .confession-card, .news-card, .event-card, .entry-card, .user-card, .notification):nth-child(3) { animation-delay: 60ms; }
+  :is(.post-card, .confession-card, .news-card, .event-card, .entry-card, .user-card, .notification):nth-child(4) { animation-delay: 90ms; }
+  :is(.post-card, .confession-card, .news-card, .event-card, .entry-card, .user-card, .notification):nth-child(5) { animation-delay: 120ms; }
+  :is(.post-card, .confession-card, .news-card, .event-card, .entry-card, .user-card, .notification):nth-child(6) { animation-delay: 150ms; }
+  :is(.post-card, .confession-card, .news-card, .event-card, .entry-card, .user-card, .notification):nth-child(7) { animation-delay: 180ms; }
+  :is(.post-card, .confession-card, .news-card, .event-card, .entry-card, .user-card, .notification):nth-child(n+8) { animation-delay: 210ms; }
+
+  /* 卡片悬停抬升（仅指针设备，触屏不触发） */
+  @media (hover: hover) {
+    :is(.post-card, .news-card, .event-card, .entry-card) {
+      transition:
+        transform var(--mofu-dur-medium) var(--mofu-ease-standard),
+        box-shadow var(--mofu-dur-medium) var(--mofu-ease-standard);
+    }
+
+    :is(.post-card, .news-card, .event-card, .entry-card):hover {
+      transform: translate3d(0, -2px, 0);
+    }
+  }
+
+  /* 按钮按压反馈 */
+  :is(.filled-btn, .outlined-btn, .icon-btn, .meta-chip) {
+    transition: transform var(--mofu-dur-short) var(--mofu-ease-standard);
+  }
+
+  :is(.filled-btn, .outlined-btn, .icon-btn):active {
+    transform: scale(0.96);
+  }
+
+  /* 点赞/收藏激活时的轻弹（回弹曲线） */
+  :is(.post-action.is-active, .caction.is-active) > .material-symbols-outlined {
+    animation: mofu-pop-in var(--mofu-dur-long) var(--mofu-ease-spring);
+  }
+
+  /* 未读角标出现时轻弹 */
+  [data-unread-badge] {
+    animation: mofu-pop-in 260ms var(--mofu-ease-spring);
+  }
+
+  /* 悬浮按钮栈入场 */
+  .fab-stack {
+    animation: mofu-fab-in var(--mofu-dur-long) var(--mofu-ease-emphasized) both;
   }
 }
 
+/* 移动端后台：行内编辑表单与操作按钮给足触控尺寸 */
+@media (max-width: 720px) {
+  .admin-inline-edit[open] {
+    display: block;
+    width: 100%;
+  }
+
+  .admin-inline-edit .admin-form {
+    margin-top: var(--mofu-space-2);
+  }
+
+  .admin-table__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--mofu-space-2);
+  }
+
+  .admin-table__actions .text-btn,
+  .admin-table__actions button,
+  .admin-table__actions select {
+    min-height: 40px;
+  }
+}
+
+/* 原生下拉「选项」在深色主题下的可读性：只作用在 option，避免覆盖自定义 select 的外观 */
+select option {
+  color: var(--md-sys-color-on-surface);
+  background-color: var(--md-sys-color-surface-container-high, var(--md-sys-color-surface));
+}
+
+/* 菜单入场动画：仅在允许动效时播放 */
 @keyframes menu-in {
   from {
     opacity: 0;
@@ -219,54 +316,6 @@ html.no-js .side-nav {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
-}
-
-.user-menu__header {
-  display: flex;
-  flex-direction: column;
-  padding: 10px 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--md-sys-color-outline-variant) 40%, transparent);
-  margin-bottom: 6px;
-}
-
-.user-menu__header strong {
-  font-size: var(--mofu-fs-body-sm);
-}
-
-.user-menu__header span {
-  font-size: var(--mofu-fs-label-sm);
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.user-menu__item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
-  border: none;
-  border-radius: var(--mofu-radius-md);
-  background: transparent;
-  color: var(--md-sys-color-on-surface);
-  font-family: inherit;
-  font-size: var(--mofu-fs-body-sm);
-  text-align: left;
-  cursor: pointer;
-}
-
-.user-menu__item .material-symbols-outlined {
-  font-size: 20px;
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.user-menu__item:hover {
-  background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
-  text-decoration: none;
-}
-
-.user-menu__form {
-  margin: 0;
 }
 
 /* ---------- 主体（三栏信息架构） ---------- */
@@ -363,6 +412,21 @@ html.no-js .side-nav {
   text-decoration: none;
 }
 
+/* 侧栏/抽屉里同组的多行入口加分隔线（左右对称，左端到图标） */
+.side-nav__item + .side-nav__item {
+  position: relative;
+}
+
+.side-nav__item + .side-nav__item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 1px;
+  background: color-mix(in srgb, var(--md-sys-color-outline-variant) 45%, transparent);
+}
+
 /* 侧栏项内未读角标：靠右悬浮，不挤压文字 */
 .side-nav__item .nav-badge {
   margin-left: auto;
@@ -410,12 +474,16 @@ html.no-js .side-nav {
   justify-content: center;
   pointer-events: none;
   will-change: transform;
-  transition: transform var(--mofu-motion-spatial), opacity var(--mofu-motion);
+  transition: transform var(--mofu-slide), opacity var(--mofu-motion);
 }
 
-/* 个人主页（/u/*）与设置页：从「我的」点进去的二级页以返回为主，不再展示悬浮主导航
-   （「我的」首页本身仍然展示，它仍是主导航的顶级分区） */
+/* 二级页收起悬浮底栏，避免与页面自身操作竞争空间。
+   顶栏汉堡、侧栏和返回路径必须保留，不能把用户困在详情页。 */
 html[data-nav-compact] .bottom-nav {
+  display: none;
+}
+
+html[data-nav-compact] .fab-stack > .fab-compose {
   display: none;
 }
 
@@ -452,6 +520,8 @@ html[data-composing] .fab-stack {
 .bottom-nav__bar {
   pointer-events: auto;
   position: relative;
+  /* 纵向仍可滚动；横向留给「按住导航项拖动切换」 */
+  touch-action: pan-y;
   width: min(420px, calc(100% - 28px));
   display: flex;
   align-items: center;
@@ -510,7 +580,7 @@ html[data-composing] .fab-stack {
   background: color-mix(in srgb, var(--color-accent-subtle) 92%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand-foreground) 12%, transparent);
   transform: translateX(0);
-  transition: transform var(--mofu-motion-spatial), opacity var(--mofu-motion);
+  transition: transform var(--mofu-slide), opacity var(--mofu-motion);
   will-change: transform;
   z-index: var(--z-base);
 }
@@ -604,14 +674,14 @@ html[data-composing] .fab-stack {
   }
 }
 
-/* 桌面端：主页/板块已在侧边栏，悬浮栏不再重复展示，避免双导航重复 */
+/* 桌面端：首页/板块/发布已在侧栏，悬浮栏只保留消息与我的 */
 @media (min-width: 1024px) {
   .bottom-nav__item[data-nav-item='/'],
   .bottom-nav__item[data-nav-item='/boards'] {
     display: none;
   }
 
-  /* 只剩两项时按内容收宽，避免选中块被拉成一大片 */
+  /* 按内容收宽，避免选中块被拉成一大片 */
   .bottom-nav__bar {
     width: auto;
   }
@@ -662,7 +732,7 @@ html[data-composing] .fab-stack {
   gap: 10px;
   /* 容器不拦截点击，仅按钮可点（避免遮盖下方内容） */
   pointer-events: none;
-  transition: opacity var(--mofu-motion), transform var(--mofu-motion-spatial);
+  transition: opacity var(--mofu-motion), transform var(--mofu-slide);
 }
 
 /* 跟随悬浮导航收起（比导航晚一拍） */
@@ -687,8 +757,8 @@ html[data-composing] .fab-stack {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
+  width: var(--mofu-fab-size);
+  height: var(--mofu-fab-size);
   padding: 0;
   border-radius: var(--mofu-radius-md);
   background: var(--color-surface-elevated);
@@ -725,15 +795,373 @@ html[data-composing] .fab-stack {
   }
 }
 
-/* 后台页不显示悬浮操作 */
-/* 后台不显示发布/音乐，但保留回到顶部（后台列表往往很长） */
-html[data-page='admin'] .fab-stack > :not(.back-to-top) {
+/* 后台不显示发布，但保留音乐与回到顶部 */
+html[data-page='admin'] .fab-stack > .fab-compose {
   display: none;
 }
 
 /* 后台无页脚：自行给悬浮导航留出空间 */
 html[data-page='admin'] .app-body {
   padding-bottom: calc(var(--mofu-bottom-nav-h) + var(--mofu-space-6));
+}
+
+/* ---------- 右上角账号菜单 ---------- */
+.account-menu {
+  position: relative;
+  flex: none;
+}
+
+.account-menu > summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 3px 8px 3px 4px;
+  border-radius: 999px;
+  color: var(--md-sys-color-on-surface);
+  cursor: pointer;
+  list-style: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--mofu-motion);
+}
+
+.account-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.account-menu > summary:hover,
+.account-menu[open] > summary {
+  background: var(--color-fill-secondary);
+}
+
+.account-menu__name {
+  display: inline-flex;
+  align-items: center;
+  max-width: 128px;
+  overflow: hidden;
+  font-size: var(--mofu-fs-body-sm);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu__chevron {
+  font-size: 18px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.account-menu__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: var(--z-menu);
+  width: min(248px, calc(100vw - 24px));
+  padding: 7px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--mofu-radius-lg);
+  background: var(--md-sys-color-surface-container-high);
+  box-shadow: var(--mofu-elev-3);
+}
+
+.account-menu__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 11px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--md-sys-color-outline-variant) 55%, transparent);
+}
+
+.account-menu__head strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu__head span {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--mofu-fs-label-sm);
+}
+
+.account-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--mofu-radius-md);
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+  font: inherit;
+  font-size: var(--mofu-fs-body-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-menu__item:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--mofu-state-hover), transparent);
+  text-decoration: none;
+}
+
+.account-menu__item .material-symbols-outlined {
+  font-size: 20px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.account-menu__item .nav-badge {
+  margin-left: auto;
+}
+
+.account-menu__form {
+  margin: 0;
+}
+
+.account-menu__item--button {
+  color: var(--color-destructive-foreground);
+}
+
+@media (max-width: 719px) {
+  .account-menu__name,
+  .account-menu__chevron {
+    display: none;
+  }
+
+  .account-menu > summary {
+    padding-right: 3px;
+  }
+}
+
+/* ---------- 悬浮发布 / 音乐 ---------- */
+.fab-compose {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 46px;
+  padding: 0 16px;
+  border-radius: 14px;
+  background: var(--color-brand-primary);
+  color: var(--color-on-accent);
+  box-shadow: var(--mofu-elev-3);
+  font-size: var(--mofu-fs-body-sm);
+  font-weight: 700;
+  transition: background var(--mofu-motion), transform var(--mofu-motion-effects);
+}
+
+.fab-compose:hover {
+  background: var(--color-brand-hover);
+  color: var(--color-on-accent);
+  text-decoration: none;
+}
+
+.fab-compose .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.fab-music {
+  position: relative;
+  border-radius: 50%;
+}
+
+.fab-music.is-open {
+  background: var(--color-brand-primary);
+  color: var(--color-on-accent);
+}
+
+.fab-music.is-open::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 42%, transparent);
+  border-radius: inherit;
+  animation: music-pulse 1.8s ease-out infinite;
+}
+
+@keyframes music-pulse {
+  0% {
+    opacity: .7;
+    transform: scale(.92);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+
+@media (min-width: 1024px) {
+  .fab-compose {
+    display: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  html[data-nav-compact] .fab-compose {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab-music.is-open::after {
+    animation: none;
+  }
+}
+
+/* ---------- 全站悬浮音乐面板 ---------- */
+.music-dock {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--mofu-bottom-nav-h) + 82px);
+  z-index: var(--z-float);
+  width: min(390px, calc(100vw - 28px));
+  pointer-events: none;
+}
+
+.music-dock__panel {
+  display: flex;
+  flex-direction: column;
+  max-height: min(620px, calc(100dvh - var(--mofu-bottom-nav-h) - 110px));
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  background: var(--md-sys-color-surface-container-high);
+  box-shadow: 0 24px 70px -22px rgba(0, 0, 0, .42), var(--mofu-elev-3);
+  opacity: 0;
+  transform: translateY(12px) scale(.98);
+  transform-origin: right bottom;
+  transition: opacity var(--mofu-motion), transform var(--mofu-motion-effects);
+  pointer-events: none;
+}
+
+.music-dock.is-open .music-dock__panel {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.music-dock__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 10px 8px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--md-sys-color-outline-variant) 55%, transparent);
+}
+
+.music-dock__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--mofu-fs-body-sm);
+  font-weight: 700;
+}
+
+.music-dock__title .material-symbols-outlined {
+  color: var(--color-brand-primary);
+  font-size: 20px;
+}
+
+.music-dock__hint {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--mofu-fs-label-xs);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.music-dock__frame {
+  display: block;
+  width: 100%;
+  height: min(520px, 62vh);
+  border: 0;
+  background: var(--md-sys-color-surface-container);
+}
+
+@media (min-width: 1024px) {
+  .music-dock {
+    bottom: 136px;
+  }
+}
+
+html[data-composing] .music-dock__panel {
+  opacity: 0;
+  pointer-events: none;
+}
+
+html[data-page='konbini'] .music-dock,
+html[data-page='konbini'] .fab-music,
+html[data-page='konbini'] .fab-compose {
+  display: none !important;
+}
+
+/* ---------- 昵称挂件 ---------- */
+.name-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  margin-left: 1px;
+  font-size: .92em;
+  line-height: 1;
+  vertical-align: -.06em;
+}
+
+.name-badge--image {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+/* 头像框：外圈渐变，内层头像保持圆形裁切 */
+.avatar-frame {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  box-sizing: border-box;
+  padding: 2px;
+  border-radius: 50%;
+  background: var(--mofu-frame-ring, var(--color-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--md-sys-color-surface) 35%, transparent);
+}
+
+.avatar-frame .avatar {
+  width: 100%;
+  height: 100%;
+  font-size: inherit;
+}
+
+.avatar-frame--sm { width: 36px; height: 36px; font-size: 13px; }
+.avatar-frame--md { width: 44px; height: 44px; font-size: 14px; }
+.avatar-frame--lg { width: 52px; height: 52px; font-size: 18px; }
+.avatar-frame--xl { width: 78px; height: 78px; font-size: 28px; }
+
+.avatar-frame--mint {
+  --mofu-frame-ring: conic-gradient(from 210deg, #9fe3ca, #5bb8a5, #d9fff1, #9fe3ca);
+}
+
+.avatar-frame--gold {
+  --mofu-frame-ring: conic-gradient(from 200deg, #8e6426, #f1cd7b, #fff1bc, #c7963d, #8e6426);
+}
+
+.avatar-frame--sakura {
+  --mofu-frame-ring: conic-gradient(from 140deg, #f4a7c0, #ffe1ea, #d86b93, #f4a7c0);
+}
+
+.avatar-frame--ocean {
+  --mofu-frame-ring: conic-gradient(from 180deg, #4a9fc7, #b9e8f3, #386c9f, #4a9fc7);
+}
+
+.avatar-frame--neon {
+  --mofu-frame-ring: conic-gradient(from 30deg, #6ce7e0, #9a7bff, #ff75c9, #6ce7e0);
+  box-shadow: 0 0 14px color-mix(in srgb, #9a7bff 34%, transparent);
 }
 
 /* ---------- 首页布局 ---------- */
@@ -773,7 +1201,66 @@ html[data-page='admin'] .app-body {
   gap: 14px;
 }
 
-.admin-nav,
+/* 设置页 = 上（二级导航）/ 下（内容）两个区域 */
+.settings-top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mofu-space-2);
+  min-width: 0;
+}
+
+/* 返回上一级：设置页顶部「返回设置」入口（components/settings-nav.twig） */
+.page-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  align-self: flex-start;
+  margin: 0 0 var(--mofu-space-3) -8px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 999px;
+  color: var(--color-label-secondary);
+  font-size: var(--mofu-fs-body-sm);
+  font-weight: 500;
+}
+
+.page-back:hover {
+  text-decoration: none;
+}
+
+.page-back .material-symbols-outlined {
+  font-size: 20px;
+}
+
+@media (hover: hover) {
+  .page-back:hover {
+    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--mofu-state-hover), transparent);
+    color: var(--color-label-primary);
+  }
+}
+
+/* 窄屏：顶区吸附在页头下方，切标签时只有下方内容区变化 */
+@media (max-width: 1023px) {
+  .settings-top {
+    position: sticky;
+    top: var(--mofu-header-height);
+    z-index: var(--z-sticky);
+    /* 负边距抵消 app-body 的上下/左右留白，让吸附条横跨整屏 */
+    margin: calc(var(--mofu-space-4) * -1) calc(var(--mofu-page-gutter) * -1) 0;
+    padding: var(--mofu-space-4) var(--mofu-page-gutter) var(--mofu-space-2);
+    background: var(--color-glass);
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  @media (max-width: 1023px) {
+    .settings-top {
+      background: var(--color-surface);
+    }
+  }
+}
+
 .settings-nav {
   display: flex;
   gap: 4px;
@@ -781,14 +1268,12 @@ html[data-page='admin'] .app-body {
   scrollbar-width: none;
 }
 
-.admin-nav::-webkit-scrollbar,
 .settings-nav::-webkit-scrollbar {
   display: none;
 }
 
 /* 窄屏：横向标签栏加可见轨道背景 */
 @media (max-width: 1023px) {
-  .admin-nav,
   .settings-nav {
     padding: 4px;
     border-radius: 999px;
@@ -796,7 +1281,6 @@ html[data-page='admin'] .app-body {
   }
 }
 
-.admin-nav__item,
 .settings-nav__item {
   display: inline-flex;
   align-items: center;
@@ -811,13 +1295,11 @@ html[data-page='admin'] .app-body {
   transition: background var(--mofu-motion);
 }
 
-.admin-nav__item:hover,
 .settings-nav__item:hover {
   background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--mofu-state-hover), transparent);
   text-decoration: none;
 }
 
-.admin-nav__item.is-active,
 .settings-nav__item.is-active {
   background: var(--md-sys-color-secondary-container);
   color: var(--md-sys-color-on-secondary-container);
@@ -862,12 +1344,10 @@ html[data-page='admin'] .app-body {
 
 /* 桌面端后台/设置导航转为纵向列表：隐藏滑块，退回底色高亮 */
 @media (min-width: 1024px) {
-  .admin-nav > .tabs-thumb,
   .settings-nav > .tabs-thumb {
     display: none;
   }
 
-  .admin-nav > a.is-active,
   .settings-nav > a.is-active {
     background: var(--md-sys-color-secondary-container);
   }
@@ -895,7 +1375,7 @@ html[data-page='admin'] .app-body {
 }
 
 html.is-rendering .transition-swup {
-  animation: page-enter 260ms var(--mofu-ease-out) both;
+  animation: page-enter 260ms var(--mofu-ease-emphasized) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -904,15 +1384,17 @@ html.is-rendering .transition-swup {
   }
 }
 
-/* 标签栏切页（设置 / 后台 / 个人主页）：标签栏本身保持不动，
-   只让内容区淡入。否则整页重绘会“闪一下”。 */
+/* 标签栏切页（信息流 / 筛选 / 设置 / 后台 / 个人主页）：标签栏本身保持不动，
+   只让内容面板轻微淡入 + 4px 上移。整容器动画同时关掉，否则整页会“闪一下”。 */
 @keyframes content-fade {
   from {
     opacity: 0;
+    transform: translateY(4px);
   }
 
   to {
     opacity: 1;
+    transform: none;
   }
 }
 
@@ -921,7 +1403,7 @@ html.is-tab-switch .transition-swup {
 }
 
 html.is-tab-switch [data-tabs-panel] {
-  animation: content-fade 180ms var(--mofu-ease-out) both;
+  animation: content-fade 180ms var(--mofu-ease-emphasized) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -991,6 +1473,15 @@ html.is-tab-switch [data-tabs-panel] {
 }
 
 @media (min-width: 1024px) {
+  /* 桌面已有常驻侧栏，只隐藏重复的汉堡按钮。 */
+  .nav-toggle {
+    display: none;
+  }
+
+  .fab-stack {
+    bottom: 24px;
+  }
+
   .side-nav {
     display: block;
     width: 232px;
@@ -1009,12 +1500,10 @@ html.is-tab-switch [data-tabs-panel] {
     display: block;
   }
 
-  .admin-layout,
   .settings-layout {
     grid-template-columns: 210px minmax(0, 1fr);
   }
 
-  .admin-nav,
   .settings-nav {
     flex-direction: column;
     overflow: visible;
@@ -1051,13 +1540,13 @@ html.is-tab-switch [data-tabs-panel] {
     overflow-y: auto;
     visibility: hidden;
     transform: translateX(-100%);
-    transition: transform var(--mofu-motion-spatial), visibility 0s linear 300ms;
+    transition: transform var(--mofu-slide), visibility 0s linear 320ms;
   }
 
   .side-nav.is-open {
     visibility: visible;
     transform: translateX(0);
-    transition: transform var(--mofu-motion-spatial), visibility 0s;
+    transition: transform var(--mofu-slide), visibility 0s;
   }
 
   .side-nav.is-open .side-nav__item {
@@ -1090,7 +1579,12 @@ html.is-tab-switch [data-tabs-panel] {
   translate: -50% 0;
   z-index: var(--z-indicator);
   pointer-events: none;
-  --m3e-loading-indicator-size: 30px;
+}
+
+.page-loading .mofu-spinner {
+  width: 30px;
+  height: 30px;
+  color: var(--md-sys-color-primary);
 }
 
 /* Swup 过渡（尊重减少动效偏好） */

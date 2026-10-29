@@ -2,44 +2,15 @@
 
 {% block content %}
 <div class="admin-layout">
-    {# data-swup-persist：切页时保留本导航，滑块动画才能连续（各页导航项一致） #}
-    <nav class="admin-nav" aria-label="后台导航" data-swup-persist="admin-nav">
-        <a class="admin-nav__item" href="/admin" data-nav-item="/admin">仪表盘</a>
-        {% if currentUser and 'user.manage' in currentUser.permissions %}
-        <a class="admin-nav__item" href="/admin/users" data-nav-item="/admin/users">用户管理</a>
-        {% endif %}
-        {% if currentUser and 'post.moderate' in currentUser.permissions %}
-        <a class="admin-nav__item" href="/admin/posts" data-nav-item="/admin/posts">动态管理</a>
-        {% endif %}
-        {% if currentUser and 'comment.moderate' in currentUser.permissions %}
-        <a class="admin-nav__item" href="/admin/comments" data-nav-item="/admin/comments">评论管理</a>
-        {% endif %}
-        {% if currentUser and 'post.moderate' in currentUser.permissions %}
-        <a class="admin-nav__item" href="/admin/confessions" data-nav-item="/admin/confessions">表白墙审核</a>
-        {% endif %}
-        {% if currentUser and 'report.handle' in currentUser.permissions %}
-        <a class="admin-nav__item" href="/admin/reports" data-nav-item="/admin/reports">举报处理</a>
-        {% endif %}
-        {% if currentUser and 'user.manage' in currentUser.permissions %}
-        <a class="admin-nav__item" href="/admin/appeals" data-nav-item="/admin/appeals">申诉管理</a>
-        {% endif %}
-        {% if currentUser and 'admin.access' in currentUser.permissions %}
-        <a class="admin-nav__item" href="/admin/circles" data-nav-item="/admin/circles">圈子管理</a>
-        <a class="admin-nav__item" href="/admin/boards" data-nav-item="/admin/boards">板块管理</a>
-        <a class="admin-nav__item" href="/admin/board-settings" data-nav-item="/admin/board-settings">板块外观</a>
-        <a class="admin-nav__item" href="/admin/team" data-nav-item="/admin/team">团队名单</a>
-        <a class="admin-nav__item" href="/admin/banners" data-nav-item="/admin/banners">首页轮播</a>
-        <a class="admin-nav__item" href="/admin/events" data-nav-item="/admin/events">活动管理</a>
-        {% endif %}
-        {% if currentUser and 'news.manage' in currentUser.permissions %}
-        <a class="admin-nav__item" href="/admin/news" data-nav-item="/admin/news">资讯管理</a>
-        {% endif %}
-    </nav>
-    <div class="admin-main" data-tabs-panel>
-        {% if ok is defined and ok %}
-        <div class="form-success" role="status">操作已完成</div>
-        {% endif %}
-        {% block admin_content %}{% endblock %}
+    <div class="admin-main">
+        {{ include('components/admin-nav.twig') }}
+
+        <div class="admin-content" data-tabs-panel>
+            {% if ok is defined and ok %}
+            <div class="form-success" role="status">操作已完成</div>
+            {% endif %}
+            {% block admin_content %}{% endblock %}
+        </div>
     </div>
 </div>
 {% endblock %}

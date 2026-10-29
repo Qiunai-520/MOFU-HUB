@@ -21,6 +21,57 @@
     {% endfor %}
 </div>
 
+<details class="admin-card">
+    <summary class="admin-card__title">新建帖子</summary>
+    <form class="admin-form" method="post" action="/admin/boards/create">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <div class="admin-form__grid">
+            <label class="field">
+                <span class="field__label">板块</span>
+                <select class="field__input" name="board_slug" required>
+                    {% for b in boards %}<option value="{{ b.slug }}">{{ b.name }}</option>{% endfor %}
+                </select>
+            </label>
+            <label class="field">
+                <span class="field__label">标题</span>
+                <input class="field__input" type="text" name="title" maxlength="80" required>
+            </label>
+        </div>
+        <label class="field">
+            <span class="field__label">正文</span>
+            <textarea class="field__input" name="content" rows="4" required></textarea>
+        </label>
+        <div class="admin-form__grid">
+            <label class="field">
+                <span class="field__label">价格（仅二手市场）</span>
+                <input class="field__input" type="text" name="price" placeholder="留空默认 1.00">
+            </label>
+            <label class="field">
+                <span class="field__label">成色（仅二手市场）</span>
+                <select class="field__input" name="condition">
+                    <option value="">（默认）</option>
+                    {% for value, label in conditions %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                </select>
+            </label>
+            <label class="field">
+                <span class="field__label">类型（仅寻物招领）</span>
+                <select class="field__input" name="lost_type">
+                    <option value="">（默认）</option>
+                    {% for value, label in lostTypes %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                </select>
+            </label>
+            <label class="field">
+                <span class="field__label">地点（仅寻物招领）</span>
+                <input class="field__input" type="text" name="location" maxlength="40">
+            </label>
+        </div>
+        <p class="admin-head__hint">「价格/成色」用于二手市场板块，「类型/地点」用于寻物招领板块；其他板块会忽略这些字段。</p>
+        <div class="admin-form__actions">
+            <button class="filled-btn filled-btn--sm" type="submit">发布</button>
+        </div>
+    </form>
+</details>
+
 <div class="table-wrap">
     <table class="admin-table">
         <thead>
@@ -39,6 +90,21 @@
                 <td data-label="帖子" class="admin-table__content">
                     <a href="{{ e.url }}">{{ e.title }}</a>
                     <span class="admin-table__sub">{{ e.excerpt }}</span>
+                    <details class="admin-inline-edit">
+                        <summary class="text-btn text-btn--sm">编辑</summary>
+                        <form method="post" action="/admin/boards/{{ e.id }}/save" class="admin-form">
+                            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                            <label class="field">
+                                <span class="field__label">标题</span>
+                                <input class="field__input" type="text" name="title" value="{{ e.title }}" maxlength="80" required>
+                            </label>
+                            <label class="field">
+                                <span class="field__label">正文（留空保持不变）</span>
+                                <textarea class="field__input" name="content" rows="3"></textarea>
+                            </label>
+                            <button class="filled-btn filled-btn--sm" type="submit">保存</button>
+                        </form>
+                    </details>
                 </td>
                 <td data-label="板块" class="admin-table__sub"><a href="{{ e.board_url }}">{{ e.board_name }}</a></td>
                 <td data-label="作者" class="admin-table__sub">@{{ e.username }}</td>
@@ -79,4 +145,36 @@
 </div>
 
 {% include 'components/pagination.twig' with { pagination: entries, base: '/admin/boards?status=' ~ status ~ '&board=' ~ boardSlug } %}
+
+<section class="admin-card">
+    <h2 class="admin-card__title">板块外观（Logo）</h2>
+    <p class="admin-head__hint">为板块设置 Logo；未设置时显示默认图标。板块列表与 Logo 设置已整合到本页。</p>
+    <div class="board-logo-grid">
+        {% for b in logoBoards %}
+        <div class="card board-logo-card">
+            <div class="board-logo-card__preview">
+                {% if b.logo is not empty %}
+                <img src="{{ b.logo }}" alt="{{ b.name }}">
+                {% else %}
+                <span class="material-symbols-outlined" aria-hidden="true">{{ b.icon }}</span>
+                {% endif %}
+            </div>
+            <div class="board-logo-card__body">
+                <strong>{{ b.name }}</strong>
+                <span class="board-logo-card__slug">/boards/{{ b.slug }}</span>
+            </div>
+            <form method="post" action="/admin/boards/{{ b.id }}/logo" enctype="multipart/form-data" class="board-logo-form">
+                <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                <label class="outlined-btn outlined-btn--sm board-logo-form__pick">
+                    选择图片
+                    <input type="file" name="logo" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="this.form.submit()">
+                </label>
+                {% if b.logo is not empty %}
+                <button class="text-btn text-btn--sm text-btn--danger" type="submit" name="action" value="clear">清除</button>
+                {% endif %}
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+</section>
 {% endblock %}

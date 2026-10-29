@@ -7,7 +7,7 @@ export const $unreadCount = atom<number>(0);
 
 export const $theme = atom<ThemeConfig>(
   window.__MOFU__?.theme ?? {
-    sourceColor: '#775A0D',
+    sourceColor: '#FFCC38',
     scheme: 'auto',
     contrast: 'standard',
     variant: 'tonalSpot',

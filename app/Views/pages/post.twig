@@ -28,7 +28,11 @@
                 {{ include('components/avatar.twig', { user: post.author, size: 'lg' }) }}
             </a>
             <div class="post-detail__meta">
-                <a class="post-detail__author" href="{{ post.author.url }}">{{ post.author.nickname }}</a>
+                <div class="post-detail__title-row">
+                    <a class="post-detail__author{{ post.author.is_premium ? ' is-premium' : '' }}" href="{{ post.author.url }}">{{ post.author.nickname }}{{ include('components/name-badge.twig', { user: post.author }) }}</a>
+                    {% if post.author.is_formal %}<span class="level-chip{{ post.author.is_flash ? ' level-chip--flash' : '' }}">{% if post.author.is_flash %}<span class="material-symbols-outlined" aria-hidden="true">bolt</span>{% endif %}Lv.{{ post.author.level }}</span>{% endif %}
+                    {% if post.author.title is not null %}<span class="level-chip"><span class="material-symbols-outlined" aria-hidden="true">{{ post.author.title.icon }}</span>{{ post.author.title.name }}</span>{% endif %}
+                </div>
                 <div class="post-detail__sub">
                     <time datetime="{{ post.created_at }}">{{ post.time_ago }}</time>
                     {% if post.is_repost %}<span class="meta-chip">转发</span>{% endif %}
@@ -41,6 +45,19 @@
         <div class="post-detail__body">
             {% if post.content_text is not empty %}
             <div class="post-content post-content--lg">{{ post.content_html|raw }}</div>
+            {% endif %}
+
+            {% if post.is_paid and not post.unlocked %}
+            <div class="paid-lock paid-lock--lg">
+                <span class="material-symbols-outlined paid-lock__icon" aria-hidden="true">lock</span>
+                <p class="paid-lock__title">这条动态需要付费解锁</p>
+                <p class="paid-lock__excerpt">{{ post.excerpt|slice(0, 100) }}</p>
+                <div class="paid-lock__foot">
+                    <span class="paid-lock__price">{{ post.price + 0 }} M币</span>
+                    <button class="filled-btn filled-btn--sm" type="button"
+                            data-action="purchase-post" data-post-id="{{ post.id }}">解锁查看</button>
+                </div>
+            </div>
             {% endif %}
 
             {% if post.repost %}
@@ -84,6 +101,14 @@
             </div>
             {% endif %}
 
+            {% if post.tags|default([])|length > 0 %}
+            <div class="post-tags">
+                {% for tag in post.tags %}
+                <a class="tag-chip" href="{{ tag.url }}"{% if tag.color is not empty %} style="--tag-color: {{ tag.color }}"{% endif %}>{{ tag.name }}</a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
             {% if post.community %}
             <p class="post-community">
                 <span class="material-symbols-outlined" aria-hidden="true">groups</span>
@@ -101,12 +126,13 @@
             </button>
             <a class="post-action" href="#comments">
                 <span class="material-symbols-outlined" aria-hidden="true">chat_bubble</span>
-                <span class="post-action__count">{{ post.comment_count }}</span>
+                <span class="post-action__count" data-twikoo-count data-comment-path="/posts/{{ post.id }}">{{ post.comment_count }}</span>
             </a>
             <button class="post-action{{ post.favorited ? ' is-active' : '' }}" type="button"
                     data-action="toggle-favorite" data-target-type="post" data-target-id="{{ post.id }}"
                     aria-pressed="{{ post.favorited ? 'true' : 'false' }}">
                 <span class="material-symbols-outlined" aria-hidden="true">bookmark</span>
+                <span class="post-action__count" data-favorite-count>{{ post.favorite_count }}</span>
             </button>
             {% if not post.is_owner and not post.is_repost %}
             <button class="post-action{{ post.reposted ? ' is-active' : '' }}" type="button"
@@ -115,6 +141,14 @@
                 <span class="material-symbols-outlined" aria-hidden="true">repeat</span>
                 <span class="post-action__count" data-repost-count>{{ post.repost_count }}</span>
             </button>
+            {% endif %}
+            {% if not post.is_owner %}
+            <span class="coin-host">
+                <button class="post-action" type="button" data-action="give-coin" data-target-id="{{ post.id }}" aria-haspopup="menu" aria-expanded="false" aria-label="投币支持">
+                    <span class="material-symbols-outlined" aria-hidden="true">paid</span>
+                    <span class="post-action__count" data-coin-count>0</span>
+                </button>
+            </span>
             {% endif %}
             <button class="post-action post-action--tail" type="button" data-action="share"
                     data-share-url="/posts/{{ post.id }}" aria-label="复制链接">
@@ -131,6 +165,8 @@
                 <a class="text-btn text-btn--sm" href="/posts/{{ post.id }}/edit">
                     <span class="material-symbols-outlined" aria-hidden="true">edit</span> 编辑
                 </a>
+                {% endif %}
+                {% if post.can_delete %}
                 <button class="text-btn text-btn--danger" type="button" data-action="delete-post" data-post-id="{{ post.id }}">
                     <span class="material-symbols-outlined" aria-hidden="true">delete</span> 删除动态
                 </button>
@@ -139,35 +175,17 @@
         </footer>
     </article>
 
-    <section class="comments" id="comments" data-comments data-post-id="{{ post.id }}" data-pages="{{ comments.pages }}">
-        <h2 class="comments__title">评论 <span data-comment-total>{{ comments.total }}</span></h2>
+    <section class="comments" id="comments" data-comments data-post-id="{{ post.id }}" data-comment-path="/posts/{{ post.id }}">
+        <h2 class="comments__title">评论 <span data-comment-total>—</span></h2>
 
-        <div id="twikoo" class="twikoo-mount" data-twikoo hidden></div>
-
-        {% if currentUser %}
-        <form class="comment-form" data-comment-form>
-            <textarea class="field__input comment-form__input" name="content" rows="2" maxlength="1000" placeholder="写下你的评论…" required></textarea>
-            <div class="comment-form__foot">
-                <button class="filled-btn filled-btn--sm" type="submit">发表评论</button>
-            </div>
-        </form>
+        {% if commentBlocked|default(false) %}
+        <p class="comments__guest">达到 Lv.2 成为正式会员后即可发表评论。</p>
         {% else %}
-        <p class="comments__guest"><a href="/login">登录</a> 后参与评论</p>
+        {# 评论统一由 Twikoo 提供（自托管脚本），不再渲染站内评论 UI #}
+        <div id="twikoo" class="twikoo-mount" data-twikoo hidden></div>
         {% endif %}
 
-        <div class="comment-list" data-comment-list>
-            {% for comment in comments.items %}
-                {{ include('components/comment.twig', { comment: comment }) }}
-            {% else %}
-            {{ include('components/empty-state.twig', { compact: true, text: '还没有评论，来抢沙发～' }) }}
-            {% endfor %}
-        </div>
-
-        {% if comments.pages > 1 %}
-        <div class="comments__more">
-            <button class="outlined-btn" type="button" data-action="load-comments" data-next-page="2">加载更多评论</button>
-        </div>
-        {% endif %}
+        <noscript><p class="comments__guest">评论需要启用 JavaScript。</p></noscript>
     </section>
 </div>
 {% endblock %}

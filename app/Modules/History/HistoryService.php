@@ -48,7 +48,7 @@ final class HistoryService
                    AND (p.visibility = 'public' OR p.user_id = :self)";
         $params = ['user' => $userId, 'self' => $userId];
 
-        $sql = 'SELECT p.*, pv.viewed_at, u.username, u.status AS author_status, pr.nickname,
+        $sql = 'SELECT p.*, pv.viewed_at, u.username, u.status AS author_status, pr.nickname, pr.avatar_frame, pr.name_badge,
                        am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
                 ' . $base . ' ORDER BY pv.viewed_at DESC, p.id DESC';
         $countSql = 'SELECT COUNT(*) ' . $base;

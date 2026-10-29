@@ -15,7 +15,7 @@
     { icon: 'groups', title: '兴趣圈子', text: '找到同好，一起交流' },
     { icon: 'chat', title: '私信与通知', text: '实时送达的互动提醒' },
     { icon: 'dashboard', title: '校园板块', text: '问答、互助、失物、二手' },
-    { icon: 'palette', title: '主题中心', text: '个性化你的外观' },
+    { icon: 'palette', title: '外观', text: '浅色、深色或跟随系统' },
 ] %}
 
 {% block content %}
@@ -29,6 +29,11 @@
         <div class="about-hero__meta">
             <span class="meta-chip"><span class="material-symbols-outlined" aria-hidden="true">update</span>{{ now | date('Y年m月d日') }} 更新</span>
             <span class="meta-chip"><span class="material-symbols-outlined" aria-hidden="true">code</span>PHP · TypeScript</span>
+        </div>
+        <div class="about-hero__actions">
+            <a class="outlined-btn" href="/about/changelog">
+                <span class="material-symbols-outlined" aria-hidden="true">history</span> 更新日志
+            </a>
         </div>
     </div>
 

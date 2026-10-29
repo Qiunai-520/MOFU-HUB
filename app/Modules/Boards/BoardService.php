@@ -8,6 +8,7 @@ use Mofu\Core\Database\Query;
 use Mofu\Core\Http\HttpException;
 use Mofu\Core\Support\Text;
 use Mofu\Core\View\Present;
+use Mofu\Modules\Users\ProfileDecorations;
 use Mofu\Modules\Notifications\NotificationService;
 
 /**
@@ -77,10 +78,24 @@ final class BoardService
     /** @return array<string, mixed>|null */
     public function findBySlug(string $slug): ?array
     {
-        return $this->query->one(
-            'SELECT * FROM boards WHERE slug = :slug AND is_active = 1',
+        $row = $this->query->one(
+            'SELECT b.*, am.disk_path AS logo_disk, am.thumb_path AS logo_thumb
+             FROM boards b LEFT JOIN media am ON am.id = b.logo_media_id
+             WHERE b.slug = :slug AND b.is_active = 1',
             ['slug' => $slug],
         );
+
+        if ($row === null) {
+            return null;
+        }
+
+        // 板块详情页也要能显示自定义 Logo（列表走 presentBoard，这里保留原始列并补一个 logo）
+        $row['logo'] = Present::uploadUrl(
+            isset($row['logo_thumb']) ? (string) $row['logo_thumb'] : null,
+            isset($row['logo_disk']) ? (string) $row['logo_disk'] : null,
+        );
+
+        return $row;
     }
 
     /** @return array<string, mixed>|null */
@@ -138,7 +153,7 @@ final class BoardService
             ? 'ORDER BY (e.like_count * 3 + e.comment_count * 4) DESC, e.id DESC'
             : 'ORDER BY e.id DESC';
 
-        $sql = 'SELECT e.*, u.username, u.status AS author_status, pr.nickname,
+        $sql = 'SELECT e.*, u.username, u.status AS author_status, pr.nickname, pr.avatar_frame, pr.name_badge,
                        am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
                 ' . $base . ' ' . $order;
         $countSql = 'SELECT COUNT(*) ' . $base;
@@ -185,6 +200,33 @@ final class BoardService
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
+    }
+
+    /**
+     * 后台编辑帖子：标题必填，正文留空表示保持原正文。
+     *
+     * @param array<string, mixed> $input
+     */
+    public function updateEntry(int $entryId, array $input): void
+    {
+        $title = trim((string) ($input['title'] ?? ''));
+        $content = trim((string) ($input['content'] ?? ''));
+
+        if (mb_strlen($title) < self::TITLE_MIN || mb_strlen($title) > self::TITLE_MAX) {
+            throw HttpException::badRequest('标题需为 ' . self::TITLE_MIN . '-' . self::TITLE_MAX . ' 字');
+        }
+
+        $data = ['title' => $title, 'updated_at' => date('Y-m-d H:i:s')];
+
+        if ($content !== '') {
+            if (mb_strlen($content) > self::CONTENT_MAX) {
+                throw HttpException::badRequest('正文最多 ' . self::CONTENT_MAX . ' 字');
+            }
+
+            $data['content'] = $content;
+        }
+
+        $this->query->update('board_entries', $data, 'id = :id', ['id' => $entryId]);
     }
 
     /**
@@ -243,7 +285,7 @@ final class BoardService
     public function find(int $id): ?array
     {
         return $this->query->one(
-            'SELECT e.*, u.username, u.status AS author_status, pr.nickname,
+            'SELECT e.*, u.username, u.status AS author_status, pr.nickname, pr.avatar_frame, pr.name_badge,
                     am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path,
                     b.slug AS board_slug, b.name AS board_name, b.kind AS board_kind, b.icon AS board_icon
              FROM board_entries e
@@ -319,7 +361,7 @@ final class BoardService
     public function comments(int $entryId): array
     {
         $rows = $this->query->all(
-            "SELECT c.*, u.username, pr.nickname,
+            "SELECT c.*, u.username, pr.nickname, pr.avatar_frame, pr.name_badge,
                     am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
              FROM board_entry_comments c
              JOIN users u ON u.id = c.user_id
@@ -351,6 +393,7 @@ final class BoardService
                         isset($row['avatar_thumb']) ? (string) $row['avatar_thumb'] : null,
                         isset($row['avatar_path']) ? (string) $row['avatar_path'] : null,
                     ),
+                    ...ProfileDecorations::present($row),
                 ],
             ];
         }, $rows);
@@ -580,6 +623,7 @@ final class BoardService
                     isset($row['avatar_thumb']) ? (string) $row['avatar_thumb'] : null,
                     isset($row['avatar_path']) ? (string) $row['avatar_path'] : null,
                 ),
+                ...ProfileDecorations::present($row),
             ],
             'time_ago' => Text::relativeTime((string) $row['created_at']),
             'like_count' => (int) $row['like_count'],

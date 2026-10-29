@@ -1,0 +1,88 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}settings{% endblock %}
+{% block title %}头像框与挂件 · {{ app.name }}{% endblock %}
+
+{% macro miniAvatar(user, frameClass) %}
+<span class="avatar-frame avatar-frame--md {{ frameClass }}">
+    {% if user.avatar_url is defined and user.avatar_url is not empty %}
+    <img class="avatar" src="{{ user.avatar_url }}" alt="" loading="lazy" decoding="async">
+    {% else %}
+    <span class="avatar" style="--avatar-hue: {{ user.hue }}" aria-hidden="true">{{ user.initial }}</span>
+    {% endif %}
+</span>
+{% endmacro %}
+
+{% block content %}
+<section class="settings-layout">
+    {{ include('components/settings-nav.twig') }}
+
+    <div class="settings-main" data-tabs-panel>
+        <h1 class="page-title">头像框与昵称挂件</h1>
+        <p class="page-subtitle">选择喜欢的头像外圈和昵称后的小图案。购买过的道具会永久保留。</p>
+
+        {% if saved %}
+        <div class="form-success" role="status">外观已保存</div>
+        {% endif %}
+
+        <div class="settings-card settings-card--pad decor-preview" data-decor-preview>
+            <span class="avatar-frame avatar-frame--xl {{ current.avatar_frame_class }}" data-decor-frame>
+                {% if currentUser.avatar_url is not empty %}
+                <img class="avatar" src="{{ currentUser.avatar_url }}" alt="">
+                {% else %}
+                <span class="avatar" style="--avatar-hue: {{ currentUser.hue }}" aria-hidden="true">{{ currentUser.initial }}</span>
+                {% endif %}
+            </span>
+            <div class="decor-preview__copy">
+                <strong>{{ currentUser.nickname }}<span class="name-badge" data-decor-badge>{% if current.name_badge_image is not empty %}<img class="name-badge__image" src="{{ current.name_badge_image }}" alt="">{% else %}{{ current.name_badge_emoji }}{% endif %}</span></strong>
+                <span>个人主页、动态、评论和私信都会同步显示。</span>
+            </div>
+        </div>
+
+        <form method="post" action="/settings/decorations" class="decor-form" data-decor-form>
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+            <section class="settings-group">
+                <h2 class="settings-group__title">头像框主题</h2>
+                <div class="decor-grid">
+                    {% for frame in frames %}
+                    <label class="decor-card{{ frame.selected ? ' is-selected' : '' }}{{ frame.owned ? '' : ' is-locked' }}"
+                           data-frame-class="{{ frame.class }}">
+                        <input type="radio" name="avatar_frame" value="{{ frame.key }}"
+                               data-frame-class="{{ frame.class }}"
+                               {{ frame.selected ? 'checked' : '' }}{{ frame.owned ? '' : ' disabled' }}>
+                        <span class="decor-card__visual">{{ _self.miniAvatar(currentUser, frame.class) }}</span>
+                        <span class="decor-card__name">{{ frame.label }}</span>
+                        {% if not frame.owned %}<span class="decor-card__lock"><span class="material-symbols-outlined" aria-hidden="true">lock</span>小店获取</span>{% endif %}
+                    </label>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="settings-group">
+                <h2 class="settings-group__title">昵称挂件</h2>
+                <p class="settings-hint">像 Telegram / Misskey 那样出现在昵称后的一个小图案。</p>
+                <div class="decor-badge-grid">
+                    {% for badge in badges %}
+                    <label class="decor-badge-card{{ badge.selected ? ' is-selected' : '' }}{{ badge.owned ? '' : ' is-locked' }}">
+                        <input type="radio" name="name_badge" value="{{ badge.key }}"
+                               data-badge-emoji="{{ badge.emoji }}"
+                               data-badge-image="{{ badge.image }}"
+                               {{ badge.selected ? 'checked' : '' }}{{ badge.owned ? '' : ' disabled' }}>
+                        <span class="decor-badge-card__emoji">
+                            {% if badge.image is not empty %}<img src="{{ badge.image }}" alt="">{% else %}{{ badge.emoji is not empty ? badge.emoji : '—' }}{% endif %}
+                        </span>
+                        <span>{{ badge.label }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <div class="settings-form__foot">
+                <a class="text-btn text-btn--sm" href="/shop">去 MOFU 小店看看</a>
+                <button class="filled-btn" type="submit">保存外观</button>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

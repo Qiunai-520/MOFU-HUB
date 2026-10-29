@@ -5,20 +5,36 @@
 
 {% block content %}
 <div class="home-layout">
-    <section class="feed" data-feed data-current-tab="{{ tab }}">
+    <section class="feed" data-feed data-current-tab="{{ tab }}" data-next-page="{{ feed.page + 1 }}" data-pages="{{ feed.pages }}"
+             data-published-id="{{ publishedId|default(0) }}">
+        <header class="page-head home-head">
+            <div>
+                <h1 class="page-title">校园动态</h1>
+                <p class="page-subtitle">看看同学们此刻在分享什么。</p>
+            </div>
+        </header>
+
         {% if banners|length > 0 %}
-        <section class="banner" data-banner aria-label="公告与资讯">
+        <section class="banner" data-banner data-swup-persist="home-banner" aria-label="公告与资讯">
             <div class="banner__track" data-banner-track>
                 {% for b in banners %}
-                <a class="banner__slide" href="{{ b.url }}" data-banner-slide>
+                <a class="banner__slide{{ b.cover is empty ? ' banner__slide--plain' : '' }}{{ b.type|default('image') == 'scene3d' ? ' banner__slide--scene' : '' }}" href="{{ b.target|default('self') == 'none' ? '#' : b.url }}"{{ b.target|default('self') == 'blank' ? ' target="_blank" rel="noopener"' : '' }} data-banner-slide>
                     {% if b.cover is not empty %}
                     <img class="banner__img" src="{{ b.cover }}" alt="" loading="lazy" decoding="async">
+                    {% else %}
+                    <span class="banner__icon material-symbols-outlined" aria-hidden="true">campaign</span>
                     {% endif %}
                     <span class="banner__body">
                         {% if b.category is not empty %}<span class="banner__cat">{{ b.category }}</span>{% endif %}
                         {% if b.title is not empty %}<span class="banner__title">{{ b.title }}</span>{% endif %}
                         {% if b.summary is not empty %}<span class="banner__desc">{{ b.summary|slice(0, 58) }}</span>{% endif %}
                     </span>
+                    {% if b.type|default('image') == 'scene3d' %}
+                    <span class="banner__scene-cta">
+                        <span class="material-symbols-outlined" aria-hidden="true">view_in_ar</span>
+                        进入 3D 场景
+                    </span>
+                    {% endif %}
                 </a>
                 {% endfor %}
             </div>
@@ -34,15 +50,18 @@
         </section>
         {% endif %}
 
-        <nav class="feed-tabs" aria-label="信息流切换">
+        {# 持久标签栏：切 tab 时不重建、滑块动画不重启（见 core/tab-view.ts 契约） #}
+        <nav class="feed-tabs" aria-label="信息流切换" data-swup-persist="home-feed-tabs">
             <a class="feed-tab{{ tab == 'recommend' ? ' is-active' : '' }}"{{ tab == 'recommend' ? ' aria-current="page"' : '' }} href="/?tab=recommend" data-i18n="feed.recommend">推荐</a>
-            <a class="feed-tab{{ tab == 'latest' ? ' is-active' : '' }}"{{ tab == 'latest' ? ' aria-current="page"' : '' }} href="/?tab=latest" data-i18n="feed.latest">最新</a>
+            <a class="feed-tab{{ tab == 'latest' ? ' is-active' : '' }}"{{ tab == 'latest' ? ' aria-current="page"' : '' }} href="/?tab=latest" data-tab-default data-i18n="feed.latest">最新</a>
             <a class="feed-tab{{ tab == 'hot' ? ' is-active' : '' }}"{{ tab == 'hot' ? ' aria-current="page"' : '' }} href="/?tab=hot" data-i18n="feed.hot">热门</a>
             {% if currentUser %}
             <a class="feed-tab{{ tab == 'following' ? ' is-active' : '' }}"{{ tab == 'following' ? ' aria-current="page"' : '' }} href="/?tab=following" data-i18n="feed.following">关注</a>
             {% endif %}
         </nav>
 
+        {# 动态内容面板：切 tab 时只有这里换内容并做过渡 #}
+        <div class="feed-panel" data-tabs-panel>
         <div class="feed-list" data-feed-list>
             {% for post in feedItems %}
                 {{ include('components/post-card.twig', { post: post }) }}
@@ -59,18 +78,12 @@
             {% endfor %}
         </div>
 
-        {% if feed.pages > 1 %}
-        {% set atEnd = feed.page >= feed.pages %}
-        <div class="load-more" data-load-more>
-            <button class="outlined-btn" type="button" data-action="load-more"
-                    data-next-page="{{ feed.page + 1 }}" data-pages="{{ feed.pages }}"
-                    {% if atEnd %}hidden{% endif %}>加载更多</button>
-            <p class="load-more__hint" data-load-more-hint{{ atEnd ? '' : ' hidden' }}>已经到底啦</p>
+        {# 触底自动加载的哨兵（见 modules/feed.ts）；只有一页时脚本会自己结束观察 #}
+        <div class="feed-sentinel" data-feed-sentinel aria-hidden="true"></div>
         </div>
-        {% endif %}
     </section>
 
-    <aside class="home-side">
+    <aside class="home-side" data-swup-persist="home-side">
         <div class="card side-card">
             <h2 class="side-card__title">热门话题</h2>
             {% if topics|length > 0 %}
@@ -95,7 +108,7 @@
         </div>
         {% endif %}
 
-        <div class="side-card side-card--about">
+        <div class="card side-card side-card--about">
             <h2 class="side-card__title">关于 {{ app.name }}</h2>
             <p class="side-card__text">分享校园生活、参与兴趣交流、记录每一份心情。</p>
             {% if not currentUser %}

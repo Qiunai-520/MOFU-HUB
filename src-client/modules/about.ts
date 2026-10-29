@@ -11,12 +11,8 @@ interface Member {
 
 const FOCUSABLE = 'button, a[href]';
 
-/** 一行「标签 + 值」；值为空时整行不渲染 */
-function row(label: string, value: string): string {
-  if (value.trim() === '') {
-    return '';
-  }
-
+/** 一行「标签 + 值」的骨架；值由调用方按「实际渲染出的行」顺序回填 */
+function row(label: string): string {
   return `<div class="member-dialog__row">
       <span class="member-dialog__label">${label}</span>
       <span class="member-dialog__value" data-member-value></span>
@@ -34,6 +30,14 @@ function openMemberDialog(member: Member): void {
 
   const dialog = document.createElement('div');
   dialog.className = 'member-dialog';
+
+  // 值为空的行不渲染；回填时只按「实际渲染出的行」对齐，避免邮箱为空时日期被跳过
+  const infos: Array<[string, string]> = [
+    ['邮箱', member.email],
+    ['加入时间', member.since],
+  ];
+  const visibleInfos = infos.filter(([, value]) => value.trim() !== '');
+
   dialog.innerHTML = `
 <div class="member-dialog__panel mofu-dialog__panel" role="dialog" aria-modal="true" aria-labelledby="member-dialog-name" tabindex="-1">
     <div class="member-dialog__head">
@@ -44,8 +48,7 @@ function openMemberDialog(member: Member): void {
         </span>
     </div>
     <div class="member-dialog__rows">
-        ${row('邮箱', member.email)}
-        ${row('加入时间', member.since)}
+        ${visibleInfos.map(([label]) => row(label)).join('')}
     </div>
     ${member.bio.trim() === '' ? '' : '<p class="member-dialog__bio" data-member-bio></p>'}
     <div class="member-dialog__foot">
@@ -68,10 +71,13 @@ function openMemberDialog(member: Member): void {
   dialog.querySelector<HTMLElement>('[data-member-bio]')?.append(member.bio);
 
   const values = dialog.querySelectorAll<HTMLElement>('[data-member-value]');
-  const rows = [member.email, member.since];
 
-  values.forEach((node, index) => {
-    node.textContent = rows[index] ?? '';
+  visibleInfos.forEach(([, value], index) => {
+    const node = values[index];
+
+    if (node !== undefined) {
+      node.textContent = value;
+    }
   });
 
   if (avatarBox !== null) {

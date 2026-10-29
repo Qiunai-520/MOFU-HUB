@@ -16,7 +16,7 @@ final class CommentRepository
     public function find(int $id): ?array
     {
         return $this->query->one(
-            'SELECT c.*, u.username, pr.nickname,
+            'SELECT c.*, u.username, pr.nickname, pr.avatar_frame, pr.name_badge,
                     am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
              FROM comments c
              JOIN users u ON u.id = c.user_id
@@ -46,7 +46,7 @@ final class CommentRepository
     /** 顶层评论分页（时间正序） */
     public function topLevelPage(int $postId, int $page, int $perPage): array
     {
-        $sql = 'SELECT c.*, u.username, pr.nickname,
+        $sql = 'SELECT c.*, u.username, pr.nickname, pr.avatar_frame, pr.name_badge,
                        am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
                 FROM comments c
                 JOIN users u ON u.id = c.user_id
@@ -73,7 +73,7 @@ final class CommentRepository
 
             $replies = $this->query->all(
                 sprintf(
-                    'SELECT c.*, u.username, pr.nickname,
+                    'SELECT c.*, u.username, pr.nickname, pr.avatar_frame, pr.name_badge,
                             ru.username AS reply_to_username, rp.nickname AS reply_to_nickname,
                             am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
                      FROM comments c

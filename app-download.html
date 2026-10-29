@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>下载 App · MOFU社区</title>
 <meta name="description" content="把 MOFU社区 安装到手机或桌面：无需应用商店，浏览器直接安装，离线可打开、资源自动更新。">
-<meta name="theme-color" content="#775A0D" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#12100D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F5F5F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="color-scheme" content="light dark">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -43,10 +43,10 @@
     "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 
   --radius-xs: 6px;
-  --radius-sm: 12px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
-  --radius-xl: 32px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
 
   --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
   --sp-5: 20px; --sp-6: 24px; --sp-7: 32px; --sp-8: 48px;
@@ -65,34 +65,34 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.32, 1.28, 0.55, 1);
 
-  /* 暖调中性（浅色） */
-  --background: #F7F5F2;
+  /* 中性（Apple 系统灰阶，浅色） */
+  --background: #F5F5F7;
   --surface: #FFFFFF;
-  --surface-2: #F2EFEA;
-  --surface-3: #EFEBE4;
-  --label-1: #1F1B16;
-  --label-2: #5C554B;
-  --label-3: #6E6659;
-  --label-4: #8E8A80;
-  --border: #E2DCD3;
-  --border-strong: #C9C1B4;
-  --separator: #EDE8E0;
-  --fill-2: #EFEBE4;
+  --surface-2: #F2F2F7;
+  --surface-3: #E5E5EA;
+  --label-1: #1D1D1F;
+  --label-2: #6E6E73;
+  --label-3: #8E8E93;
+  --label-4: #8E8E93;
+  --border: #D2D2D7;
+  --border-strong: #C7C7CC;
+  --separator: #E5E5EA;
+  --fill-2: #F2F2F7;
 
-  /* 品牌（Warm Brown / Antique Gold） */
-  --brand: #775A0D;
-  --brand-hover: #614A0A;
-  --brand-subtle: #F3EDE0;
-  --brand-fg: #775A0D;
-  --on-brand: #FFFFFF;
-  --focus-ring: #775A0D;
+  /* 品牌（固定 Mofukey 黄） */
+  --brand: #FFCC38;
+  --brand-hover: #E6B62F;
+  --brand-subtle: #FFF3C4;
+  --brand-fg: #8A6500;
+  --on-brand: #241D0B;
+  --focus-ring: #B88B14;
 
   /* 信息提示（独立于品牌色） */
-  --info-bg: #E4F0FF;
-  --info-border: #BBD8FF;
-  --info-fg: #0A5FD0;
+  --info-bg: #E8F1FF;
+  --info-border: #B8D4F8;
+  --info-fg: #0055AD;
 
-  --glass: rgba(255, 255, 255, 0.74);
+  --glass: rgba(245, 245, 247, 0.82);
   --glass-border: rgba(0, 0, 0, 0.08);
   --logo-tile: #FFFFFF;
   /* 站点 Logo（透明 PNG 带黑描边）：内联一次，供所有 .brand-mark 复用 */
@@ -107,30 +107,31 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #12100D;
-    --surface: #1C1915;
-    --surface-2: #2A251E;
-    --surface-3: #221E17;
-    --label-1: #F5F1EA;
-    --label-2: #C9C2B6;
-    --label-3: #9A9286;
-    --label-4: #7C766B;
-    --border: #3A342B;
-    --border-strong: #4A443B;
-    --separator: #282319;
-    --fill-2: #2A251E;
+    --background: #000000;
+    --surface: #1C1C1E;
+    --surface-2: #2C2C2E;
+    --surface-3: #3A3A3C;
+    --label-1: #F5F5F7;
+    --label-2: #AEAEB2;
+    --label-3: #8E8E93;
+    --label-4: #8E8E93;
+    --border: #48484A;
+    --border-strong: #636366;
+    --separator: #38383A;
+    --fill-2: #2C2C2E;
 
-    --brand: #8A6A14;
-    --brand-hover: #9A7718;
-    --brand-subtle: #3A2F14;
-    --brand-fg: #D5C08F;
-    --focus-ring: #D5C08F;
+    --brand: #FFCC38;
+    --brand-hover: #E6B62F;
+    --brand-subtle: #3A2F10;
+    --brand-fg: #FFD75E;
+    --on-brand: #241D0B;
+    --focus-ring: #FFD75E;
 
-    --info-bg: #0A2A4D;
+    --info-bg: #0A2540;
     --info-border: #1F4C80;
     --info-fg: #7FB6FF;
 
-    --glass: rgba(28, 25, 21, 0.74);
+    --glass: rgba(28, 28, 30, 0.78);
     --glass-border: rgba(255, 255, 255, 0.14);
 
     --elev-1: 0 1px 3px rgba(0, 0, 0, 0.5);
@@ -198,7 +199,7 @@ ul, ol { margin: 0; padding: 0; }
   gap: 6px;
   padding: var(--sp-3) var(--sp-6);
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 10px;
   background: transparent;
   color: var(--label-1);
   font: 500 var(--fs-body-sm)/1 var(--font-body);
@@ -238,7 +239,7 @@ ul, ol { margin: 0; padding: 0; }
   gap: 4px;
   min-height: 22px;
   padding: 2px 10px;
-  border-radius: 999px;
+  border-radius: 10px;
   background: var(--surface-3);
   color: var(--label-2);
   font-size: var(--fs-label-xs);
@@ -314,7 +315,7 @@ ul, ol { margin: 0; padding: 0; }
 
 .topbar__link {
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: 10px;
   color: var(--label-2);
   font-size: var(--fs-body-sm);
   font-weight: 500;
@@ -398,7 +399,7 @@ main { display: block; }
   gap: 8px;
   align-self: flex-start;
   padding: 4px 12px 4px 4px;
-  border-radius: 999px;
+  border-radius: 10px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   font-size: var(--fs-label);
@@ -499,7 +500,7 @@ main { display: block; }
   background: color-mix(in srgb, var(--label-4) 40%, var(--surface-2));
 }
 .mock__line { width: 100%; height: 8px; }
-.mock__line--bar { width: 56%; height: 10px; margin: 0 auto; border-radius: 999px; }
+.mock__line--bar { width: 56%; height: 10px; margin: 0 auto; border-radius: 10px; }
 .mock__line--title { width: 78%; height: 12px; }
 .mock__line--short { width: 62%; }
 .mock__media { height: 72px; border-radius: var(--radius-sm); }
@@ -559,7 +560,7 @@ main { display: block; }
   width: 100%;
   max-width: 460px;
   padding: 4px;
-  border-radius: 999px;
+  border-radius: 10px;
   background: var(--surface);
   border: 1px solid var(--border);
 }
@@ -569,7 +570,7 @@ main { display: block; }
   left: 0;
   height: calc(100% - 8px);
   width: 0;
-  border-radius: 999px;
+  border-radius: 10px;
   background: var(--brand-subtle);
   transition: transform var(--dur-long) var(--ease-spring), width var(--dur-long) var(--ease-spring);
 }
@@ -579,7 +580,7 @@ main { display: block; }
   flex: 1 1 0;
   padding: 9px 12px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 10px;
   background: transparent;
   color: var(--label-2);
   font: 500 var(--fs-body-sm)/1 var(--font-body);
@@ -1588,3 +1589,4 @@ main { display: block; }
 </script>
 </body>
 </html>
+

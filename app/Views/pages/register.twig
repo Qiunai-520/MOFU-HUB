@@ -7,7 +7,9 @@
 <div class="auth-layout">
     <section class="auth-card">
         <h1 class="auth-card__title">加入 {{ app.name }}</h1>
-        <p class="auth-card__subtitle">创建账号，开启你的校园社区</p>
+
+        {% if step == 'email' %}
+        <p class="auth-card__subtitle">使用邮箱注册，我们会发送一封验证码邮件；密码可以稍后在设置中设置</p>
 
         {% if not registrationOpen %}
         <div class="form-alert" role="alert">当前暂未开放注册，请稍后再来。</div>
@@ -17,43 +19,81 @@
         <div class="form-alert" role="alert">{{ errors.register }}</div>
         {% endif %}
 
+        {% if not mailConfigured %}
+        <div class="form-alert" role="alert">当前邮件服务未配置（MAIL_MAILER=log），验证码会写入服务器日志，仅供本地调试。</div>
+        {% endif %}
+
         <form method="post" action="/register" class="auth-form" novalidate>
             <input type="hidden" name="_csrf" value="{{ csrfToken }}">
 
-            <label class="field{{ errors.username is defined ? ' field--error' : '' }}" for="register-username">
-                <span class="field__label">用户名</span>
-                <input class="field__input" id="register-username" type="text" name="username" value="{{ values.username }}"
-                       pattern="[a-z0-9_]{3,20}" autocomplete="username" required{{ errors.username is defined ? ' aria-invalid="true"' : '' }}>
-                <span class="field__hint">3-20 位小写字母、数字或下划线，注册后不可修改</span>
-                {% if errors.username is defined %}<span class="field__error">{{ errors.username }}</span>{% endif %}
-            </label>
-
-                        <label class="field{{ errors.nickname is defined ? ' field--error' : '' }}" for="register-nickname">
-                <span class="field__label">昵称（可选）</span>
-                <input class="field__input" id="register-nickname" type="text" name="nickname" value="{{ values.nickname }}" maxlength="24"{{ errors.nickname is defined ? ' aria-invalid="true"' : '' }}>
-                {% if errors.nickname is defined %}<span class="field__error">{{ errors.nickname }}</span>{% endif %}
-            </label>
             <label class="field{{ errors.email is defined ? ' field--error' : '' }}" for="register-email">
                 <span class="field__label">邮箱</span>
-                <input class="field__input" id="register-email" type="email" name="email" value="{{ values.email }}" autocomplete="email" required{{ errors.email is defined ? ' aria-invalid="true"' : '' }}>
+                <input class="field__input" id="register-email" type="email" name="email" value="{{ values.email }}"
+                       autocomplete="email" required autofocus{{ errors.email is defined ? ' aria-invalid="true"' : '' }}>
                 {% if errors.email is defined %}<span class="field__error">{{ errors.email }}</span>{% endif %}
             </label>
 
+            <label class="field{{ errors.nickname is defined ? ' field--error' : '' }}" for="register-nickname">
+                <span class="field__label">昵称（可选）</span>
+                <input class="field__input" id="register-nickname" type="text" name="nickname" value="{{ values.nickname }}" maxlength="24">
+                <span class="field__hint">留空则使用邮箱前缀作为昵称</span>
+            </label>
+
+            <label class="field{{ errors.invite is defined ? ' field--error' : '' }}" for="register-invite">
+                <span class="field__label">邀请码（可选）</span>
+                <input class="field__input" id="register-invite" type="text" name="invite" value="{{ values.invite|default('') }}"
+                       maxlength="16" placeholder="有邀请码可免答题直接成为正式会员">
+                {% if errors.invite is defined %}<span class="field__error">{{ errors.invite }}</span>{% endif %}
+            </label>
+
+            <button class="filled-btn filled-btn--block" type="submit" {{ not registrationOpen ? 'disabled' : '' }}>发送验证码</button>
+        </form>
+
+        {% else %}
+        <p class="auth-card__subtitle">验证码已发送到 <strong>{{ values.email }}</strong>，15 分钟内有效</p>
+
+        {% if errors.code is defined %}
+        <div class="form-alert" role="alert">{{ errors.code }}</div>
+        {% endif %}
+
+        <form method="post" action="/register/verify" class="auth-form" novalidate>
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <input type="hidden" name="email" value="{{ values.email }}">
+            <input type="hidden" name="nickname" value="{{ values.nickname }}">
+            <input type="hidden" name="invite" value="{{ values.invite|default('') }}">
+
+            <label class="field{{ errors.code is defined ? ' field--error' : '' }}" for="register-code">
+                <span class="field__label">验证码</span>
+                <input class="field__input" id="register-code" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}"
+                       maxlength="6" autocomplete="one-time-code" required autofocus>
+                {% if errors.code is defined %}<span class="field__error">{{ errors.code }}</span>{% endif %}
+            </label>
+
             <label class="field{{ errors.password is defined ? ' field--error' : '' }}" for="register-password">
-                <span class="field__label">密码</span>
-                <input class="field__input" id="register-password" type="password" name="password" autocomplete="new-password" minlength="8" required{{ errors.password is defined ? ' aria-invalid="true"' : '' }}>
-                <span class="field__hint">至少 8 位</span>
+                <span class="field__label">密码（可选）</span>
+                <input class="field__input" id="register-password" type="password" name="password" autocomplete="new-password" minlength="8">
+                <span class="field__hint">留空也可以注册，之后可在「设置 - 账号与安全」里设置密码</span>
                 {% if errors.password is defined %}<span class="field__error">{{ errors.password }}</span>{% endif %}
             </label>
 
             <label class="field{{ errors.password_confirm is defined ? ' field--error' : '' }}" for="register-password-confirm">
                 <span class="field__label">确认密码</span>
-                <input class="field__input" id="register-password-confirm" type="password" name="password_confirm" autocomplete="new-password" required{{ errors.password_confirm is defined ? ' aria-invalid="true"' : '' }}>
+                <input class="field__input" id="register-password-confirm" type="password" name="password_confirm" autocomplete="new-password">
                 {% if errors.password_confirm is defined %}<span class="field__error">{{ errors.password_confirm }}</span>{% endif %}
             </label>
 
-            <button class="filled-btn filled-btn--block" type="submit" {{ not registrationOpen ? 'disabled' : '' }}>注册</button>
+            <button class="filled-btn filled-btn--block" type="submit">创建账号</button>
         </form>
+
+        <form method="post" action="/register" class="auth-form auth-form--inline">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <input type="hidden" name="email" value="{{ values.email }}">
+            <input type="hidden" name="nickname" value="{{ values.nickname }}">
+            <input type="hidden" name="invite" value="{{ values.invite|default('') }}">
+            <button class="text-btn" type="submit">重新发送验证码</button>
+            <a class="text-btn" href="/register">换个邮箱</a>
+        </form>
+        {% endif %}
 
         <p class="auth-card__foot">已有账号？<a href="/login">直接登录</a></p>
     </section>

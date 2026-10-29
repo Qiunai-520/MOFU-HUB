@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mofu\Modules\Stream;
 
 use Mofu\Core\Http\Ctx;
+use Mofu\Core\Database\Query;
 use Mofu\Core\Security\Guard;
 use Mofu\Modules\Messages\MessageService;
 use Mofu\Modules\Notifications\NotificationService;
@@ -30,6 +31,7 @@ final class StreamController
     public function __construct(
         private readonly NotificationService $notifications,
         private readonly MessageService $messages,
+        private readonly Query $query,
     ) {
     }
 
@@ -76,6 +78,12 @@ final class StreamController
         $lastHeartbeat = time();
         $lastN = $notifications;
         $lastM = $messages;
+        $lastMessageId = $this->messages->maxVisibleMessageId($userId);
+        $lastPostId = (int) $this->query->value(
+            "SELECT COALESCE(MAX(id), 0) FROM posts
+             WHERE status = 'published' AND visibility = 'public'
+               AND community_id IS NULL AND deleted_at IS NULL",
+        );
 
         while ((time() - $started) < self::MAX_SECONDS) {
             usleep(self::POLL_SECONDS * 1_000_000);
@@ -86,6 +94,33 @@ final class StreamController
 
             $n = $this->notifications->unreadCount($userId);
             $m = $this->messages->unreadCount($userId);
+
+            // 私信正文：增量推送（客户端据此直接追加气泡，无需再等轮询）
+            $incoming = $this->messages->incomingSince($userId, $lastMessageId);
+
+            if ($incoming !== []) {
+                $lastMessageId = max(array_map(static fn (array $row): int => (int) $row['id'], $incoming));
+                echo self::messageEvent($incoming);
+                flush();
+                $lastHeartbeat = time();
+            }
+
+            // 全站新动态：只推 id，客户端按需拉取完整卡片，避免长连接携带大 JSON。
+            $newPosts = $this->query->all(
+                "SELECT id FROM posts
+                 WHERE id > :last_id AND status = 'published' AND visibility = 'public'
+                   AND community_id IS NULL AND deleted_at IS NULL
+                 ORDER BY id ASC LIMIT 8",
+                ['last_id' => $lastPostId],
+            );
+
+            if ($newPosts !== []) {
+                $ids = array_map(static fn (array $row): int => (int) $row['id'], $newPosts);
+                $lastPostId = max($ids);
+                echo self::postEvent($ids);
+                flush();
+                $lastHeartbeat = time();
+            }
 
             if ($n !== $lastN || $m !== $lastM) {
                 echo self::snapshot($n, $m);
@@ -113,5 +148,19 @@ final class StreamController
     {
         return "event: unread\n"
             . 'data: ' . json_encode(['notifications' => $notifications, 'messages' => $messages]) . "\n\n";
+    }
+
+    /** @param list<array<string, mixed>> $messages */
+    private static function messageEvent(array $messages): string
+    {
+        return "event: dm\n"
+            . 'data: ' . json_encode(['messages' => $messages]) . "\n\n";
+    }
+
+    /** @param list<int> $ids */
+    private static function postEvent(array $ids): string
+    {
+        return "event: post\n"
+            . 'data: ' . json_encode(['ids' => $ids]) . "\n\n";
     }
 }

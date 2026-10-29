@@ -94,9 +94,11 @@ final class ErrorHandler
                     'code' => 'http_' . $status,
                     'message' => $message,
                 ],
-            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
 
-            $response->getBody()->write((string) $payload);
+            $response->getBody()->write($payload === false
+                ? '{"ok":false,"error":{"code":"http_500","message":"服务器开小差了，请稍后再试"}}'
+                : $payload);
 
             return $response->withHeader('Content-Type', 'application/json; charset=utf-8');
         }

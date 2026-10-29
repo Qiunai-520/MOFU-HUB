@@ -40,8 +40,21 @@ final class HttpFlowTest extends TestCase
         $query = new Query($pdo);
 
         foreach (self::$createdUsernames as $username) {
+            // 测试用户可能创建过圈子；communities.owner_id 现为 ON DELETE RESTRICT
+            $userId = $query->value('SELECT id FROM users WHERE username = :username', ['username' => $username]);
+
+            if ($userId !== null) {
+                $query->run('DELETE FROM communities WHERE owner_id = :id', ['id' => (int) $userId]);
+            }
+
             $query->delete('users', 'username = :username', ['username' => $username]);
         }
+
+        $query->run(
+            "DELETE FROM topics
+             WHERE (name = '测试话题' OR name LIKE '检索话题%')
+               AND NOT EXISTS (SELECT 1 FROM post_topics pt WHERE pt.topic_id = topics.id)",
+        );
     }
 
     public function testHomePageRendersShell(): void
@@ -52,7 +65,24 @@ final class HttpFlowTest extends TestCase
         $html = (string) $response->getBody();
         self::assertStringContainsString('MOFU', $html);
         self::assertStringContainsString('id="swup"', $html);
-        self::assertStringContainsString('m3e-theme', $html);
+        self::assertStringContainsString('data-appearance="auto"', $html);
+        self::assertStringContainsString('class="app-shell"', $html);
+
+        // 信息流：触底自动加载（哨兵 + 分页数据），不再有「加载更多」按钮
+        self::assertStringContainsString('data-feed-sentinel', $html);
+        self::assertStringContainsString('data-next-page', $html);
+        self::assertStringNotContainsString('data-action="load-more"', $html);
+
+        // 桌面底栏隐藏重复的「板块」项，侧栏必须保留该一级入口。
+        self::assertStringContainsString('side-nav__item" href="/boards"', $html);
+    }
+
+    public function testSecondaryPagesHaveNoFixedBackLink(): void
+    {
+        $response = $this->get('/boards');
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringNotContainsString('返回主页', (string) $response->getBody());
     }
 
     public function testLoginPageContainsCsrfField(): void
@@ -88,6 +118,34 @@ final class HttpFlowTest extends TestCase
         self::assertSame(404, $response->getStatusCode());
     }
 
+    public function testKonbiniSceneRouteAndHomeBanner(): void
+    {
+        $home = $this->get('/');
+        $homeHtml = (string) $home->getBody();
+
+        self::assertSame(200, $home->getStatusCode());
+        self::assertStringContainsString('href="/konbini"', $homeHtml);
+        self::assertStringContainsString('/images/konbini-banner.svg', $homeHtml);
+        self::assertStringContainsString('banner__scene-cta', $homeHtml);
+        self::assertStringNotContainsString('bottom-nav__item--compose', $homeHtml);
+
+        $scene = $this->get('/konbini');
+        $sceneHtml = (string) $scene->getBody();
+
+        self::assertSame(200, $scene->getStatusCode());
+        self::assertStringContainsString('data-konbini-canvas', $sceneHtml);
+        self::assertStringContainsString('data-konbini-lights', $sceneHtml);
+        self::assertStringContainsString('data-page="konbini"', $sceneHtml);
+    }
+
+    public function testRecommendFeedSurvivesDatabaseClockSkew(): void
+    {
+        $response = $this->get('/?tab=recommend');
+
+        self::assertSame(200, $response->getStatusCode(), (string) $response->getBody());
+        self::assertStringContainsString('推荐', (string) $response->getBody());
+    }
+
     public function testFullUserJourney(): void
     {
         $username = 'test_' . bin2hex(random_bytes(4));
@@ -102,20 +160,31 @@ final class HttpFlowTest extends TestCase
         self::assertNotNull($cookie, '注册页应下发会话 cookie');
         self::assertNotNull($csrf, '注册页应包含 CSRF token');
 
-        // 2. 注册（成功后自动登录，会话被轮换）
-        $register = $this->send('POST', '/register', [
-            'form' => [
-                'username' => $username,
-                'email' => $email,
-                'nickname' => '测试同学',
-                'password' => $password,
-                'password_confirm' => $password,
-                '_csrf' => $csrf,
-            ],
+        // 2. 邮箱注册：发送验证码 → 校验创建账号（成功后自动登录，会话被轮换）
+        $sent = $this->send('POST', '/register', [
+            'form' => ['email' => $email, 'nickname' => '测试同学', '_csrf' => $csrf],
+            'cookie' => $cookie,
+        ]);
+        self::assertSame(200, $sent->getStatusCode(), (string) $sent->getBody());
+
+        $code = $this->mailCode($email);
+        self::assertNotNull($code, '未找到注册验证码');
+
+        $register = $this->send('POST', '/register/verify', [
+            'form' => ['email' => $email, 'nickname' => '测试同学', 'code' => $code, '_csrf' => (string) $this->csrfToken((string) $sent->getBody())],
             'cookie' => $cookie,
         ]);
         self::assertSame(302, $register->getStatusCode(), '注册应重定向');
         $cookie = $this->sessionCookie($register) ?? $cookie;
+
+        // 邮箱注册不设密码，这里直接写入已知密码（等价于在设置页设置）
+        (new Query($this->pdo()))->run(
+            'UPDATE users SET password_hash = :hash, password_set = 1 WHERE username = :username',
+            ['hash' => password_hash($password, PASSWORD_DEFAULT), 'username' => $username],
+        );
+
+        // 评论有等级门槛：测试用户默认提升为正式会员（Lv.2）
+        \Mofu\Tests\Support\MemberFixture::promoteByUsername(new Query($this->pdo()), $username);
 
         // 3. 打开发布页（轮换后的会话 → 新 CSRF token）
         $compose = $this->get('/compose', 'text/html', $cookie);
@@ -188,19 +257,30 @@ final class HttpFlowTest extends TestCase
         self::assertNotNull($cookie);
         self::assertNotNull($csrf);
 
-        $register = $this->send('POST', '/register', [
-            'form' => [
-                'username' => $username,
-                'email' => $username . '@example.com',
-                'nickname' => '幂等测试',
-                'password' => 'Passw0rd!123',
-                'password_confirm' => 'Passw0rd!123',
-                '_csrf' => $csrf,
-            ],
+        $email = $username . '@example.com';
+        $sent = $this->send('POST', '/register', [
+            'form' => ['email' => $email, 'nickname' => '幂等测试', '_csrf' => $csrf],
+            'cookie' => $cookie,
+        ]);
+        self::assertSame(200, $sent->getStatusCode(), (string) $sent->getBody());
+
+        $code = $this->mailCode($email);
+        self::assertNotNull($code, '未找到注册验证码');
+
+        $register = $this->send('POST', '/register/verify', [
+            'form' => ['email' => $email, 'nickname' => '幂等测试', 'code' => $code, '_csrf' => (string) $this->csrfToken((string) $sent->getBody())],
             'cookie' => $cookie,
         ]);
         self::assertSame(302, $register->getStatusCode());
         $cookie = $this->sessionCookie($register) ?? $cookie;
+
+        (new Query($this->pdo()))->run(
+            'UPDATE users SET password_hash = :hash, password_set = 1 WHERE username = :username',
+            ['hash' => password_hash('Passw0rd!123', PASSWORD_DEFAULT), 'username' => $username],
+        );
+
+        // 评论有等级门槛：测试用户默认提升为正式会员（Lv.2）
+        \Mofu\Tests\Support\MemberFixture::promoteByUsername(new Query($this->pdo()), $username);
 
         $home = $this->get('/', 'text/html', $cookie);
         $csrf = $this->csrfToken((string) $home->getBody());
@@ -292,7 +372,7 @@ final class HttpFlowTest extends TestCase
         $query = new Query($this->pdo());
         $roleId = (int) $query->value("SELECT id FROM roles WHERE slug = 'super_admin'");
         self::assertGreaterThan(0, $roleId);
-        $query->insert('user_roles', [
+        $query->run('INSERT IGNORE INTO user_roles (user_id, role_id, assigned_at) VALUES (:user_id, :role_id, :assigned_at)', [
             'user_id' => (int) $query->value('SELECT id FROM users WHERE username = :u', ['u' => $other]),
             'role_id' => $roleId,
             'assigned_at' => date('Y-m-d H:i:s'),
@@ -324,20 +404,31 @@ final class HttpFlowTest extends TestCase
         self::assertNotNull($cookie);
         self::assertNotNull($csrf);
 
-        $register = $this->send('POST', '/register', [
-            'form' => [
-                'username' => $username,
-                'email' => $username . '@example.com',
-                'nickname' => '私密测试',
-                'password' => 'Passw0rd!123',
-                'password_confirm' => 'Passw0rd!123',
-                '_csrf' => $csrf,
-            ],
+        $email = $username . '@example.com';
+        $sent = $this->send('POST', '/register', [
+            'form' => ['email' => $email, 'nickname' => '私密测试', '_csrf' => $csrf],
+            'cookie' => $cookie,
+        ]);
+        self::assertSame(200, $sent->getStatusCode(), (string) $sent->getBody());
+
+        $code = $this->mailCode($email);
+        self::assertNotNull($code, '未找到注册验证码');
+
+        $register = $this->send('POST', '/register/verify', [
+            'form' => ['email' => $email, 'nickname' => '私密测试', 'code' => $code, '_csrf' => (string) $this->csrfToken((string) $sent->getBody())],
             'cookie' => $cookie,
         ]);
         self::assertSame(302, $register->getStatusCode(), (string) $register->getBody());
         $newCookie = $this->sessionCookie($register);
         self::assertNotNull($newCookie);
+
+        (new Query($this->pdo()))->run(
+            'UPDATE users SET password_hash = :hash, password_set = 1 WHERE username = :username',
+            ['hash' => password_hash('Passw0rd!123', PASSWORD_DEFAULT), 'username' => $username],
+        );
+
+        // 评论有等级门槛：测试用户默认提升为正式会员（Lv.2）
+        \Mofu\Tests\Support\MemberFixture::promoteByUsername(new Query($this->pdo()), $username);
 
         $home = $this->get('/', 'text/html', $newCookie);
         $newCsrf = $this->csrfToken((string) $home->getBody());
@@ -426,4 +517,24 @@ final class HttpFlowTest extends TestCase
 
         return null;
     }
+
+    /** 从邮件日志中取该邮箱最近一次验证码 */
+    private function mailCode(string $email): ?string
+    {
+        $log = dirname(__DIR__, 2) . '/storage/logs/mail.log';
+
+        if (!is_file($log)) {
+            return null;
+        }
+
+        $content = (string) file_get_contents($log);
+        $pattern = '/to=' . preg_quote($email, '/') . ' subject=.*?验证码是：?(\\d{6})/s';
+
+        if (preg_match_all($pattern, $content, $matches) === 0 || $matches[1] === []) {
+            return null;
+        }
+
+        return (string) end($matches[1]);
+    }
+
 }

@@ -20,13 +20,14 @@
         {% endif %}
     </header>
 
-    <nav class="feed-tabs" aria-label="活动时间筛选">
+    <nav class="feed-tabs" aria-label="活动时间筛选" data-swup-persist="events-tabs">
         <a class="feed-tab{{ tab == 'upcoming' ? ' is-active' : '' }}"{{ tab == 'upcoming' ? ' aria-current="page"' : '' }} href="/events?tab=upcoming">即将开始</a>
         <a class="feed-tab{{ tab == 'ongoing' ? ' is-active' : '' }}"{{ tab == 'ongoing' ? ' aria-current="page"' : '' }} href="/events?tab=ongoing">进行中</a>
         <a class="feed-tab{{ tab == 'past' ? ' is-active' : '' }}"{{ tab == 'past' ? ' aria-current="page"' : '' }} href="/events?tab=past">已结束</a>
         <a class="feed-tab{{ tab == 'all' ? ' is-active' : '' }}"{{ tab == 'all' ? ' aria-current="page"' : '' }} href="/events?tab=all">全部</a>
     </nav>
 
+    <div class="events-panel" data-tabs-panel>
     <div class="event-grid" data-list="events">
         {% for event in events.items %}
             {{ include('components/event-card.twig', { event: event }) }}
@@ -42,5 +43,6 @@
     </div>
 
     {{ include('components/load-more.twig', { pagination: events, base: baseUrl, target: 'events' }) }}
+    </div>
 </section>
 {% endblock %}

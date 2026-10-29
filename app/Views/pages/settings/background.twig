@@ -55,17 +55,22 @@
         <div class="settings-group">
             <h2 class="settings-group__title">透明度</h2>
             <div class="settings-card">
-                <form method="post" action="/settings/background" class="settings-row">
+                <form method="post" action="/settings/background" class="settings-row" data-auto-save>
                     <input type="hidden" name="_csrf" value="{{ csrfToken }}">
                     <div class="settings-row__text">
                         <span id="background-opacity-label" class="settings-row__label">背景不透明度</span>
                         <span class="settings-row__desc">数值越大背景越清晰</span>
                     </div>
-                    <div class="bg-opacity" data-bg-opacity>
-                        <input type="range" name="background_opacity" min="5" max="100" step="5"
-                               value="{{ prefs.background.opacity }}" data-bg-opacity-input aria-labelledby="background-opacity-label">
-                        <output data-bg-opacity-value>{{ prefs.background.opacity }}%</output>
-                        <button class="filled-btn filled-btn--sm" type="submit">保存</button>
+                    <div class="settings-row__control">
+                        {% set opacityOptions = [100, 80, 60, 40, 20] %}
+                        {% if prefs.background.opacity not in opacityOptions %}
+                        {% set opacityOptions = [prefs.background.opacity]|merge(opacityOptions) %}
+                        {% endif %}
+                        <span class="segmented segmented--radio" role="radiogroup" aria-label="背景不透明度">
+                            {% for value in opacityOptions %}
+                            <label class="segmented__item"><input type="radio" name="background_opacity" value="{{ value }}" {{ prefs.background.opacity == value ? 'checked' : '' }}><span>{{ value }}%</span></label>
+                            {% endfor %}
+                        </span>
                     </div>
                 </form>
             </div>

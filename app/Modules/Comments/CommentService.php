@@ -7,6 +7,7 @@ namespace Mofu\Modules\Comments;
 use Mofu\Core\Database\Query;
 use Mofu\Core\Http\HttpException;
 use Mofu\Core\Support\Text;
+use Mofu\Modules\Growth\LevelGate;
 use Mofu\Modules\Notifications\NotificationService;
 use Mofu\Modules\Posts\PostRepository;
 use Mofu\Modules\Posts\PostService;
@@ -21,6 +22,7 @@ final class CommentService
         private readonly PostRepository $posts,
         private readonly PostService $postService,
         private readonly NotificationService $notifications,
+        private readonly LevelGate $levelGate,
     ) {
     }
 
@@ -32,6 +34,8 @@ final class CommentService
      */
     public function create(int $userId, array $input): array
     {
+        $this->levelGate->require($userId, LevelGate::COMMENT, '发表评论');
+
         $postId = (int) ($input['post_id'] ?? 0);
         $content = trim((string) ($input['content'] ?? ''));
         $parentId = isset($input['parent_id']) ? (int) $input['parent_id'] : null;

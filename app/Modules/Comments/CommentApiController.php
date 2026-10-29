@@ -17,7 +17,19 @@ final class CommentApiController extends ApiController
     public function __construct(
         private readonly CommentService $commentService,
         private readonly RateLimiter $limiter,
+        private readonly TwikooCountService $twikooCounts,
     ) {
+    }
+
+    /** 批量读取 Twikoo 评论数；只接受站内帖子路径。 */
+    public function counts(Request $request, Response $response): Response
+    {
+        $raw = (string) ($request->getQueryParams()['paths'] ?? '');
+        $paths = array_values(array_filter(array_map('trim', explode(',', $raw))));
+        $counts = $this->twikooCounts->counts($paths);
+
+        return $this->ok($response, $counts)
+            ->withHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
     }
 
     /** @param array<string, string> $args */

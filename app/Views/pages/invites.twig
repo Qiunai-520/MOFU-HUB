@@ -1,0 +1,57 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}invites{% endblock %}
+{% block title %}邀请码 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="invites-page">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">邀请码</h1>
+            <p class="page-subtitle">赠予好友，对方注册后可免答题直接成为正式会员</p>
+        </div>
+    </header>
+
+    {% if currentUser %}
+    <div class="card invites-status">
+        <p class="invites-status__line">
+            本月额度 <strong>{{ quota }}</strong> 个 · 剩余 <strong>{{ remaining }}</strong> 个
+            {% if balance is not null %} · 余额 {{ balance }} M币{% endif %}
+            · 单价 {{ price }} M币
+        </p>
+        {% if quota == 0 %}
+        <p class="invites-status__hint">达到 Lv.5 后可购买邀请码（Lv.5 每月 1 个、Lv.6 每月 2 个）；当前 Lv.{{ level }}。</p>
+        {% else %}
+        <button class="filled-btn filled-btn--sm" type="button" data-action="buy-invite"
+                {{ remaining <= 0 ? 'disabled' : '' }}>
+            {{ remaining <= 0 ? '本月额度已用完' : '购买邀请码（' ~ price ~ ' M币）' }}
+        </button>
+        {% endif %}
+    </div>
+
+    <section class="card invites-list">
+        <h2 class="side-card__title">我的邀请码</h2>
+        {% for item in codes %}
+        <div class="invite-row">
+            <code class="invite-row__code">{{ item.code }}</code>
+            {% if item.used %}
+            <span class="tag">已使用{% if item.used_at %} · {{ item.used_at|slice(0, 10) }}{% endif %}</span>
+            {% elseif item.expired %}
+            <span class="tag tag--warn">已过期</span>
+            {% else %}
+            <span class="tag tag--warm">可用至 {{ item.expires_at|slice(0, 10) }}</span>
+            <button class="text-btn text-btn--sm" type="button" data-action="copy-invite" data-code="{{ item.code }}">复制</button>
+            {% endif %}
+        </div>
+        {% else %}
+        <p class="growth-card__sub">还没有邀请码。</p>
+        {% endfor %}
+    </section>
+    {% else %}
+    <div class="card invites-status">
+        <p class="invites-status__line">登录后可查看与购买邀请码。</p>
+        <a class="filled-btn filled-btn--sm" href="/login?redirect=/invites">去登录</a>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,6 +1,16 @@
-{# 头像：有上传头像时渲染图片，否则退回文字头像 #}
-{% if user.avatar_url is defined and user.avatar_url is not empty %}
-<img class="avatar avatar--{{ size|default('md') }}" src="{{ user.avatar_url }}" alt="" loading="lazy" decoding="async">
+{# 头像：有上传头像时渲染图片，否则退回文字头像；可选个人头像框 #}
+{% set avatarSize = size|default('md') %}
+{% set frameClass = user.avatar_frame_class|default('') %}
+{% if frameClass is not empty %}
+<span class="avatar-frame avatar-frame--{{ avatarSize }} {{ frameClass }}">
+    {% if user.avatar_url is defined and user.avatar_url is not empty %}
+    <img class="avatar" src="{{ user.avatar_url }}" alt="" loading="lazy" decoding="async">
+    {% else %}
+    <span class="avatar" style="--avatar-hue: {{ user.hue }}" aria-hidden="true">{{ user.initial }}</span>
+    {% endif %}
+</span>
+{% elseif user.avatar_url is defined and user.avatar_url is not empty %}
+<img class="avatar avatar--{{ avatarSize }}" src="{{ user.avatar_url }}" alt="" loading="lazy" decoding="async">
 {% else %}
-<span class="avatar avatar--{{ size|default('md') }}" style="--avatar-hue: {{ user.hue }}" aria-hidden="true">{{ user.initial }}</span>
+<span class="avatar avatar--{{ avatarSize }}" style="--avatar-hue: {{ user.hue }}" aria-hidden="true">{{ user.initial }}</span>
 {% endif %}

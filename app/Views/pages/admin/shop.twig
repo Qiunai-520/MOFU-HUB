@@ -1,0 +1,193 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}小店管理 · {{ app.name }}{% endblock %}
+
+{% macro product_fields(item) %}
+    <div class="admin-form__grid">
+        <label class="field">
+            <span class="field__label">名称</span>
+            <input class="field__input" type="text" name="name" maxlength="64" required value="{{ item.name|default('') }}">
+        </label>
+        <label class="field">
+            <span class="field__label">类型</span>
+            <select class="field__input" name="type">
+                {% for value, label in types %}
+                <option value="{{ value }}" {{ item is defined and item.type == value ? 'selected' : '' }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="field">
+            <span class="field__label">价格（M币）</span>
+            <input class="field__input" type="number" name="price" min="0" value="{{ item.price|default(0) }}">
+        </label>
+        <label class="field">
+            <span class="field__label">支付方式</span>
+            <select class="field__input" name="pay_mode">
+                <option value="mofu" {{ item is not defined or item.pay_mode|default('mofu') == 'mofu' ? 'selected' : '' }}>M币</option>
+                <option value="cny" {{ item is defined and item.pay_mode|default('mofu') == 'cny' ? 'selected' : '' }}>在线支付（易支付）</option>
+            </select>
+        </label>
+        <label class="field">
+            <span class="field__label">在线支付价格（元）</span>
+            <input class="field__input" type="number" name="cny_price" min="0" step="0.01" value="{{ item.cny_price|default(0) }}">
+        </label>
+        <label class="field">
+            <span class="field__label">发货方式</span>
+            <select class="field__input" name="delivery">
+                <option value="auto" {{ item is not defined or item.delivery|default('auto') == 'auto' ? 'selected' : '' }}>自动发货</option>
+                <option value="manual" {{ item is defined and item.delivery|default('auto') == 'manual' ? 'selected' : '' }}>后台手动发货</option>
+            </select>
+        </label>
+    </div>
+    <label class="field">
+        <span class="field__label">描述</span>
+        <input class="field__input" type="text" name="description" maxlength="255" value="{{ item.description|default('') }}">
+    </label>
+    <div class="admin-form__grid">
+        <label class="field">
+            <span class="field__label">图标</span>
+            <input class="field__input" type="text" name="icon" value="{{ item.icon|default('redeem') }}">
+        </label>
+        <label class="field">
+            <span class="field__label">库存（留空不限）</span>
+            <input class="field__input" type="number" name="stock" min="0" value="{{ item is defined and item.stock is not null ? item.stock : '' }}">
+        </label>
+        <label class="field">
+            <span class="field__label">每人限购（留空不限）</span>
+            <input class="field__input" type="number" name="per_user_limit" min="1" value="{{ item is defined and item.per_user_limit is not null ? item.per_user_limit : '' }}">
+        </label>
+    </div>
+    <div class="admin-form__grid">
+        <label class="field">
+            <span class="field__label">开始时间</span>
+            <input class="field__input" type="datetime-local" name="starts_at" value="{{ item is defined and item.starts_at ? item.starts_at|date('Y-m-d\\TH:i') : '' }}">
+        </label>
+        <label class="field">
+            <span class="field__label">结束时间</span>
+            <input class="field__input" type="datetime-local" name="ends_at" value="{{ item is defined and item.ends_at ? item.ends_at|date('Y-m-d\\TH:i') : '' }}">
+        </label>
+        <label class="field">
+            <span class="field__label">称号 slug（type=称号时）</span>
+            <input class="field__input" type="text" name="title_slug"
+                   value="{{ item.payload is defined and item.payload.title_slug is defined ? item.payload.title_slug : '' }}"
+                   placeholder="例如 stargazer">
+        </label>
+        <label class="field">
+            <span class="field__label">头像框标识（type=头像框时）</span>
+            <input class="field__input" type="text" name="frame_key"
+                   value="{{ item.payload is defined and item.payload.frame is defined ? item.payload.frame : '' }}"
+                   placeholder="mint / gold / sakura / ocean / neon">
+        </label>
+        <label class="field">
+            <span class="field__label">挂件标识（type=徽章时）</span>
+            <input class="field__input" type="text" name="badge_key"
+                   value="{{ item.payload is defined and item.payload.badge is defined ? item.payload.badge : '' }}"
+                   placeholder="moon / spark / sakura / cat / heart / crown / early / mofu">
+        </label>
+    </div>
+{% endmacro %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">MOFU小店管理</h1>
+    <p class="admin-head__hint">商品可用 M币 或在线支付（易支付）结算；在线支付需在 .env 配置 <code>EZFP_PID</code> 与 <code>EZFP_KEY</code>。</p>
+</div>
+
+<div class="admin-stats">
+    <div class="stat-card"><span class="stat-card__label">订单数</span><strong>{{ sales.orders }}</strong></div>
+    <div class="stat-card"><span class="stat-card__label">累计消费</span><strong>{{ sales.revenue }}</strong></div>
+    <div class="stat-card"><span class="stat-card__label">今日订单</span><strong>{{ sales.today_orders }}</strong></div>
+</div>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">新建商品</h2>
+    <form class="admin-form" method="post" action="/admin/shop/products">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <label class="field">
+            <span class="field__label">标识 slug（可选）</span>
+            <input class="field__input" type="text" name="slug" placeholder="例如 frame-silver">
+        </label>
+        {{ _self.product_fields({}) }}
+        <div class="admin-form__grid">
+            <label class="field">
+                <span class="field__label">上架</span>
+                <select class="field__input" name="active">
+                    <option value="0" >否</option>
+                    <option value="1" selected>是</option>
+                </select>
+            </label>
+        </div>
+        <div class="admin-form__actions">
+            <button class="filled-btn filled-btn--sm" type="submit">创建商品</button>
+        </div>
+    </form>
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">商品列表（{{ products|length }}）</h2>
+    {% for item in products %}
+    <details class="admin-row">
+        <summary class="admin-row__summary">
+            <span class="material-symbols-outlined" aria-hidden="true">{{ item.icon }}</span>
+            <span class="admin-row__title">{{ item.name }}</span>
+            <span class="tag">{{ item.type_label }}</span>
+            <span class="tag">{{ item.price }} M币</span>
+            <span class="tag">{{ item.active ? '在售' : '已下架' }}</span>
+            <span class="admin-row__meta">已售 {{ item.sold }} · 库存 {{ item.stock is null ? '不限' : item.stock }}</span>
+        </summary>
+        <form class="admin-form" method="post" action="/admin/shop/products/{{ item.id }}/save">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            {{ _self.product_fields(item) }}
+            <div class="admin-form__grid">
+                <label class="field">
+                <span class="field__label">上架</span>
+                <select class="field__input" name="active">
+                    <option value="0" {{ item.active ? '' : 'selected' }}>否</option>
+                    <option value="1" {{ item.active ? 'selected' : '' }}>是</option>
+                </select>
+            </label>
+            </div>
+            <div class="admin-form__actions">
+                <button class="filled-btn filled-btn--sm" type="submit">保存</button>
+            </div>
+        </form>
+        <form class="inline-form" method="post" action="/admin/shop/products/{{ item.id }}/action">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <input type="hidden" name="action" value="{{ item.active ? 'disable' : 'enable' }}">
+            <button class="text-btn text-btn--sm" type="submit">{{ item.active ? '下架' : '上架' }}</button>
+        </form>
+        <form class="inline-form" method="post" action="/admin/shop/products/{{ item.id }}/action">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <input type="hidden" name="action" value="grant">
+            <input class="field__input field__input--sm" type="number" name="user_id" min="1" placeholder="用户 ID" required>
+            <button class="text-btn text-btn--sm" type="submit">补发</button>
+        </form>
+    </details>
+    {% else %}
+    <p class="admin-empty">还没有商品</p>
+    {% endfor %}
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">最近订单</h2>
+    <div class="table-wrap">
+        <table class="admin-table">
+            <thead><tr><th>订单号</th><th>商品</th><th>用户</th><th>金额</th><th>时间</th></tr></thead>
+            <tbody>
+                {% for o in orders %}
+                <tr>
+                    <td data-label="订单号" class="admin-table__sub">{{ o.order_no }}</td>
+                    <td data-label="商品">{{ o.product_name }}</td>
+                    <td data-label="用户">@{{ o.username }}</td>
+                    <td data-label="金额">{{ o.price }} M币</td>
+                    <td data-label="时间" class="admin-table__sub">{{ o.created_at }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="admin-table__empty">暂无订单</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

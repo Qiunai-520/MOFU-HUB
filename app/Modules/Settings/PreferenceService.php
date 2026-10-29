@@ -89,6 +89,7 @@ final class PreferenceService
         return [
             'dm_policy' => in_array($dmPolicy, self::DM_POLICIES, true) ? $dmPolicy : 'all',
             'connections_visibility' => in_array($visibility, self::CONNECTION_VISIBILITIES, true) ? $visibility : 'public',
+            'read_receipt' => (bool) ($stored['read_receipt'] ?? true),
         ];
     }
 
@@ -99,10 +100,12 @@ final class PreferenceService
     {
         $dmPolicy = (string) ($prefs['dm_policy'] ?? 'all');
         $visibility = (string) ($prefs['connections_visibility'] ?? 'public');
+        $readReceipt = (bool) ($prefs['read_receipt'] ?? true);
 
         $this->write($userId, self::PRIVACY_KEY, [
             'dm_policy' => in_array($dmPolicy, self::DM_POLICIES, true) ? $dmPolicy : 'all',
             'connections_visibility' => in_array($visibility, self::CONNECTION_VISIBILITIES, true) ? $visibility : 'public',
+            'read_receipt' => $readReceipt,
         ]);
     }
 

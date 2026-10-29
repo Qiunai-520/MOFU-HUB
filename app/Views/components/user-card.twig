@@ -4,7 +4,7 @@
         {{ include('components/avatar.twig', { user: user, size: 'md' }) }}
     </a>
     <div class="user-card__info">
-        <a class="user-card__name" href="{{ user.url }}">{{ user.nickname }}</a>
+        <a class="user-card__name" href="{{ user.url }}">{{ user.nickname }}{{ include('components/name-badge.twig', { user: user }) }}</a>
         <span class="user-card__username">@{{ user.username }}</span>
         {% if user.bio is not empty %}<p class="user-card__bio">{{ user.bio }}</p>{% endif %}
     </div>

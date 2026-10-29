@@ -1,34 +1,36 @@
 {% extends 'layouts/app.twig' %}
 
 {% block page_id %}settings{% endblock %}
-{% block title %}个性化主题 · {{ app.name }}{% endblock %}
+{% block title %}外观 · {{ app.name }}{% endblock %}
+
+{% set activeScheme = activeTheme ? (activeTheme.scheme|default('auto')) : 'auto' %}
+{% set schemeLabels = { auto: '跟随系统', light: '浅色', dark: '深色' } %}
 
 {% block content %}
 <section class="settings-layout">
     {{ include('components/settings-nav.twig') }}
 
     <div class="settings-main" data-tabs-panel>
-        <h1 class="page-title">个性化主题</h1>
-        <p class="page-subtitle">选择你的主题色与风格，所有页面将同步生效。</p>
+        <h1 class="page-title">外观</h1>
+        <p class="page-subtitle">选择浅色或深色外观，或让 Mofukey 跟随系统设置。品牌强调色始终保持一致。</p>
 
         <div class="theme-center" data-theme-center
              data-default-theme="{{ defaultTheme|json_encode|e('html_attr') }}"
-             data-active-theme="{{ activeTheme ? activeTheme|json_encode|e('html_attr') : '' }}"
-             data-variants="{{ variants|json_encode|e('html_attr') }}">
+             data-active-theme="{{ activeTheme ? activeTheme|json_encode|e('html_attr') : '' }}">
 
             <div class="settings-group">
                 <h2 class="settings-group__title">预览</h2>
-                <div class="settings-card">
+                <div class="settings-card settings-card--pad">
                     <div class="theme-preview" data-theme-preview>
                         <div class="theme-preview__bar">
-                            <span class="theme-preview__name" data-theme-preview-name>默认主题</span>
+                            <span class="theme-preview__name">当前外观 · <span data-theme-preview-name>我的外观</span></span>
                         </div>
-                        <div class="theme-preview__swatches">
-                            <span class="swatch" style="background: var(--md-sys-color-primary)"></span>
-                            <span class="swatch" style="background: var(--md-sys-color-secondary)"></span>
-                            <span class="swatch" style="background: var(--md-sys-color-tertiary)"></span>
-                            <span class="swatch" style="background: var(--md-sys-color-primary-container)"></span>
-                            <span class="swatch" style="background: var(--md-sys-color-surface-container-highest)"></span>
+                        <div class="theme-preview__swatches" aria-hidden="true">
+                            <span class="swatch" style="background: var(--color-accent)"></span>
+                            <span class="swatch" style="background: var(--color-accent-container)"></span>
+                            <span class="swatch" style="background: var(--color-surface-secondary)"></span>
+                            <span class="swatch" style="background: var(--color-label-primary)"></span>
+                            <span class="swatch" style="background: var(--color-label-secondary)"></span>
                         </div>
                         <div class="theme-preview__sample">
                             <span class="filled-btn filled-btn--sm" role="presentation">主要按钮</span>
@@ -40,121 +42,74 @@
             </div>
 
             <div class="settings-group">
-                <h2 class="settings-group__title">颜色</h2>
+                <h2 class="settings-group__title">外观模式</h2>
                 <div class="settings-card">
-                    <div class="settings-row">
-                        <div class="settings-row__text">
-                            <span class="settings-row__label">主题色</span>
-                            <span class="settings-row__desc">从预设中选择，或自定义颜色</span>
-                        </div>
-                        <div class="theme-presets" data-theme-presets>
-                            <button type="button" class="preset-color" data-color="#775A0D" style="--c: #775A0D" aria-label="品牌棕金"></button>
-                            <button type="button" class="preset-color" data-color="#FF7043" style="--c: #FF7043" aria-label="珊瑚橙"></button>
-                            <button type="button" class="preset-color" data-color="#66BB6A" style="--c: #66BB6A" aria-label="草木绿"></button>
-                            <button type="button" class="preset-color" data-color="#42A5F5" style="--c: #42A5F5" aria-label="晴空蓝"></button>
-                            <button type="button" class="preset-color" data-color="#7E57C2" style="--c: #7E57C2" aria-label="紫罗兰"></button>
-                            <button type="button" class="preset-color" data-color="#EC407A" style="--c: #EC407A" aria-label="玫瑰粉"></button>
-                            <button type="button" class="preset-color" data-color="#26A69A" style="--c: #26A69A" aria-label="青碧"></button>
-                            <button type="button" class="preset-color" data-color="#8D6E63" style="--c: #8D6E63" aria-label="暖棕"></button>
-                        </div>
-                    </div>
-                    <div class="settings-row">
-                        <div class="settings-row__text">
-                            <span class="settings-row__label">自定义颜色</span>
-                        </div>
-                        <label class="theme-custom-color__label">
-                            <input type="color" value="#775A0D" data-theme-color-input>
+                    <div class="appearance-options" role="radiogroup" aria-label="外观模式">
+                        <label class="appearance-option" data-mode="auto">
+                            <input type="radio" name="appearance" value="auto" data-appearance-option
+                                   {{ activeScheme == 'auto' ? 'checked' : '' }}>
+                            <span class="appearance-option__preview" aria-hidden="true"></span>
+                            <span class="appearance-option__label">
+                                <span class="material-symbols-outlined" aria-hidden="true">brightness_auto</span>
+                                跟随系统
+                                <span class="material-symbols-outlined appearance-option__check" aria-hidden="true">check_circle</span>
+                            </span>
+                            <span class="appearance-option__hint">随设备自动切换浅色或深色</span>
                         </label>
-                        <span class="theme-custom-color__value" data-theme-color-value>#775A0D</span>
+
+                        <label class="appearance-option" data-mode="light">
+                            <input type="radio" name="appearance" value="light" data-appearance-option
+                                   {{ activeScheme == 'light' ? 'checked' : '' }}>
+                            <span class="appearance-option__preview" aria-hidden="true"></span>
+                            <span class="appearance-option__label">
+                                <span class="material-symbols-outlined" aria-hidden="true">light_mode</span>
+                                浅色
+                                <span class="material-symbols-outlined appearance-option__check" aria-hidden="true">check_circle</span>
+                            </span>
+                            <span class="appearance-option__hint">明亮、清晰的浅色界面</span>
+                        </label>
+
+                        <label class="appearance-option" data-mode="dark">
+                            <input type="radio" name="appearance" value="dark" data-appearance-option
+                                   {{ activeScheme == 'dark' ? 'checked' : '' }}>
+                            <span class="appearance-option__preview" aria-hidden="true"></span>
+                            <span class="appearance-option__label">
+                                <span class="material-symbols-outlined" aria-hidden="true">dark_mode</span>
+                                深色
+                                <span class="material-symbols-outlined appearance-option__check" aria-hidden="true">check_circle</span>
+                            </span>
+                            <span class="appearance-option__hint">适合弱光环境的深色界面</span>
+                        </label>
                     </div>
+
                     <div class="settings-row">
                         <div class="settings-row__text">
-                            <span class="settings-row__label">从图片提取主题色</span>
-                            <span class="settings-row__desc">选取一张图片，自动提取主色</span>
+                            <span class="settings-row__label">品牌强调色</span>
+                            <span class="settings-row__desc">固定的 Mofukey 黄色，用于主操作与选中状态，不随外观改变</span>
                         </div>
-                        <label class="outlined-btn outlined-btn--sm settings-row__trailing">
-                            <input type="file" accept="image/*" hidden data-theme-wallpaper-input>
-                            <span class="material-symbols-outlined" aria-hidden="true">image_search</span> 选择图片
-                        </label>
+                        <div class="settings-row__control">
+                            <span class="brand-swatch" role="img" aria-label="品牌强调色 #FFCC38"></span>
+                            <code>#FFCC38</code>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="settings-group">
-                <h2 class="settings-group__title">风格</h2>
+                <h2 class="settings-group__title">保存</h2>
                 <div class="settings-card">
                     <div class="settings-row">
                         <div class="settings-row__text">
-                            <span class="settings-row__label">调色板策略</span>
+                            <label class="settings-row__label" for="theme-name-input">外观名称</label>
+                            <span class="settings-row__desc">用于在已保存的外观中识别</span>
                         </div>
-                        <select data-theme-variant aria-label="调色板策略">
-                            <option value="tonalSpot">标准（Tonal Spot）</option>
-                            <option value="vibrant">鲜明（Vibrant）</option>
-                            <option value="expressive">表现力（Expressive）</option>
-                            <option value="content">内容优先（Content）</option>
-                            <option value="fidelity">保真（Fidelity）</option>
-                            <option value="neutral">中性（Neutral）</option>
-                            <option value="monochrome">单色（Monochrome）</option>
-                            <option value="rainbow">彩虹（Rainbow）</option>
-                            <option value="fruitSalad">缤纷（Fruit Salad）</option>
-                        </select>
-                    </div>
-                    <div class="settings-row">
-                        <div class="settings-row__text">
-                            <span class="settings-row__label">明暗模式</span>
-                        </div>
-                        <select data-theme-scheme aria-label="明暗模式">
-                            <option value="auto">跟随系统</option>
-                            <option value="light">浅色</option>
-                            <option value="dark">深色</option>
-                        </select>
-                    </div>
-                    <div class="settings-row">
-                        <div class="settings-row__text">
-                            <span class="settings-row__label">对比度</span>
-                        </div>
-                        <select data-theme-contrast aria-label="对比度">
-                            <option value="standard">标准</option>
-                            <option value="medium">中等</option>
-                            <option value="high">高</option>
-                        </select>
-                    </div>
-                    <div class="settings-row">
-                        <div class="settings-row__text">
-                            <span class="settings-row__label">内容密度</span>
-                        </div>
-                        <select data-theme-density aria-label="内容密度">
-                            <option value="0">标准</option>
-                            <option value="-1">紧凑</option>
-                            <option value="-2">更紧凑</option>
-                            <option value="-3">超紧凑</option>
-                            <option value="1">宽松</option>
-                        </select>
-                    </div>
-                    <div class="settings-row">
-                        <div class="settings-row__text">
-                            <span class="settings-row__label">动效</span>
-                        </div>
-                        <select data-theme-motion aria-label="动效">
-                            <option value="standard">标准</option>
-                            <option value="expressive">表现力</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="settings-group">
-                <h2 class="settings-group__title">我的主题</h2>
-                <div class="settings-card">
-                    <div class="settings-row">
-                        <div class="settings-row__text">
-                            <span id="theme-name-label" class="settings-row__label">主题名称</span>
-                        </div>
-                        <input class="field__input settings-row__input" id="theme-name-input" type="text" maxlength="24" value="我的主题" data-theme-name aria-labelledby="theme-name-label">
+                        <input class="field__input settings-row__input" id="theme-name-input" type="text"
+                               maxlength="24" value="{{ activeTheme and activeTheme.name ? activeTheme.name : '我的外观' }}"
+                               data-theme-name>
                     </div>
                     <div class="theme-actions settings-row">
                         <button class="filled-btn" type="button" data-action="save-theme">保存并应用</button>
-                        <button class="text-btn" type="button" data-action="reset-theme">恢复默认</button>
+                        <button class="text-btn" type="button" data-action="reset-theme">恢复跟随系统</button>
                     </div>
                 </div>
 
@@ -162,8 +117,11 @@
                     <ul class="theme-saved__list" data-theme-saved-list>
                         {% for t in userThemes %}
                         <li class="theme-saved__item{{ t.is_active ? ' is-active' : '' }}" data-theme-id="{{ t.id }}">
-                            <span class="theme-saved__name">{{ t.name }}</span>
-                            <span class="theme-saved__color" style="background: {{ t.source_color }}"></span>
+                            <span class="theme-saved__name">
+                                {{ t.name }}
+                                <span class="settings-row__desc">{{ schemeLabels[t.scheme]|default('跟随系统') }}</span>
+                            </span>
+                            <span class="theme-saved__color" aria-hidden="true"></span>
                             {% if not t.is_active %}
                             <button class="text-btn text-btn--sm" type="button" data-action="activate-theme" data-theme-id="{{ t.id }}">应用</button>
                             {% else %}
@@ -172,7 +130,7 @@
                             <button class="text-btn text-btn--sm text-btn--danger" type="button" data-action="delete-theme" data-theme-id="{{ t.id }}">删除</button>
                         </li>
                         {% else %}
-                        <li class="theme-saved__empty">还没有保存的主题</li>
+                        <li class="theme-saved__empty">还没有保存的外观</li>
                         {% endfor %}
                     </ul>
                 </div>

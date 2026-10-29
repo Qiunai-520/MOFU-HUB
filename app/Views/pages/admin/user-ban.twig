@@ -1,0 +1,84 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}处罚用户 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">处罚用户</h1>
+    <p class="admin-head__hint">
+        @{{ subject.username }} <span class="admin-table__sub">{{ subject.nickname }}</span>
+        <span class="tag">{{ subject.status }}</span>
+    </p>
+</div>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">执行处罚</h2>
+    <form class="admin-form" method="post" action="/admin/users/{{ subject.id }}/moderate" data-confirm="确认执行该处罚操作吗？">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <input type="hidden" name="return" value="{{ returnTo }}">
+        <div class="admin-form__grid">
+            <label class="field">
+                <span class="field__label">操作</span>
+                <select class="field__input" name="action">
+                    {% if can.warn %}<option value="warn">警告</option>{% endif %}
+                    {% if can.temp %}<option value="suspend">临时封禁</option>{% endif %}
+                    {% if can.permanent %}<option value="ban">永久封禁</option>{% endif %}
+                    {% if can.revoke %}<option value="unban">解除处罚</option>{% endif %}
+                </select>
+            </label>
+            <label class="field">
+                <span class="field__label">临时封禁时长（小时）</span>
+                <input class="field__input" type="number" name="hours" min="1" value="168">
+            </label>
+            <label class="field">
+                <span class="field__label">原因</span>
+                <input class="field__input" type="text" name="reason" maxlength="200" placeholder="会展示给用户">
+            </label>
+        </div>
+        <label class="field">
+            <span class="field__label">管理员备注（仅内部可见）</span>
+            <input class="field__input" type="text" name="note" maxlength="500">
+        </label>
+        <div class="admin-form__grid">
+            <label class="field">
+                <span class="field__label">是否公示到小黑屋</span>
+                <select class="field__input" name="is_public">
+                    <option value="1" selected>公示</option>
+                    <option value="0">不公示</option>
+                </select>
+            </label>
+            <label class="field">
+                <span class="field__label">公示说明（可选，留空用原因）</span>
+                <input class="field__input" type="text" name="public_note" maxlength="120">
+            </label>
+        </div>
+        <div class="admin-form__actions">
+            <button class="filled-btn filled-btn--sm" type="submit">执行</button>
+            <a class="text-btn text-btn--sm" href="{{ returnTo }}">返回</a>
+        </div>
+    </form>
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">处罚历史</h2>
+    <div class="table-wrap">
+        <table class="admin-table">
+            <thead><tr><th>类型</th><th>原因</th><th>开始</th><th>结束</th><th>状态</th></tr></thead>
+            <tbody>
+                {% for b in bans %}
+                <tr>
+                    <td data-label="类型">{{ b.type_label }}</td>
+                    <td data-label="原因">{{ b.reason }}</td>
+                    <td data-label="开始" class="admin-table__sub">{{ b.starts_at }}</td>
+                    <td data-label="结束" class="admin-table__sub">{{ b.ends_at is not null ? b.ends_at : '永久' }}</td>
+                    <td data-label="状态">{{ b.active ? '生效中' : '已结束' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="admin-table__empty">暂无处罚记录</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

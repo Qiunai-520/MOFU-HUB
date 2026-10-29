@@ -4,11 +4,14 @@ import { toast, toastError } from '@/core/toast';
 import { $user } from '@/core/store';
 
 const REASONS: Array<[string, string]> = [
-  ['spam', '垃圾广告'],
-  ['harassment', '骚扰辱骂'],
-  ['porn', '色情低俗'],
+  ['spam', '垃圾信息'],
+  ['harassment', '骚扰或辱骂'],
+  ['porn', '色情或不适当内容'],
+  ['violence', '暴力或危险内容'],
+  ['fraud', '欺诈/诈骗'],
+  ['impersonation', '冒充他人'],
+  ['copyright', '侵犯版权'],
   ['illegal', '违法违规'],
-  ['infringement', '侵权内容'],
   ['other', '其他'],
 ];
 

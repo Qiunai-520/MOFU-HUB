@@ -1,0 +1,80 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}shop{% endblock %}
+{% block title %}MOFU小店 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="shop-page">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">MOFU小店</h1>
+            <p class="page-subtitle">
+                用 M币 或在线支付购买道具与权益
+                {% if balance is not null %} · 当前余额 <strong>{{ balance }}</strong> M币{% endif %}
+            </p>
+        </div>
+    </header>
+
+    <div class="shop-grid">
+        {% for p in products %}
+        <article class="product-card{{ p.sold_out or not p.active ? ' is-disabled' : '' }}">
+            <span class="material-symbols-outlined" aria-hidden="true">{{ p.icon }}</span>
+            <strong>{{ p.name }}</strong>
+            <span class="product-card__desc">{{ p.description }}</span>
+            <span class="tag">{{ p.type_label }}</span>
+            <div class="product-card__foot">
+                {% if p.pay_mode == 'cny' %}
+                <span class="product-card__price">¥{{ p.cny_price }}</span>
+                    {% if currentUser %}
+                        {% if paymentReady %}
+                        <button class="filled-btn filled-btn--sm" type="button" data-action="pay-product" data-id="{{ p.id }}"
+                                {{ (not p.active or p.sold_out) ? 'disabled' : '' }}>
+                            {{ p.sold_out ? '已售罄' : '立即购买' }}
+                        </button>
+                        {% else %}
+                        <button class="filled-btn filled-btn--sm" type="button" disabled>支付未配置</button>
+                        {% endif %}
+                    {% else %}
+                    <a class="filled-btn filled-btn--sm" href="/login?redirect=/shop">登录后购买</a>
+                    {% endif %}
+                {% else %}
+                <span class="product-card__price">{{ p.price }} M币</span>
+                    {% if currentUser %}
+                    <button class="filled-btn filled-btn--sm" type="button" data-action="buy-product" data-id="{{ p.id }}"
+                            {{ (not p.active or p.sold_out or not p.affordable) ? 'disabled' : '' }}>
+                        {{ p.sold_out ? '已售罄' : (p.affordable ? '兑换' : 'M币不足') }}
+                    </button>
+                    {% else %}
+                    <a class="filled-btn filled-btn--sm" href="/login?redirect=/shop">登录后兑换</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+            {% if p.my_owned > 0 %}<span class="product-card__owned">已拥有 {{ p.my_owned }}</span>{% endif %}
+            {% if p.my_owned > 0 and (p.type == 'avatar_frame' or p.type == 'badge') %}
+            <a class="text-btn text-btn--sm" href="/settings/decorations">去佩戴</a>
+            {% endif %}
+        </article>
+        {% else %}
+        <div class="empty-state">
+            <span class="material-symbols-outlined empty-state__icon" aria-hidden="true">storefront</span>
+            <p class="empty-state__title">小店暂无上架商品</p>
+            <p class="empty-state__text">管理员可在后台「MOFU小店管理」添加商品</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if inventory|length > 0 %}
+    <section class="card shop-inventory">
+        <h2 class="side-card__title">我的道具</h2>
+        <ul class="shop-inventory__list">
+            {% for item in inventory %}
+            <li class="shop-inventory__item">
+                <span>{{ item.name }}</span>
+                <span class="shop-inventory__qty">×{{ item.quantity }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+</section>
+{% endblock %}

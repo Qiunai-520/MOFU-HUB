@@ -70,33 +70,13 @@
         </footer>
     </article>
 
-    <section class="comments" id="comments" data-confession-comments data-confession-id="{{ item.id }}" data-pages="{{ comments.pages }}">
-        <h2 class="comments__title">回应 <span data-comment-total>{{ comments.total }}</span></h2>
+    <section class="comments" id="comments" data-comment-path="{{ item.url }}">
+        <h2 class="comments__title">回应</h2>
 
-        {% if currentUser %}
-        <form class="comment-form" data-confession-comment-form>
-            <textarea class="field__input comment-form__input" name="content" rows="2" maxlength="1000" placeholder="写一条温暖的回应…" required></textarea>
-            <div class="comment-form__foot">
-                <button class="filled-btn filled-btn--sm" type="submit">回应</button>
-            </div>
-        </form>
-        {% else %}
-        <p class="comments__guest"><a href="/login">登录</a> 后可以回应</p>
-        {% endif %}
+        {# 回应统一由 Twikoo 提供，与帖子评论区一致 #}
+        <div id="twikoo" class="twikoo-mount" data-twikoo hidden></div>
 
-        <div class="comment-list" data-confession-comment-list>
-            {% for comment in comments.items %}
-                {{ include('components/comment.twig', { comment: comment, anonymous: true }) }}
-            {% else %}
-            {{ include('components/empty-state.twig', { compact: true, text: '还没有回应，来说点什么吧' }) }}
-            {% endfor %}
-        </div>
-
-        {% if comments.pages > 1 %}
-        <div class="comments__more">
-            <button class="outlined-btn" type="button" data-action="load-confession-comments" data-next-page="2">加载更多回应</button>
-        </div>
-        {% endif %}
+        <noscript><p class="comments__guest">回应需要启用 JavaScript。</p></noscript>
     </section>
 </div>
 {% endblock %}

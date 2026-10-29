@@ -1,0 +1,96 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}社区实验室 · {{ app.name }}{% endblock %}
+
+{% macro labFields(item, rollouts) %}
+    <div class="admin-form__grid">
+        <label class="field">
+            <span class="field__label">名称</span>
+            <input class="field__input" type="text" name="name" maxlength="64" required value="{{ item.name|default('') }}">
+        </label>
+        <label class="field">
+            <span class="field__label">灰度范围</span>
+            <select class="field__input" name="rollout">
+                {% for value, label in rollouts %}
+                <option value="{{ value }}" {{ item is defined and item.rollout|default('') == value ? 'selected' : '' }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="field">
+            <span class="field__label">排序（小在前）</span>
+            <input class="field__input" type="number" name="sort" value="{{ item.sort|default(0) }}">
+        </label>
+    </div>
+    <label class="field">
+        <span class="field__label">说明</span>
+        <input class="field__input" type="text" name="description" maxlength="255" value="{{ item.description|default('') }}">
+    </label>
+    <div class="admin-form__grid">
+        <label class="field">
+            <span class="field__label">启用</span>
+            <select class="field__input" name="enabled">
+                <option value="1" {{ item is not defined or item.enabled ? 'selected' : '' }}>是</option>
+                <option value="0" {{ item is defined and not item.enabled ? 'selected' : '' }}>否</option>
+            </select>
+        </label>
+    </div>
+{% endmacro %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">社区实验室</h1>
+    <p class="admin-head__hint">控制实验功能的开关与灰度范围（所有用户 / 正式会员 / 硬核会员 / 仅限邀请）；前台入口 <code>/lab</code>。</p>
+</div>
+
+{% if ok %}<div class="form-success" role="status">已保存</div>{% endif %}
+{% if error is not empty %}<div class="form-alert" role="alert">{{ error }}</div>{% endif %}
+
+<section class="admin-card">
+    <h2 class="admin-card__title">新建实验功能</h2>
+    <form class="admin-form" method="post" action="/admin/lab">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <label class="field">
+            <span class="field__label">功能标识（可选，留空自动生成）</span>
+            <input class="field__input" type="text" name="feature_key" placeholder="例如 dark-mode-preview">
+        </label>
+        {{ _self.labFields({}, rollouts) }}
+        <div class="admin-form__actions">
+            <button class="filled-btn filled-btn--sm" type="submit">创建</button>
+        </div>
+    </form>
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">功能列表（{{ features|length }}）</h2>
+    {% for item in features %}
+    <details class="admin-row">
+        <summary class="admin-row__summary">
+            <span class="admin-row__title">{{ item.name }}</span>
+            <span class="admin-row__meta">{{ item.key }}</span>
+            <span class="tag">{{ item.rollout_label }}</span>
+            {% if not item.enabled %}<span class="tag tag--warn">已关闭</span>{% endif %}
+        </summary>
+        <form class="admin-form" method="post" action="/admin/lab/{{ item.id }}/save">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            {{ _self.labFields(item, rollouts) }}
+            <div class="admin-form__actions">
+                <button class="filled-btn filled-btn--sm" type="submit">保存</button>
+            </div>
+        </form>
+        <form class="inline-form" method="post" action="/admin/lab/{{ item.id }}/toggle">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <button class="outlined-btn outlined-btn--sm" type="submit" name="action" value="{{ item.enabled ? 'disable' : 'enable' }}">
+                {{ item.enabled ? '关闭' : '启用' }}
+            </button>
+        </form>
+        <form class="inline-form" method="post" action="/admin/lab/{{ item.id }}/delete" data-confirm="删除后所有用户的开启记录也会移除，确定吗？">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <button class="text-btn text-btn--danger text-btn--sm" type="submit">删除</button>
+        </form>
+    </details>
+    {% else %}
+    <p class="admin-empty">还没有实验功能</p>
+    {% endfor %}
+</section>
+{% endblock %}

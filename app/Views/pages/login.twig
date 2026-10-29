@@ -9,6 +9,10 @@
         <h1 class="auth-card__title">欢迎回来</h1>
         <p class="auth-card__subtitle">登录 {{ app.name }}，继续你的校园之旅</p>
 
+        {% if notice is defined and notice %}
+        <div class="form-success" role="status">{{ notice }}</div>
+        {% endif %}
+
         {% if errors.login is defined %}
         <div class="form-alert" role="alert">{{ errors.login }}</div>
         {% endif %}
@@ -37,6 +41,8 @@
 
             <button class="filled-btn filled-btn--block" type="submit">登录</button>
         </form>
+
+        <p class="auth-card__hint">还没有设置密码？<a href="/password/reset">通过邮箱设置 / 重置密码</a></p>
 
         <p class="auth-card__foot">还没有账号？<a href="/register">立即注册</a></p>
     </section>

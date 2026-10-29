@@ -40,6 +40,13 @@ final class AppealFlowTest extends TestCase
         $query = new Query($pdo);
 
         foreach (self::$createdUsernames as $username) {
+            // 测试用户可能创建过圈子；communities.owner_id 现为 ON DELETE RESTRICT
+            $userId = $query->value('SELECT id FROM users WHERE username = :username', ['username' => $username]);
+
+            if ($userId !== null) {
+                $query->run('DELETE FROM communities WHERE owner_id = :id', ['id' => (int) $userId]);
+            }
+
             $query->delete('users', 'username = :username', ['username' => $username]);
         }
     }
@@ -59,15 +66,17 @@ final class AppealFlowTest extends TestCase
         ]);
         self::assertSame(302, $ban->getStatusCode(), (string) $ban->getBody());
 
-        // 封禁后既有会话立即失效（未登录访问受保护页 → 跳登录）
+        // 封禁后受保护页面不再可用，统一引导到封禁提示页
         $banned = $this->get('/notifications', 'text/html', $cookieU);
         self::assertSame(302, $banned->getStatusCode());
-        self::assertStringContainsString('/login', $banned->getHeaderLine('Location'));
+        self::assertStringContainsString('/banned', $banned->getHeaderLine('Location'));
 
-        // 登录被拒且指引申诉
+        // 仍然允许登录（以便查看处罚信息并申诉），封禁提示页提供申诉入口
         $login = $this->loginAttempt($usernameU, 'Passw0rd!123');
-        self::assertSame(403, $login->getStatusCode());
-        self::assertStringContainsString('提交申诉', (string) $login->getBody());
+        self::assertSame(302, $login->getStatusCode());
+        $banPage = $this->get('/banned', 'text/html', $cookieU);
+        self::assertSame(200, $banPage->getStatusCode());
+        self::assertStringContainsString('提交申诉', (string) $banPage->getBody());
 
         // U 提交申诉（以游客身份，用用户名+密码验证；携带原会话以取得匹配的 CSRF）
         $appealPage = $this->get('/appeal', 'text/html', $cookieU);
@@ -180,8 +189,11 @@ final class AppealFlowTest extends TestCase
             'cookie' => $cookieAdmin,
         ])->getStatusCode());
 
-        // 仍无法登录；凭查看令牌可见未通过与说明，匿名按用户名不可见
-        self::assertSame(403, $this->loginAttempt($usernameW, 'Passw0rd!123')->getStatusCode());
+        // 仍处于封禁状态：登录后受保护页仍被引导到封禁提示页；凭查看令牌可见未通过与说明，匿名按用户名不可见
+        self::assertSame(302, $this->loginAttempt($usernameW, 'Passw0rd!123')->getStatusCode());
+        $stillBanned = $this->get('/notifications', 'text/html', $cookieW);
+        self::assertSame(302, $stillBanned->getStatusCode());
+        self::assertStringContainsString('/banned', $stillBanned->getHeaderLine('Location'));
         $page = $this->get('/appeal', 'text/html', null, ['mofu_appeal' => $appealTokenW]);
         self::assertStringContainsString('未通过', (string) $page->getBody());
         self::assertStringContainsString('维持封禁', (string) $page->getBody());
@@ -222,7 +234,7 @@ final class AppealFlowTest extends TestCase
         $roleId = (int) $query->value("SELECT id FROM roles WHERE slug = 'super_admin'");
         self::assertGreaterThan(0, $roleId);
 
-        $query->insert('user_roles', [
+        $query->run('INSERT IGNORE INTO user_roles (user_id, role_id, assigned_at) VALUES (:user_id, :role_id, :assigned_at)', [
             'user_id' => $userId,
             'role_id' => $roleId,
             'assigned_at' => date('Y-m-d H:i:s'),
@@ -241,14 +253,25 @@ final class AppealFlowTest extends TestCase
         self::assertNotNull($cookie);
         self::assertNotNull($csrf);
 
-        $register = $this->send('POST', '/register', [
+        $email = $username . '@example.com';
+
+        // 邮箱注册第一步：发送验证码（默认 log 邮件驱动，验证码写入 storage/logs/mail.log）
+        $sent = $this->send('POST', '/register', [
+            'form' => ['email' => $email, 'nickname' => '测试' . $prefix, '_csrf' => $csrf],
+            'cookie' => $cookie,
+        ]);
+        self::assertSame(200, $sent->getStatusCode(), (string) $sent->getBody());
+
+        $code = $this->mailCode($email);
+        self::assertNotNull($code, '未找到注册验证码');
+
+        // 第二步：校验验证码并创建账号
+        $register = $this->send('POST', '/register/verify', [
             'form' => [
-                'username' => $username,
-                'email' => $username . '@example.com',
+                'email' => $email,
                 'nickname' => '测试' . $prefix,
-                'password' => 'Passw0rd!123',
-                'password_confirm' => 'Passw0rd!123',
-                '_csrf' => $csrf,
+                'code' => $code,
+                '_csrf' => (string) $this->csrfToken((string) $sent->getBody()),
             ],
             'cookie' => $cookie,
         ]);
@@ -257,11 +280,36 @@ final class AppealFlowTest extends TestCase
         $newCookie = $this->sessionCookie($register);
         self::assertNotNull($newCookie);
 
+        // 邮箱注册不设密码；测试需要密码登录，等价于用户在设置页设置密码
+        (new Query($this->pdo()))->run(
+            'UPDATE users SET password_hash = :hash, password_set = 1 WHERE username = :username',
+            ['hash' => password_hash('Passw0rd!123', PASSWORD_DEFAULT), 'username' => $username],
+        );
+
         $home = $this->get('/', 'text/html', $newCookie);
         $newCsrf = $this->csrfToken((string) $home->getBody());
         self::assertNotNull($newCsrf);
 
         return [$newCookie, $newCsrf, $username];
+    }
+
+    /** 从邮件日志中取该邮箱最近一次验证码 */
+    private function mailCode(string $email): ?string
+    {
+        $log = dirname(__DIR__, 2) . '/storage/logs/mail.log';
+
+        if (!is_file($log)) {
+            return null;
+        }
+
+        $content = (string) file_get_contents($log);
+        $pattern = '/to=' . preg_quote($email, '/') . ' subject=.*?验证码是：?(\\d{6})/s';
+
+        if (preg_match_all($pattern, $content, $matches) === 0 || $matches[1] === []) {
+            return null;
+        }
+
+        return (string) end($matches[1]);
     }
 
     private function loginAttempt(string $login, string $password): ResponseInterface

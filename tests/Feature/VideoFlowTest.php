@@ -91,7 +91,8 @@ final class VideoFlowTest extends HttpTestCase
         self::assertStringContainsString('<video', $detail);
 
         $feed = (string) $this->get('/', 'text/html', $cookieA)->getBody();
-        self::assertStringContainsString('post-media__video', $feed);
+        self::assertStringContainsString('post-preview-media__item--video', $feed);
+        self::assertStringContainsString('post-preview-media', $feed);
     }
 
     private function mp4File(): UploadedFile

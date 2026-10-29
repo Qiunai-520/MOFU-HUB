@@ -36,10 +36,17 @@ final class Json
     /** @param array<string, mixed> $payload */
     private static function write(ResponseInterface $response, array $payload, int $status): ResponseInterface
     {
-        $response->getBody()->write((string) json_encode(
+        $encoded = json_encode(
             $payload,
-            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
-        ));
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE,
+        );
+
+        // json_encode 失败会返回 false，强转成空串会让前端收到空 body；退化为明确的错误 JSON。
+        if ($encoded === false) {
+            $encoded = '{"ok":false,"error":{"code":"json_encode_failed","message":"响应序列化失败"}}';
+        }
+
+        $response->getBody()->write($encoded);
 
         return $response
             ->withHeader('Content-Type', 'application/json; charset=utf-8')

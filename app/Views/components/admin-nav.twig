@@ -1,0 +1,100 @@
+{#
+  后台统一导航：按权限过滤，当前页高亮。
+  分组与条目集中在这里，后台各页面共用（layouts/admin.twig 引入）。
+#}
+{% set adminPerms = currentUser.permissions|default([]) %}
+{% set adminGroups = [
+    { title: '运营', items: [
+        { url: '/admin/dashboard', icon: 'insights', label: '运营概览' },
+        { url: '/admin/banners', icon: 'view_carousel', label: '首页轮播' },
+        { url: '/admin/announcements', icon: 'campaign', label: '公告管理' },
+        { url: '/admin/news', icon: 'newspaper', label: '资讯管理' },
+        { url: '/admin/economy', icon: 'paid', label: '经济系统', perm: 'economy.manage' },
+    ] },
+    { title: '内容', items: [
+        { url: '/admin/posts', icon: 'dynamic_feed', label: '动态管理' },
+        { url: '/admin/comments', icon: 'forum', label: '评论管理' },
+        { url: '/admin/confessions', icon: 'favorite', label: '表白墙审核' },
+        { url: '/admin/reports', icon: 'flag', label: '举报处理' },
+        { url: '/admin/appeals', icon: 'gavel', label: '申诉管理' },
+    ] },
+    { title: '用户与成长', items: [
+        { url: '/admin/users', icon: 'group', label: '用户管理', perm: 'user.manage' },
+        { url: '/admin/growth', icon: 'trending_up', label: '用户成长', perm: 'user.manage' },
+        { url: '/admin/membership', icon: 'workspace_premium', label: '会员与答题', perm: 'user.manage' },
+        { url: '/admin/titles', icon: 'military_tech', label: '称号与成就', perm: 'title.manage' },
+        { url: '/admin/tags', icon: 'sell', label: '标签管理', perm: 'tag.manage' },
+        { url: '/admin/shop', icon: 'storefront', label: 'MOFU小店', perm: 'shop.manage' },
+        { url: '/admin/checkin', icon: 'event_available', label: '签到规则', perm: 'checkin.manage' },
+    ] },
+    { title: '社区', items: [
+        { url: '/admin/circles', icon: 'diversity_3', label: '圈子管理' },
+        { url: '/admin/boards', icon: 'dashboard', label: '板块管理' },
+        { url: '/admin/team', icon: 'badge', label: '团队名单' },
+        { url: '/admin/events', icon: 'event', label: '活动管理' },
+        { url: '/admin/jury', icon: 'gavel', label: '风纪委员会', perm: 'jury.manage' },
+        { url: '/admin/lab', icon: 'science', label: '社区实验室', perm: 'lab.manage' },
+    ] },
+    { title: '系统', items: [
+        { url: '/admin/changelog', icon: 'history', label: '更新日志' },
+        { url: '/admin/system', icon: 'system_update', label: '系统与升级', perm: 'system.manage' },
+    ] },
+] %}
+{% set adminCurrentLabel = '后台菜单' %}
+{% for group in adminGroups %}
+    {% for item in group.items %}
+        {% if currentPath == item.url and (item.perm is not defined or item.perm in adminPerms or (item.perm == 'system.manage' and 'super_admin' in currentUser.roles|default([]))) %}
+            {% set adminCurrentLabel = item.label %}
+        {% endif %}
+    {% endfor %}
+{% endfor %}
+
+<div class="admin-nav-shell" data-admin-nav-shell data-swup-persist="admin-nav">
+<nav class="admin-nav" aria-label="后台导航">
+    {% for group in adminGroups %}
+    <div class="admin-nav__group">
+        <span class="admin-nav__title">{{ group.title }}</span>
+        <div class="admin-nav__items">
+            {% for item in group.items %}
+            {% if item.perm is not defined or item.perm in adminPerms or (item.perm == 'system.manage' and 'super_admin' in currentUser.roles|default([])) %}
+            <a class="admin-nav__item{{ currentPath == item.url ? ' is-active' : '' }}" href="{{ item.url }}"
+               data-admin-label="{{ item.label }}"
+               {% if currentPath == item.url %}aria-current="page"{% endif %}>
+                <span class="material-symbols-outlined" aria-hidden="true">{{ item.icon }}</span>
+                <span>{{ item.label }}</span>
+            </a>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</nav>
+
+<details class="admin-menu">
+    <summary>
+        <span class="admin-menu__icon material-symbols-outlined" aria-hidden="true">menu</span>
+        <span class="admin-menu__label">后台菜单</span>
+        <span class="admin-menu__current">{{ adminCurrentLabel }}</span>
+        <span class="admin-menu__chevron material-symbols-outlined" aria-hidden="true">expand_more</span>
+    </summary>
+    <div class="admin-menu__panel">
+        {% for group in adminGroups %}
+        <section class="admin-menu__group">
+            <h2 class="admin-menu__title">{{ group.title }}</h2>
+            <div class="admin-menu__items">
+                {% for item in group.items %}
+                {% if item.perm is not defined or item.perm in adminPerms or (item.perm == 'system.manage' and 'super_admin' in currentUser.roles|default([])) %}
+                <a class="admin-menu__item{{ currentPath == item.url ? ' is-active' : '' }}" href="{{ item.url }}"
+                   data-admin-label="{{ item.label }}"
+                   {% if currentPath == item.url %}aria-current="page"{% endif %}>
+                    <span class="material-symbols-outlined" aria-hidden="true">{{ item.icon }}</span>
+                    <span>{{ item.label }}</span>
+                </a>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    </div>
+</details>
+</div>

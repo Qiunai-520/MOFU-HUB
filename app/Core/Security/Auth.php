@@ -40,9 +40,8 @@ final class Auth
             return null;
         }
 
-        if (($user['status'] ?? 'active') !== 'active') {
-            throw HttpException::forbidden('该账号当前不可登录');
-        }
+        // 封禁 / 停用的账号仍然允许登录：登录后由 BanMiddleware 引导到封禁提示页与申诉页，
+        // 其余操作在服务端被拦下（不再用「不能登录」这一层隐性限制）。
 
         return $user;
     }

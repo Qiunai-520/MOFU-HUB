@@ -1,0 +1,24 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}payment{% endblock %}
+{% block title %}正在跳转支付 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="payment-redirect">
+    <p class="payment-redirect__hint">
+        <span class="material-symbols-outlined" aria-hidden="true">payments</span>
+        正在跳转到支付页面，若未自动跳转请点击下方按钮。
+    </p>
+
+    <form id="ezfp-form" method="post" action="{{ action }}">
+        {% for name, value in params %}
+        <input type="hidden" name="{{ name }}" value="{{ value }}">
+        {% endfor %}
+        <button class="filled-btn" type="submit">前往支付</button>
+    </form>
+</section>
+
+<script>
+  document.getElementById('ezfp-form').submit();
+</script>
+{% endblock %}

@@ -43,8 +43,23 @@ abstract class HttpTestCase extends TestCase
             $query = new Query(Connection::connect(\Mofu\Bootstrap\Config::fromEnvironment(dirname(__DIR__, 2))));
 
             foreach (self::$createdUsernames as $username) {
+                // 测试用户可能创建过圈子；communities.owner_id 现为 ON DELETE RESTRICT，
+                // 需先删掉其圈子（会级联清理圈内测试动态）再删用户。
+                $userId = $query->value('SELECT id FROM users WHERE username = :username', ['username' => $username]);
+
+                if ($userId !== null) {
+                    $query->run('DELETE FROM communities WHERE owner_id = :id', ['id' => (int) $userId]);
+                }
+
                 $query->delete('users', 'username = :username', ['username' => $username]);
             }
+
+            // 清理测试创建但已不再被任何动态引用的话题，避免热门话题被测试数据污染。
+            $query->run(
+                "DELETE FROM topics
+                 WHERE (name = '测试话题' OR name LIKE '检索话题%')
+                   AND NOT EXISTS (SELECT 1 FROM post_topics pt WHERE pt.topic_id = topics.id)",
+            );
         }
 
         self::$createdUsernames = [];
@@ -88,7 +103,7 @@ abstract class HttpTestCase extends TestCase
         $roleId = (int) $query->value("SELECT id FROM roles WHERE slug = 'super_admin'");
         self::assertGreaterThan(0, $roleId);
 
-        $query->insert('user_roles', [
+        $query->run('INSERT IGNORE INTO user_roles (user_id, role_id, assigned_at) VALUES (:user_id, :role_id, :assigned_at)', [
             'user_id' => $userId,
             'role_id' => $roleId,
             'assigned_at' => date('Y-m-d H:i:s'),
@@ -96,10 +111,12 @@ abstract class HttpTestCase extends TestCase
     }
 
     /** @return array{0: string, 1: string, 2: string} [cookie, csrf, username] */
-    protected function registerUser(string $prefix): array
+    protected function registerUser(string $prefix, string $invite = ''): array
     {
         $username = $prefix . '_' . bin2hex(random_bytes(4));
         self::$createdUsernames[] = $username;
+        $email = $username . '@example.com';
+        $nickname = '测试' . $prefix;
 
         $page = $this->get('/register');
         $cookie = $this->sessionCookie($page);
@@ -107,27 +124,62 @@ abstract class HttpTestCase extends TestCase
         self::assertNotNull($cookie);
         self::assertNotNull($csrf);
 
-        $register = $this->send('POST', '/register', [
+        // 1) 邮箱注册第一步：发送验证码（默认 log 邮件驱动，验证码写入 storage/logs/mail.log）
+        $sent = $this->send('POST', '/register', [
+            'form' => ['email' => $email, 'nickname' => $nickname, 'invite' => $invite, '_csrf' => $csrf],
+            'cookie' => $cookie,
+        ]);
+        self::assertSame(200, $sent->getStatusCode(), (string) $sent->getBody());
+
+        $code = $this->mailCode($email);
+        self::assertNotNull($code, '未找到注册验证码');
+
+        // 2) 校验验证码并创建账号
+        $verify = $this->send('POST', '/register/verify', [
             'form' => [
-                'username' => $username,
-                'email' => $username . '@example.com',
-                'nickname' => '测试' . $prefix,
-                'password' => 'Passw0rd!123',
-                'password_confirm' => 'Passw0rd!123',
-                '_csrf' => $csrf,
+                'email' => $email,
+                'nickname' => $nickname,
+                'code' => $code,
+                'invite' => $invite,
+                '_csrf' => (string) $this->csrfToken((string) $sent->getBody()),
             ],
             'cookie' => $cookie,
         ]);
-        self::assertSame(302, $register->getStatusCode(), (string) $register->getBody());
+        self::assertSame(302, $verify->getStatusCode(), (string) $verify->getBody());
 
-        $newCookie = $this->sessionCookie($register);
+        $newCookie = $this->sessionCookie($verify);
         self::assertNotNull($newCookie);
+
+        // 3) 邮箱注册不设密码；测试里需要密码登录，等价于用户在设置页设置密码
+        $this->query()->run(
+            'UPDATE users SET password_hash = :hash, password_set = 1 WHERE username = :username',
+            ['hash' => password_hash('Passw0rd!123', PASSWORD_DEFAULT), 'username' => $username],
+        );
 
         $home = $this->get('/', 'text/html', $newCookie);
         $newCsrf = $this->csrfToken((string) $home->getBody());
         self::assertNotNull($newCsrf);
 
         return [$newCookie, $newCsrf, $username];
+    }
+
+    /** 从邮件日志中取该邮箱最近一次验证码 */
+    protected function mailCode(string $email): ?string
+    {
+        $log = dirname(__DIR__, 2) . '/storage/logs/mail.log';
+
+        if (!is_file($log)) {
+            return null;
+        }
+
+        $content = (string) file_get_contents($log);
+        $pattern = '/to=' . preg_quote($email, '/') . ' subject=.*?验证码是：?(\d{6})/s';
+
+        if (preg_match_all($pattern, $content, $matches) === 0 || $matches[1] === []) {
+            return null;
+        }
+
+        return (string) end($matches[1]);
     }
 
     protected function send(string $method, string $path, array $options = []): ResponseInterface
@@ -145,9 +197,19 @@ abstract class HttpTestCase extends TestCase
             $request = $request->withCookieParams(['mofu_session' => $options['cookie']]);
         }
 
+        if (isset($options['csrf'])) {
+            $request = $request->withHeader('X-CSRF-Token', (string) $options['csrf']);
+        }
+
         if (isset($options['form'])) {
             $request = $request->withHeader('Content-Type', 'application/x-www-form-urlencoded');
             $request = $request->withParsedBody($options['form']);
+        }
+
+        if (isset($options['json'])) {
+            $request = $request->withHeader('Content-Type', 'application/json');
+            $request->getBody()->write((string) json_encode($options['json']));
+            $request = $request->withParsedBody($options['json']);
         }
 
         self::assertNotNull(self::$app);

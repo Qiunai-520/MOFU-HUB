@@ -33,8 +33,16 @@ final class DbDumper
 
         $tables = 0;
         $rows = 0;
+        $ownsTransaction = false;
 
         try {
+            // InnoDB 一致性快照：避免并发写入时不同表落到不同时间点。
+            if (!$this->pdo->inTransaction()) {
+                $this->pdo->exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+                $this->pdo->beginTransaction();
+                $ownsTransaction = true;
+            }
+
             fwrite($out, "-- MOFU 数据库备份\n-- 生成时间：" . date('Y-m-d H:i:s') . "\n\n");
             fwrite($out, "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS = 0;\n\n");
 
@@ -44,6 +52,16 @@ final class DbDumper
             }
 
             fwrite($out, "SET FOREIGN_KEY_CHECKS = 1;\n");
+
+            if ($ownsTransaction) {
+                $this->pdo->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+
+            throw $e;
         } finally {
             fclose($out);
         }

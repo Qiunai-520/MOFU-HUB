@@ -1,0 +1,67 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}经济系统 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">经济系统</h1>
+    <p class="admin-head__hint">所有余额变化都通过交易服务写入流水，禁止直接改余额。</p>
+</div>
+
+<div class="admin-stats">
+    <div class="stat-card"><span class="stat-card__label">累计发行</span><strong>{{ overview.issued }}</strong></div>
+    <div class="stat-card"><span class="stat-card__label">累计消费</span><strong>{{ overview.spent }}</strong></div>
+    <div class="stat-card"><span class="stat-card__label">当前流通</span><strong>{{ overview.circulating }}</strong></div>
+    <div class="stat-card"><span class="stat-card__label">今日新增</span><strong>{{ overview.today_issued }}</strong></div>
+    <div class="stat-card"><span class="stat-card__label">今日消费</span><strong>{{ overview.today_spent }}</strong></div>
+</div>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">余额 Top 10</h2>
+    <div class="table-wrap">
+        <table class="admin-table">
+            <thead><tr><th>用户</th><th>余额</th></tr></thead>
+            <tbody>
+                {% for row in overview.top %}
+                <tr>
+                    <td data-label="用户"><a href="/admin/growth?user_id={{ row.user_id }}">@{{ row.username }}</a> <span class="admin-table__sub">{{ row.nickname }}</span></td>
+                    <td data-label="余额">{{ row.balance }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="2" class="admin-table__empty">暂无数据</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">交易流水</h2>
+    <form class="admin-search" method="get" action="/admin/economy">
+        <input type="search" name="q" value="{{ keyword }}" placeholder="按用户名 / 说明 / 来源搜索" aria-label="搜索流水">
+        <button class="filled-btn filled-btn--sm" type="submit">搜索</button>
+        {% if keyword is not empty %}<a class="text-btn text-btn--sm" href="/admin/economy">清除</a>{% endif %}
+    </form>
+    <div class="table-wrap">
+        <table class="admin-table">
+            <thead><tr><th>时间</th><th>用户</th><th>类型</th><th>金额</th><th>余额</th><th>说明</th></tr></thead>
+            <tbody>
+                {% for log in logs.items %}
+                <tr>
+                    <td data-label="时间" class="admin-table__sub">{{ log.created_at }}</td>
+                    <td data-label="用户">@{{ log.username }}</td>
+                    <td data-label="类型">{{ log.type }}</td>
+                    <td data-label="金额">{{ log.type == 'spend' ? '-' : '+' }}{{ log.amount }}</td>
+                    <td data-label="余额">{{ log.balance_after }}</td>
+                    <td data-label="说明" class="admin-table__sub">{{ log.description }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="admin-table__empty">暂无流水</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include 'components/pagination.twig' with { pagination: logs, base: keyword is not empty ? '/admin/economy?q=' ~ keyword|url_encode ~ '&' : '/admin/economy?' } %}
+</section>
+{% endblock %}

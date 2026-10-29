@@ -87,6 +87,11 @@ final class MediaService
             $width = (int) $info[0];
             $height = (int) $info[1];
 
+            // 限制总像素，避免高压缩比的图片解码时耗尽内存
+            if ($width <= 0 || $height <= 0 || $width * $height > 50_000_000) {
+                throw HttpException::badRequest('图片尺寸过大');
+            }
+
             $relDir = date('Y/m');
             $absDir = rtrim($this->uploadsPath, '/') . '/' . $relDir;
 

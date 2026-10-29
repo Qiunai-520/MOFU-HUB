@@ -43,18 +43,35 @@ echo "[fe-build] 构建前端资源 ..."
 node node_modules/vite/bin/vite.js build --outDir "$WORKSPACE/public/assets" --emptyOutDir
 
 echo "[fe-build] 构建 Service Worker ..."
+# esbuild：npm 包在部分环境里只有原生二进制（不是 JS shim），此时必须直接执行；
+# 直接用 `node <file>` 会以 “Invalid or unexpected token” 中止整个构建。
+ESBUILD_PATH="node_modules/esbuild/bin/esbuild"
+ESBUILD_NEEDS_NODE=1
+if [ -f "$ESBUILD_PATH" ] && ! head -c 2 "$ESBUILD_PATH" | grep -q '^#!'; then
+    if [ -x "node_modules/@esbuild/linux-arm64/bin/esbuild" ]; then
+        ESBUILD_PATH="node_modules/@esbuild/linux-arm64/bin/esbuild"
+        ESBUILD_NEEDS_NODE=0
+    fi
+fi
+
+esbuild() {
+    if [ "$ESBUILD_NEEDS_NODE" = "1" ]; then
+        node "$ESBUILD_PATH" "$@"
+    else
+        "$ESBUILD_PATH" "$@"
+    fi
+}
+
 SW_VERSION="$(date +%s)"
-node node_modules/esbuild/bin/esbuild "$WORKSPACE/src-client/sw.ts" \
+esbuild "$WORKSPACE/src-client/sw.ts" \
     --bundle --minify --format=iife --target=es2022 \
     --define:__SW_VERSION__="'$SW_VERSION'" \
     --outfile="$WORKSPACE/public/sw.js"
 
-echo "[fe-build] 生成默认主题变量 ..."
-node node_modules/esbuild/bin/esbuild scripts/build-theme.mjs \
-    --bundle --platform=node --format=esm --outfile="$BUILD_DIR/.build-theme.mjs" >/dev/null
-MOFU_ASSETS_OUT="$WORKSPACE/public/assets" node "$BUILD_DIR/.build-theme.mjs"
-
 echo "[fe-build] 刷新开发者文档 ..."
 node "$WORKSPACE/scripts/gen-docs.mjs"
+
+echo "[fe-build] 生成版本号与更新文件 ..."
+node "$WORKSPACE/scripts/gen-version.mjs"
 
 echo "[fe-build] 完成：$WORKSPACE/public/assets"

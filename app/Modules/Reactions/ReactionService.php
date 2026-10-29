@@ -8,6 +8,7 @@ use Mofu\Core\Database\Query;
 use Mofu\Core\Http\HttpException;
 use Mofu\Core\Support\Text;
 use Mofu\Modules\Confessions\ConfessionService;
+use Mofu\Modules\Growth\WalletService;
 use Mofu\Modules\Notifications\NotificationService;
 use Mofu\Modules\Posts\PostRepository;
 use Mofu\Modules\Posts\PostService;
@@ -34,8 +35,11 @@ final class ReactionService
         ],
     ];
 
-    private const TABLES = [
-        'post' => 'posts',
+    /** 收藏里程碑：达到 200 次收藏奖励作者 1 M币（一次性） */
+    private const FAVORITE_MILESTONE = 200;
+    private const FAVORITE_MILESTONE_REWARD = 1.0;
+
+    private const TABLES = [        'post' => 'posts',
         'comment' => 'comments',
         'confession' => 'confessions',
         'confession_comment' => 'confession_comments',
@@ -47,6 +51,7 @@ final class ReactionService
         private readonly PostRepository $posts,
         private readonly PostService $postService,
         private readonly NotificationService $notifications,
+        private readonly WalletService $wallet,
     ) {
     }
 
@@ -126,7 +131,34 @@ final class ReactionService
             $this->notifyLike($userId, $targetType, $targetId, $target);
         }
 
+        // 收藏里程碑：某条动态收藏量首次达到 200，作者得 1 M币（幂等键保证只发一次）
+        if ($created && $kind === 'favorite' && $targetType === 'post' && $result['count'] >= self::FAVORITE_MILESTONE) {
+            $this->rewardFavoriteMilestone((int) ($target['user_id'] ?? 0), $targetId);
+        }
+
         return $result;
+    }
+
+    /** 收藏量达到阈值奖励作者 1 M币 */
+    private function rewardFavoriteMilestone(int $authorId, int $postId): void
+    {
+        if ($authorId <= 0) {
+            return;
+        }
+
+        $this->wallet->credit(
+            $authorId,
+            self::FAVORITE_MILESTONE_REWARD,
+            'achievement',
+            '动态收藏达到 ' . self::FAVORITE_MILESTONE . ' 纪念奖励',
+            'post:' . $postId,
+            'favmile:' . $postId,
+        );
+
+        $this->notifications->push($authorId, null, 'system', 'post', $postId, [
+            'message' => '你的动态收藏量达到 ' . self::FAVORITE_MILESTONE . '，奖励 ' . self::FAVORITE_MILESTONE_REWARD . ' M币',
+            'url' => '/posts/' . $postId,
+        ]);
     }
 
     /** @param array<string, mixed> $target */

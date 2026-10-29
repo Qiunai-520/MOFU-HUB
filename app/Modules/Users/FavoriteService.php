@@ -53,7 +53,7 @@ final class FavoriteService
     private function reactionPosts(int $userId, string $kind, int $limit): array
     {
         return $this->query->all(
-            "SELECT p.*, u.username, pr.nickname, pr.avatar_media_id,
+            "SELECT p.*, u.username, pr.nickname, pr.avatar_frame, pr.name_badge, pr.avatar_media_id,
                     am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
              FROM reactions r
              JOIN posts p ON p.id = r.target_id

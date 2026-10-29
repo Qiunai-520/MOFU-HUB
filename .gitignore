@@ -5,6 +5,7 @@
 /bin/composer.phar
 /.aicode/
 /.phpunit.cache/
+/.runtime/
 
 # --- 运行时数据 ---
 .env
@@ -27,3 +28,14 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+font/QiunaiMedium.ttf
+
+# --- 工作区根目录的临时文件 / 大文件（不入库）---
+/秋奈字体.ttf
+/10.zip
+/music-app.zip
+/mofu-deploy.zip
+/题目.txt
+/维护.html
+/app-download.html
+/mofu-check.php

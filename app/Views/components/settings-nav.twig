@@ -1,19 +1,29 @@
 {#
-  设置页二级导航（5 个设置页共用；当前项由 currentPath 判定，服务端输出 aria-current）
+  设置子页的常驻导航：总览 + 各分组。
+  桌面端为左栏，窄屏为可横向滚动的分段导航；返回入口保留在顶部。
 #}
-{% set settingsNav = [
-    { path: '/settings/profile', label: '个人资料', key: 'settings.nav.profile' },
-    { path: '/settings/security', label: '账号与安全', key: 'settings.nav.security' },
-    { path: '/settings/notifications', label: '通知设置', key: 'settings.nav.notifications' },
-    { path: '/settings/privacy', label: '隐私设置', key: 'settings.nav.privacy' },
-    { path: '/settings/appearance', label: '个性化主题', key: 'settings.nav.appearance' },
-    { path: '/settings/background', label: '背景设置', key: 'settings.nav.background' }
-] %}
-{# data-swup-persist：切页时保留本导航，滑块动画才能连续（6 个设置页导航项一致） #}
-<nav class="settings-nav" aria-label="设置导航" data-swup-persist="settings-nav">
-    {% for item in settingsNav %}
-    {% set active = currentPath == item.path %}
-    <a class="settings-nav__item{{ active ? ' is-active' : '' }}" href="{{ item.path }}"
-       data-nav-item="{{ item.path }}" data-i18n="{{ item.key }}"{% if active %} aria-current="page"{% endif %}>{{ item.label }}</a>
-    {% endfor %}
-</nav>
+<div class="settings-top">
+    <a class="page-back" href="/settings">
+        <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+        <span>设置</span>
+    </a>
+    <nav class="settings-nav" aria-label="设置导航">
+        {% set settingsItems = [
+            { url: '/settings', icon: 'grid_view', label: '总览' },
+            { url: '/settings/profile', icon: 'badge', label: '个人资料' },
+            { url: '/settings/security', icon: 'lock', label: '账号与安全' },
+            { url: '/settings/notifications', icon: 'notifications', label: '通知' },
+            { url: '/settings/privacy', icon: 'visibility', label: '隐私' },
+            { url: '/settings/appearance', icon: 'palette', label: '外观' },
+            { url: '/settings/decorations', icon: 'face_retouching_natural', label: '头像与挂件' },
+            { url: '/settings/background', icon: 'wallpaper', label: '背景' }
+        ] %}
+        {% for item in settingsItems %}
+        <a class="settings-nav__item{{ currentPath == item.url ? ' is-active' : '' }}" href="{{ item.url }}"
+           {% if currentPath == item.url %}aria-current="page"{% endif %}>
+            <span class="material-symbols-outlined" aria-hidden="true">{{ item.icon }}</span>
+            <span>{{ item.label }}</span>
+        </a>
+        {% endfor %}
+    </nav>
+</div>

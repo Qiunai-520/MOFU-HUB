@@ -15,11 +15,12 @@
         </a>
     </header>
 
-    <nav class="feed-tabs" aria-label="我的活动筛选">
+    <nav class="feed-tabs" aria-label="我的活动筛选" data-swup-persist="events-mine-tabs">
         <a class="feed-tab{{ tab == 'joined' ? ' is-active' : '' }}"{{ tab == 'joined' ? ' aria-current="page"' : '' }} href="/events/mine?tab=joined">我报名的</a>
         <a class="feed-tab{{ tab == 'organized' ? ' is-active' : '' }}"{{ tab == 'organized' ? ' aria-current="page"' : '' }} href="/events/mine?tab=organized">我发起的</a>
     </nav>
 
+    <div class="events-panel" data-tabs-panel>
     <div class="event-grid" data-list="events-mine">
         {% for event in events.items %}
             {{ include('components/event-card.twig', { event: event }) }}
@@ -35,5 +36,6 @@
     </div>
 
     {{ include('components/load-more.twig', { pagination: events, base: baseUrl, target: 'events-mine' }) }}
+    </div>
 </section>
 {% endblock %}

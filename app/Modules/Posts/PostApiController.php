@@ -19,9 +19,18 @@ final class PostApiController extends ApiController
         private readonly PostService $postService,
         private readonly PostRepository $posts,
         private readonly FeedService $feed,
+        private readonly PaidPostService $paidPosts,
         private readonly RateLimiter $limiter,
         private readonly AuditLogger $audit,
     ) {
+    }
+
+    /** @param array<string, string> $args */
+    public function purchase(Request $request, Response $response, array $args): Response
+    {
+        $user = $this->requireUser($request);
+
+        return $this->ok($response, $this->paidPosts->purchase((int) $user['id'], (int) ($args['id'] ?? 0)));
     }
 
     public function feed(Request $request, Response $response): Response
@@ -58,9 +67,19 @@ final class PostApiController extends ApiController
             throw HttpException::tooManyRequests('发布太频繁了，休息一会儿再发吧');
         }
 
-        $postId = $this->postService->create((int) $user['id'], $this->input($request));
+        $input = $this->input($request);
+        $postId = $this->postService->create((int) $user['id'], $input);
+        $communityId = (int) ($input['community_id'] ?? 0);
+        $communitySlug = $communityId > 0 ? $this->posts->communitySlug($communityId) : '';
+        $feedUrl = $communitySlug !== ''
+            ? '/circles/' . rawurlencode($communitySlug) . '?published=' . $postId
+            : '/?tab=latest&published=' . $postId;
 
-        return $this->ok($response, ['id' => $postId, 'url' => '/posts/' . $postId], [], 201);
+        return $this->ok($response, [
+            'id' => $postId,
+            'url' => '/posts/' . $postId,
+            'feed_url' => $feedUrl,
+        ], [], 201);
     }
 
     /** @param array<string, string> $args */

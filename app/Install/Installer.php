@@ -122,6 +122,12 @@ final class Installer
             return;
         }
 
+        if ($path === '/install/repair') {
+            $this->handleRepair();
+
+            return;
+        }
+
         header('Location: /install', true, 303);
     }
 
@@ -174,6 +180,15 @@ final class Installer
             'db_name' => $env['DB_DATABASE'] ?? 'mofu',
             'db_user' => $env['DB_USERNAME'] ?? '',
             'db_pass' => $env['DB_PASSWORD'] ?? '',
+            'twikoo_env' => $env['TWIKOO_ENV_ID'] ?? '',
+            'music_url' => $env['MUSIC_APP_URL'] ?? '',
+            'mail_mailer' => ($env['MAIL_MAILER'] ?? 'log') === 'smtp' ? 'smtp' : 'log',
+            'mail_host' => $env['MAIL_HOST'] ?? '',
+            'mail_port' => $env['MAIL_PORT'] ?? '465',
+            'mail_encryption' => $env['MAIL_ENCRYPTION'] ?? 'ssl',
+            'mail_username' => $env['MAIL_USERNAME'] ?? '',
+            'mail_password' => $env['MAIL_PASSWORD'] ?? '',
+            'mail_from' => $env['MAIL_FROM'] ?? '',
             'debug' => ($env['APP_DEBUG'] ?? '') === 'true' ? '1' : '',
         ];
 
@@ -211,6 +226,14 @@ final class Installer
             'db_user' => trim((string) ($_POST['db_user'] ?? '')),
             'db_pass' => (string) ($_POST['db_pass'] ?? ''),
             'twikoo_env' => mb_substr(trim((string) ($_POST['twikoo_env'] ?? '')), 0, 190),
+            'music_url' => mb_substr(trim((string) ($_POST['music_url'] ?? '')), 0, 190),
+            'mail_mailer' => ((string) ($_POST['mail_mailer'] ?? 'log')) === 'smtp' ? 'smtp' : 'log',
+            'mail_host' => trim((string) ($_POST['mail_host'] ?? '')),
+            'mail_port' => trim((string) ($_POST['mail_port'] ?? '465')),
+            'mail_encryption' => (string) ($_POST['mail_encryption'] ?? 'ssl'),
+            'mail_username' => trim((string) ($_POST['mail_username'] ?? '')),
+            'mail_password' => (string) ($_POST['mail_password'] ?? ''),
+            'mail_from' => trim((string) ($_POST['mail_from'] ?? '')),
             'debug' => isset($_POST['debug']) ? '1' : '',
         ];
 
@@ -284,6 +307,15 @@ final class Installer
             return;
         }
 
+        // 密码留空 = 保持现有配置（重跑向导时不要清空数据库/邮箱密码）
+        $existing = $this->currentEnv();
+
+        foreach (['db_pass' => 'DB_PASSWORD', 'mail_password' => 'MAIL_PASSWORD'] as $field => $key) {
+            if ($input[$field] === '' && ($existing[$key] ?? '') !== '') {
+                $input[$field] = (string) $existing[$key];
+            }
+        }
+
         $result = EnvFileWriter::write($this->root, self::envValues($input, $port));
 
         if (!$result['ok']) {
@@ -317,6 +349,8 @@ final class Installer
             'APP_ENV' => ($input['debug'] ?? '') === '1' ? 'local' : 'production',
             'APP_DEBUG' => ($input['debug'] ?? '') === '1' ? 'true' : 'false',
             'APP_URL' => (string) ($input['site_url'] ?? ''),
+            // 应用密钥：验证码哈希等依赖它；向导生成一次，避免退化为可由数据库口令推导的常量
+            'APP_KEY' => bin2hex(random_bytes(32)),
             'DB_HOST' => (string) ($input['db_host'] ?? ''),
             'DB_PORT' => (string) $port,
             'DB_DATABASE' => (string) ($input['db_name'] ?? ''),
@@ -327,11 +361,26 @@ final class Installer
             'VITE_DEV_SERVER' => '',
             'UPLOAD_MAX_MB' => '8',
             'UPLOAD_VIDEO_MAX_MB' => '60',
-            'THEME_DEFAULT_COLOR' => '#775A0D',
-            // Twikoo 评论：环境 ID 留空时前端完全不加载外部脚本，直接用站内评论
+            'THEME_DEFAULT_COLOR' => '#FFCC38',
+            // 音乐播放器（独立部署在 Cloudflare Pages）地址；留空则音乐页显示占位
+            'MUSIC_APP_URL' => (string) ($input['music_url'] ?? ''),
+            // Twikoo 评论：环境 ID 留空时前端完全不加载外部脚本
             'TWIKOO_ENV_ID' => (string) ($input['twikoo_env'] ?? ''),
             'TWIKOO_SCRIPT_URL' => '/vendor/twikoo.all.min.js',
             'TWIKOO_LANG' => 'zh-CN',
+            'TWIKOO_EMOTION_CDN' => '/vendor/emoji-apple.json',
+            // 邮件：log = 写入 storage/logs/mail.log（本地调试）；smtp 需填主机与账号
+            'MAIL_MAILER' => (($input['mail_mailer'] ?? '') === 'smtp') ? 'smtp' : 'log',
+            'MAIL_HOST' => (string) ($input['mail_host'] ?? ''),
+            'MAIL_PORT' => (string) ($input['mail_port'] ?? '465'),
+            'MAIL_ENCRYPTION' => in_array(($input['mail_encryption'] ?? 'ssl'), ['ssl', 'tls', ''], true) ? (string) ($input['mail_encryption'] ?? 'ssl') : 'ssl',
+            'MAIL_USERNAME' => (string) ($input['mail_username'] ?? ''),
+            'MAIL_PASSWORD' => (string) ($input['mail_password'] ?? ''),
+            'MAIL_FROM' => (string) ($input['mail_from'] ?? ''),
+            // 易支付（V1，MD5）；商户密钥只进 .env，不入库/不入代码
+            'EZFP_API' => 'https://www.ezfp.cn/',
+            'EZFP_PID' => (string) ($input['ezfp_pid'] ?? ''),
+            'EZFP_KEY' => (string) ($input['ezfp_key'] ?? ''),
         ];
     }
 
@@ -611,12 +660,22 @@ final class Installer
     private function renderConflict(string $kind, array $tables, ?PDO $pdo = null, string $raw = ''): void
     {
         $registryEmpty = false;
+        $analysis = null;
 
         if ($pdo !== null) {
             try {
                 $registryEmpty = (int) $pdo->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn() === 0;
             } catch (Throwable) {
                 $registryEmpty = false;
+            }
+
+            if ($kind === 'partial') {
+                try {
+                    $migrator = new Migrator(new Query($pdo), $this->root . '/migrations', $this->logger);
+                    $analysis = (new MigrationRepair($pdo))->analyze(array_keys($migrator->available()));
+                } catch (Throwable) {
+                    $analysis = null;
+                }
             }
         }
 
@@ -628,7 +687,89 @@ final class Installer
             'tableCount' => count($tables),
             'registryEmpty' => $registryEmpty,
             'raw' => $raw,
+            'analysis' => $analysis,
         ], 409);
+    }
+
+    /**
+     * 半装库修复：结构检测通过后补写迁移记录、执行剩余迁移并加锁。
+     * 由冲突页上的「检测并补写迁移记录」按钮 POST 触发。
+     */
+    private function handleRepair(): void
+    {
+        ignore_user_abort(true);
+        set_time_limit(0);
+
+        if (($_POST['confirm'] ?? '') !== '1') {
+            $this->render('error', [
+                'title' => '需要确认',
+                'step' => null,
+                'message' => '请先勾选「我已备份数据库」再执行。',
+            ], 422);
+
+            return;
+        }
+
+        try {
+            $config = Config::fromEnvironment($this->root);
+            $pdo = Connection::connect($config);
+        } catch (Throwable $e) {
+            $this->logger->warning('repair connect failed', ['message' => $e->getMessage()]);
+            $this->renderStep2([], ['db' => '数据库连接失败：' . $this->shortError($e)], 422);
+
+            return;
+        }
+
+        $query = new Query($pdo);
+        $migrator = new Migrator($query, $this->root . '/migrations', $this->logger);
+        $analysis = (new MigrationRepair($pdo))->analyze(array_keys($migrator->available()));
+
+        if (!$analysis['consistent'] || $analysis['applied'] === []) {
+            $this->renderConflict(
+                'partial',
+                $this->tableNames($pdo),
+                $pdo,
+                $analysis['reason'] !== '' ? $analysis['reason'] : '库结构与迁移不匹配，无法自动补写记录',
+            );
+
+            return;
+        }
+
+        try {
+            $migrator->ensureRegistry();
+
+            $recorded = array_map('strval', $pdo->query('SELECT version FROM schema_migrations')->fetchAll(PDO::FETCH_COLUMN) ?: []);
+            $insert = $pdo->prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)');
+            $inserted = 0;
+
+            foreach ($analysis['applied'] as $version) {
+                if (!in_array($version, $recorded, true)) {
+                    $insert->execute([$version, date('Y-m-d H:i:s')]);
+                    $inserted++;
+                }
+            }
+
+            $executed = $migrator->migrate();
+
+            (new InstallGate($this->root))->writeLock([
+                'installed_at' => date('c'),
+                'app_name' => (string) $config->get('app.name', ''),
+                'note' => 'repaired by install wizard',
+            ]);
+
+            $this->logger->info('install repaired', [
+                'recorded' => $inserted,
+                'migrated' => implode(',', $executed),
+                'applied_to' => end($analysis['applied']) ?: '',
+            ]);
+        } catch (Throwable $e) {
+            $this->logger->error('install repair failed', ['message' => $e->getMessage()]);
+            $this->renderConflict('partial', $this->tableNames($pdo), $pdo, $this->shortError($e));
+
+            return;
+        }
+
+        header('Location: /install?done=1', true, 303);
     }
 
     private function siteRunning(): bool

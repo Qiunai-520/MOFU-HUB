@@ -8,6 +8,8 @@ use Mofu\Core\Database\Query;
 use Mofu\Core\Http\HttpException;
 use Mofu\Core\Support\Text;
 use Mofu\Core\View\Present;
+use Mofu\Modules\Users\ProfileDecorations;
+use Mofu\Modules\Growth\LevelGate;
 use Mofu\Modules\Settings\PreferenceService;
 use Mofu\Modules\Users\BlockService;
 
@@ -17,12 +19,16 @@ use Mofu\Modules\Users\BlockService;
  */
 final class MessageService
 {
+    /** 可撤回时限（秒） */
+    private const RECALL_WINDOW_SECONDS = 120;
+
     public const MESSAGE_MAX = 1000;
 
     public function __construct(
         private readonly Query $query,
         private readonly BlockService $blocks,
         private readonly PreferenceService $preferences,
+        private readonly LevelGate $levelGate,
     ) {
     }
 
@@ -132,8 +138,10 @@ final class MessageService
      *
      * @return array<string, mixed> 新消息行
      */
-    public function send(int $senderId, int $conversationId, string $content): array
+    public function send(int $senderId, int $conversationId, string $content, ?int $mediaId = null): array
     {
+        $this->levelGate->require($senderId, LevelGate::POST, '发送私信');
+
         $conversation = $this->find($conversationId, $senderId);
 
         if ($conversation === null) {
@@ -149,21 +157,26 @@ final class MessageService
 
         $content = trim($content);
 
-        if ($content === '') {
-            throw HttpException::badRequest('写点内容再发送吧');
+        if ($content === '' && $mediaId === null) {
+            throw HttpException::badRequest('写点内容或选个附件再发送吧');
         }
 
         if (mb_strlen($content) > self::MESSAGE_MAX) {
             throw HttpException::badRequest('单条消息最多 ' . self::MESSAGE_MAX . ' 字');
         }
 
+        if ($mediaId !== null) {
+            $mediaId = $this->assertMediaOwnership($senderId, $mediaId);
+        }
+
         $now = date('Y-m-d H:i:s');
 
-        $messageId = $this->query->transaction(function (Query $q) use ($conversationId, $senderId, $content, $now): int {
+        $messageId = $this->query->transaction(function (Query $q) use ($conversationId, $senderId, $content, $mediaId, $now): int {
             $id = $q->insert('messages', [
                 'conversation_id' => $conversationId,
                 'sender_id' => $senderId,
                 'content' => $content,
+                'media_id' => $mediaId,
                 'created_at' => $now,
             ]);
 
@@ -176,6 +189,34 @@ final class MessageService
         });
 
         return $this->query->one('SELECT * FROM messages WHERE id = :id', ['id' => $messageId]) ?? [];
+    }
+
+    /** 当前用户可见（参与会话）的最大消息 id，供 SSE 增量推送定位起点 */
+    public function maxVisibleMessageId(int $userId): int
+    {
+        return (int) ($this->query->value(
+            'SELECT MAX(m.id) FROM messages m JOIN conversations c ON c.id = m.conversation_id
+             WHERE c.user_a_id = :ua OR c.user_b_id = :ub',
+            ['ua' => $userId, 'ub' => $userId],
+        ) ?? 0);
+    }
+
+    /**
+     * 自 afterId 起「别人发给该用户」的新消息（跨会话），用于 SSE 实时推送。
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function incomingSince(int $userId, int $afterId, int $limit = 20): array
+    {
+        $rows = $this->query->all(
+            'SELECT m.* FROM messages m JOIN conversations c ON c.id = m.conversation_id
+             WHERE m.id > :after AND m.sender_id != :user
+               AND (c.user_a_id = :ua OR c.user_b_id = :ub)
+             ORDER BY m.id ASC LIMIT ' . max(1, min(50, $limit)),
+            ['after' => $afterId, 'user' => $userId, 'ua' => $userId, 'ub' => $userId],
+        );
+
+        return $rows === [] ? [] : $this->presentMessages($rows, $userId);
     }
 
     public function markRead(int $userId, int $conversationId): int
@@ -249,9 +290,13 @@ final class MessageService
      */
     public function listMessages(int $conversationId, int $viewerId, ?int $afterId, ?int $beforeId, int $limit = 30): array
     {
-        if ($this->find($conversationId, $viewerId) === null) {
+        $conversation = $this->find($conversationId, $viewerId);
+
+        if ($conversation === null) {
             throw HttpException::notFound('会话不存在');
         }
+
+        $receipts = $this->receiptsVisible($viewerId, $this->otherUserId($conversation, $viewerId));
 
         $limit = max(1, min($limit, 100));
 
@@ -261,7 +306,7 @@ final class MessageService
                 ['conversation' => $conversationId, 'after' => $afterId],
             );
 
-            return $this->presentMessages($rows, $viewerId);
+            return $this->presentMessages($rows, $viewerId, $receipts);
         }
 
         if ($beforeId !== null && $beforeId > 0) {
@@ -270,7 +315,7 @@ final class MessageService
                 ['conversation' => $conversationId, 'before' => $beforeId],
             );
 
-            return $this->presentMessages(array_reverse($rows), $viewerId);
+            return $this->presentMessages(array_reverse($rows), $viewerId, $receipts);
         }
 
         $rows = $this->query->all(
@@ -310,22 +355,107 @@ final class MessageService
         }, $rows);
     }
 
+    /** 附件只能引用自己上传的媒体 */
+    private function assertMediaOwnership(int $userId, int $mediaId): int
+    {
+        $owned = (int) $this->query->value(
+            'SELECT COUNT(*) FROM media WHERE id = :id AND user_id = :user_id',
+            ['id' => $mediaId, 'user_id' => $userId],
+        );
+
+        if ($owned === 0) {
+            throw HttpException::badRequest('附件不存在或不属于你');
+        }
+
+        return $mediaId;
+    }
+
     /**
      * @param list<array<string, mixed>> $rows
      * @return list<array<string, mixed>>
      */
-    public function presentMessages(array $rows, int $viewerId): array
+    public function presentMessages(array $rows, int $viewerId, bool $receipts = true): array
     {
-        return array_map(static function (array $row) use ($viewerId): array {
+        $mediaIds = [];
+
+        foreach ($rows as $row) {
+            if (($row['media_id'] ?? null) !== null) {
+                $mediaIds[] = (int) $row['media_id'];
+            }
+        }
+
+        $media = [];
+
+        if ($mediaIds !== []) {
+            $placeholders = implode(', ', array_fill(0, count($mediaIds), '?'));
+
+            foreach ($this->query->all(sprintf('SELECT id, kind, disk_path, thumb_path FROM media WHERE id IN (%s)', $placeholders), $mediaIds) as $row) {
+                $disk = ltrim((string) $row['disk_path'], '/');
+                $thumb = (string) ($row['thumb_path'] ?? '');
+                $media[(int) $row['id']] = [
+                    'kind' => (string) $row['kind'],
+                    'url' => '/uploads/' . $disk,
+                    'thumb' => $thumb !== '' ? '/uploads/' . ltrim($thumb, '/') : '/uploads/' . $disk,
+                ];
+            }
+        }
+
+        return array_map(function (array $row) use ($viewerId, $receipts, $media): array {
+            $mediaId = ($row['media_id'] ?? null) !== null ? (int) $row['media_id'] : 0;
+
             return [
                 'id' => (int) $row['id'],
+                'conversation_id' => (int) $row['conversation_id'],
                 'mine' => (int) $row['sender_id'] === $viewerId,
-                'content' => (string) $row['content'],
-                'read' => $row['read_at'] !== null,
+                'content' => $row['deleted_at'] === null ? (string) $row['content'] : '',
+                'media' => $row['deleted_at'] === null ? ($media[$mediaId] ?? null) : null,
+                // 撤回的消息只留一个占位气泡
+                'deleted' => $row['deleted_at'] !== null,
+                // 已读回执：任一方在设置里关闭时不展示
+                'read' => $receipts && $row['read_at'] !== null,
+                'receipts' => $receipts,
                 'time' => self::messageTime((string) $row['created_at']),
                 'created_at' => date('c', strtotime((string) $row['created_at']) ?: time()),
             ];
         }, $rows);
+    }
+
+    /** 撤回自己的消息（2 分钟内），撤回后只留占位气泡 */
+    public function recall(int $userId, int $messageId): void
+    {
+        $row = $this->query->one(
+            'SELECT id, sender_id, created_at, deleted_at FROM messages WHERE id = :id',
+            ['id' => $messageId],
+        );
+
+        if ($row === null) {
+            throw HttpException::notFound('消息不存在');
+        }
+
+        if ((int) $row['sender_id'] !== $userId) {
+            throw HttpException::forbidden('只能撤回自己发送的消息');
+        }
+
+        if ($row['deleted_at'] !== null) {
+            throw HttpException::badRequest('这条消息已经撤回过了');
+        }
+
+        if (time() - (int) strtotime((string) $row['created_at']) > self::RECALL_WINDOW_SECONDS) {
+            throw HttpException::badRequest('超过 ' . (self::RECALL_WINDOW_SECONDS / 60) . ' 分钟的消息不能撤回');
+        }
+
+        $this->query->update(
+            'messages',
+            ['deleted_at' => date('Y-m-d H:i:s')],
+            'id = :id',
+            ['id' => $messageId],
+        );
+    }
+
+    /** 双方都开启已读回执时才展示「已读」 */    public function receiptsVisible(int $viewerId, int $otherId): bool
+    {
+        return (bool) ($this->preferences->privacyPrefs($viewerId)['read_receipt'] ?? true)
+            && (bool) ($this->preferences->privacyPrefs($otherId)['read_receipt'] ?? true);
     }
 
     /**
@@ -377,7 +507,7 @@ final class MessageService
 
         $rows = $this->query->all(
             sprintf(
-                'SELECT u.id, u.username, p.nickname, p.bio,
+                'SELECT u.id, u.username, p.nickname, p.avatar_frame, p.name_badge, p.bio,
                         am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
                  FROM users u
                  LEFT JOIN user_profiles p ON p.user_id = u.id
@@ -403,6 +533,7 @@ final class MessageService
                     isset($row['avatar_thumb']) ? (string) $row['avatar_thumb'] : null,
                     isset($row['avatar_path']) ? (string) $row['avatar_path'] : null,
                 ),
+                ...ProfileDecorations::present($row),
             ];
         }
 

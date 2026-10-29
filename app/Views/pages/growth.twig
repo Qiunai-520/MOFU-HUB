@@ -1,0 +1,194 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}growth{% endblock %}
+{% block title %}成长中心 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<div class="growth-page" data-growth
+     data-level='{{ profile.level|json_encode|raw }}'
+     data-checkin='{{ profile.checkin|json_encode|raw }}'>
+
+    <header class="growth-hero">
+        <div class="growth-hero__id">
+            <span class="growth-hero__label">当前等级</span>
+            <strong class="growth-hero__level">{{ profile.level.level_name }}</strong>
+            <span class="growth-hero__xp">{{ profile.level.xp }} XP{% if profile.level.next_level_xp %} · 距下一级还需 {{ profile.level.remaining_xp }}{% endif %}</span>
+            <div class="level-bar" role="progressbar" aria-valuenow="{{ profile.level.progress }}" aria-valuemin="0" aria-valuemax="100">
+                <span class="level-bar__fill" style="width: {{ profile.level.progress }}%"></span>
+            </div>
+        </div>
+        <div class="growth-hero__wallet">
+            <span class="growth-hero__label">M币 余额</span>
+            <strong data-wallet-balance>{{ profile.wallet.balance }}</strong>
+            <span class="growth-hero__xp">累计获得 {{ profile.wallet.total_earned }} · 累计消费 {{ profile.wallet.total_spent }}</span>
+        </div>
+    </header>
+
+    <nav class="growth-tabs" role="tablist" data-growth-tabs>
+        <button class="growth-tab is-active" type="button" role="tab" data-tab="checkin">签到</button>
+        <button class="growth-tab" type="button" role="tab" data-tab="titles">称号</button>
+        <button class="growth-tab" type="button" role="tab" data-tab="achievements">成就</button>
+        <button class="growth-tab" type="button" role="tab" data-tab="membership">会员</button>
+    </nav>
+
+    {# ---------------- 签到 ---------------- #}
+    <section class="growth-panel is-active" data-panel="checkin">
+        <div class="growth-card growth-card--checkin">
+            <div class="checkin-head">
+                <div>
+                    <p class="growth-card__title">每日签到</p>
+                    <p class="growth-card__sub">
+                        连续 <strong data-checkin-streak>{{ profile.checkin.streak }}</strong> 天 ·
+                        历史最长 <strong data-checkin-best>{{ profile.checkin.best }}</strong> 天 ·
+                        累计 <strong data-checkin-total>{{ profile.checkin.total }}</strong> 天
+                    </p>
+                </div>
+                <button class="filled-btn" type="button" data-action="checkin"
+                        {{ profile.checkin.checked_today ? 'disabled' : '' }}>
+                    {{ profile.checkin.checked_today ? '今日已签到' : '立即签到' }}
+                </button>
+            </div>
+            <p class="growth-card__sub">下次奖励：<span data-checkin-next>{{ profile.checkin.next_reward.mofu }} M币 · {{ profile.checkin.next_reward.xp }} XP</span></p>
+            <div class="checkin-calendar" data-checkin-calendar></div>
+            <ol class="checkin-rewards">
+                {% for r in profile.checkin.rewards %}
+                <li class="checkin-reward{{ profile.checkin.streak >= r.day ? ' is-reached' : '' }}">
+                    <span class="checkin-reward__day">第 {{ r.day }} 天</span>
+                    <span class="checkin-reward__val">{{ r.reward_mofu }} M币</span>
+                    {% if r.title_id %}<span class="tag tag--warm">称号</span>{% endif %}
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+    </section>
+
+    {# ---------------- 称号：只展示自己已获得的，可佩戴 / 取消佩戴 ---------------- #}
+    <section class="growth-panel" data-panel="titles">
+        {% set ownedTitles = profile.titles.titles|filter(t => t.owned) %}
+        <div class="title-grid">
+            {% for t in ownedTitles %}
+            <article class="title-chip title-chip--{{ t.rarity }} is-owned{{ t.equipped ? ' is-equipped' : '' }}" data-title-id="{{ t.id }}">
+                <span class="material-symbols-outlined" aria-hidden="true">{{ t.icon }}</span>
+                <div class="title-chip__body">
+                    <strong>{{ t.name }}</strong>
+                    <span class="title-chip__rarity">{{ t.rarity_label }}</span>
+                    <span class="title-chip__cond">{{ t.description }}</span>
+                </div>
+                {% if t.wearable %}
+                <button class="text-btn text-btn--sm" type="button" data-action="equip-title" data-title-id="{{ t.id }}"
+                        data-equipped="{{ t.equipped ? '1' : '0' }}">{{ t.equipped ? '取消佩戴' : '佩戴' }}</button>
+                {% endif %}
+            </article>
+            {% else %}
+            <p class="growth-card__sub">还没有获得称号，达成条件后会自动获得。</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    {# ---------------- 成就 ---------------- #}
+    <section class="growth-panel" data-panel="achievements">
+        <p class="growth-card__sub">已解锁 {{ profile.achievements.unlocked }} / {{ profile.achievements.total }}</p>
+        <div class="achieve-grid">
+            {% for a in profile.achievements.items %}
+            <article class="achieve-card{{ a.unlocked ? ' is-unlocked' : '' }}">
+                <span class="material-symbols-outlined" aria-hidden="true">{{ a.icon }}</span>
+                <div class="achieve-card__body">
+                    <strong>{{ a.name }}</strong>
+                    <span class="achieve-card__desc">{{ a.description }}</span>
+                    <div class="achieve-bar"><span style="width: {{ a.percent }}%"></span></div>
+                    <span class="achieve-card__meta">{{ a.progress }}/{{ a.target }} · 奖励 {{ a.reward_mofu }} M币 / {{ a.reward_xp }} XP</span>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    {# ---------------- 会员（等级 / 每日任务 / 答题） ---------------- #}
+    <section class="growth-panel" data-panel="membership">
+        <div class="growth-card">
+            <p class="growth-card__title">会员等级</p>
+            <p class="growth-card__sub">
+                {{ profile.level.level_name }}
+                {% if profile.level.membership == 'premium' %}<span class="tag tag--warm">大会员</span>{% endif %}
+                {% if not profile.level.is_formal %}<span class="tag tag--warn">待转正</span>{% endif %}
+            </p>
+            <div class="level-bar" role="progressbar" aria-valuenow="{{ profile.level.progress }}" aria-valuemin="0" aria-valuemax="100">
+                <span class="level-bar__fill" style="width: {{ profile.level.progress }}%"></span>
+            </div>
+            <p class="growth-card__sub">
+                {{ profile.level.xp }} XP
+                {% if profile.level.next_level_xp %} · 距 Lv.{{ profile.level.next_level }} 还需 {{ profile.level.remaining_xp }} XP{% else %} · 已满级{% endif %}
+            </p>
+            <ol class="level-track">
+                <li class="level-track__item is-done">Lv.1 正式会员 · 60 XP</li>
+                <li class="level-track__item{{ profile.level.level >= 2 ? ' is-done' : '' }}">Lv.2 · 200 XP</li>
+                <li class="level-track__item{{ profile.level.level >= 3 ? ' is-done' : '' }}">Lv.3 · 1500 XP</li>
+                <li class="level-track__item{{ profile.level.level >= 4 ? ' is-done' : '' }}">Lv.4 · 4500 XP</li>
+                <li class="level-track__item{{ profile.level.level >= 5 ? ' is-done' : '' }}">Lv.5 · 10800 XP</li>
+                <li class="level-track__item{{ profile.level.level >= 6 ? ' is-done' : '' }}">Lv.6 · 28800 XP</li>
+            </ol>
+        </div>
+
+        <div class="growth-card">
+            <p class="growth-card__title">每日任务</p>
+            <p class="growth-card__sub">今日已获得 <strong data-task-earned>{{ profile.tasks.earned_today }}</strong> / {{ profile.tasks.daily_cap }} XP{% if profile.level.is_premium %} · 大会员加速包 +{{ profile.tasks.premium_bonus }} XP（需手动领取）{% endif %}</p>
+            {% if profile.tasks.premium_bonus_available %}
+            <button class="filled-btn filled-btn--sm" type="button" data-action="claim-premium-bonus">领取大会员加速包（+{{ profile.tasks.premium_bonus }} XP）</button>
+            {% endif %}
+            <ul class="task-list" data-task-list>
+                {% for t in profile.tasks.tasks %}
+                <li class="task-row{{ t.done ? ' is-done' : '' }}">
+                    <span class="task-row__label">{{ t.label }}</span>
+                    <span class="task-row__meta">+{{ t.xp }} XP{% if t.unit %} · 今日 {{ t.earned }}/{{ t.cap }}{% endif %}</span>
+                    <span class="task-row__state">{{ t.done ? '已完成' : '可完成' }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            <p class="growth-card__sub">一次性任务：
+                {% for o in profile.tasks.once %}<span class="tag{{ o.done ? ' tag--warm' : '' }}">{{ o.label }} +{{ o.xp }} XP{{ o.done ? '（已完成）' : '' }}</span>{% endfor %}
+            </p>
+        </div>
+
+        <div class="growth-card">
+            <p class="growth-card__title">会员转正答题</p>
+            {% if profile.level.is_formal %}
+            <p class="growth-card__sub">你已经是正式会员。历史最好成绩 {{ profile.quiz.best_score }} 分（共 {{ profile.quiz.attempts }} 次作答）。</p>
+            {% else %}
+            <p class="growth-card__sub">完成 {{ profile.quiz.question_count }} 题测试，{{ profile.quiz.pass_score }} 分及格即可转为正式会员（Lv.1）。题库现有 {{ profile.quiz.questions_available }} 题，每次随机抽取。</p>
+            <div class="quiz-actions">
+                <button class="filled-btn" type="button" data-action="start-quiz">开始答题</button>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if profile.level.is_formal %}
+        <div class="growth-card">
+            <p class="growth-card__title">闪电 Lv.{{ profile.level.max_level }} · 进阶答题</p>
+            {% if profile.level.is_flash %}
+            <p class="growth-card__sub">你已通过进阶答题，等级徽章前已点亮小闪电。历史最好成绩 {{ profile.quiz.flash_best_score }} 分（共 {{ profile.quiz.flash_attempts }} 次作答）。</p>
+            {% elseif profile.level.level < profile.level.max_level %}
+            <p class="growth-card__sub">达到 Lv.{{ profile.level.max_level }}（{{ profile.level.max_xp }} XP）后，即可参加进阶答题点亮闪电。</p>
+            {% else %}
+            <p class="growth-card__sub">完成 {{ profile.quiz.flash_question_count }} 题进阶测试，{{ profile.quiz.flash_pass_score }} 分及格即可获得「闪电 Lv.{{ profile.level.max_level }}」。题库现有 {{ profile.quiz.flash_questions_available }} 题。</p>
+            <div class="quiz-actions">
+                <button class="filled-btn" type="button" data-action="start-quiz" data-tier="2">开始进阶答题</button>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="quiz-stage" data-quiz-stage hidden>
+            <div class="quiz-stage__head">
+                <strong data-quiz-progress>0 / 0</strong>
+                <button class="text-btn text-btn--sm" type="button" data-action="close-quiz">退出</button>
+            </div>
+            <form class="quiz-form" data-quiz-form>
+                <div class="quiz-questions" data-quiz-questions></div>
+                <div class="quiz-stage__foot">
+                    <button class="filled-btn" type="submit">提交答卷</button>
+                </div>
+            </form>
+        </div>
+    </section>
+</div>
+{% endblock %}

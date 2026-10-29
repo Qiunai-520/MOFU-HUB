@@ -20,6 +20,7 @@ final class EnvFileWriter
         'APP_ENV',
         'APP_DEBUG',
         'APP_URL',
+        'APP_KEY',
         'DB_HOST',
         'DB_PORT',
         'DB_DATABASE',
@@ -31,6 +32,18 @@ final class EnvFileWriter
         'UPLOAD_MAX_MB',
         'UPLOAD_VIDEO_MAX_MB',
         'THEME_DEFAULT_COLOR',
+        'MUSIC_APP_URL',
+        'TWIKOO_ENV_ID',
+        'TWIKOO_SCRIPT_URL',
+        'TWIKOO_LANG',
+        'TWIKOO_EMOTION_CDN',
+        'MAIL_MAILER',
+        'MAIL_HOST',
+        'MAIL_PORT',
+        'MAIL_ENCRYPTION',
+        'MAIL_USERNAME',
+        'MAIL_PASSWORD',
+        'MAIL_FROM',
     ];
 
     /**

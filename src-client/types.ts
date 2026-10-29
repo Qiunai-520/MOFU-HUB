@@ -2,6 +2,13 @@ export interface MofuUser {
   id: number;
   username: string;
   nickname: string;
+  email?: string;
+  avatar_url?: string;
+  avatar_frame_class?: string;
+  name_badge_emoji?: string;
+  name_badge_label?: string;
+  name_badge_image?: string;
+  profile_url?: string;
   can_admin: boolean;
 }
 
@@ -31,6 +38,14 @@ export interface PostTopic {
   url: string;
 }
 
+export interface PostTag {
+  id: number;
+  slug: string;
+  name: string;
+  color: string;
+  url: string;
+}
+
 export interface PostAuthor {
   id: number;
   username: string;
@@ -39,6 +54,18 @@ export interface PostAuthor {
   hue: number;
   url: string;
   avatar_url?: string;
+  avatar_frame_class?: string;
+  name_badge_emoji?: string;
+  name_badge_label?: string;
+  name_badge_image?: string;
+  /** 列表/详情通用：转正后的等级与佩戴称号（未转正时 level 为 0、不展示） */
+  level?: number | null;
+  is_formal?: boolean;
+  /** 满级（Lv6）后通过进阶答题的「闪电」标记，展示为等级徽章前的小闪电 */
+  is_flash?: boolean;
+  /** 大会员（membership = premium） */
+  is_premium?: boolean;
+  title?: { name: string; icon: string } | null;
 }
 
 export interface PostRepostQuote {
@@ -61,11 +88,18 @@ export interface PostItem {
   is_pinned: boolean;
   is_owner: boolean;
   can_edit: boolean;
+  /** 转发帖不能编辑但可删除（作者/管理员） */
+  can_delete?: boolean;
+  /** 付费动态：未购买时只有摘要可见 */
+  is_paid?: boolean;
+  price?: number;
+  unlocked?: boolean;
   author: PostAuthor;
   time_ago: string;
   created_at: string;
   like_count: number;
   comment_count: number;
+  favorite_count: number;
   repost_count: number;
   liked: boolean;
   favorited: boolean;
@@ -74,6 +108,7 @@ export interface PostItem {
   repost: PostRepostQuote | null;
   media: PostMedia[];
   topics: PostTopic[];
+  tags?: PostTag[];
 }
 
 export interface CommentItem {
@@ -170,7 +205,8 @@ declare global {
       user: MofuUser | null;
       theme: ThemeConfig;
       upload?: { maxMb: number; videoMaxMb: number };
-      twikoo?: { envId: string; scriptUrl?: string; lang?: string };
+      twikoo?: { envId: string; scriptUrl?: string; lang?: string; emotionCdn?: string };
+      navPrimaryPaths?: string[];
     };
   }
 }

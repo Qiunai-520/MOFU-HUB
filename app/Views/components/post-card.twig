@@ -5,7 +5,11 @@
             {{ include('components/avatar.twig', { user: post.author }) }}
         </a>
         <div class="post-card__meta">
-            <a class="post-card__author" href="{{ post.author.url }}">{{ post.author.nickname }}</a>
+            <div class="post-card__title-row">
+                <a class="post-card__author{{ post.author.is_premium ? ' is-premium' : '' }}" href="{{ post.author.url }}">{{ post.author.nickname }}{{ include('components/name-badge.twig', { user: post.author }) }}</a>
+                {% if post.author.is_formal %}<span class="level-chip{{ post.author.is_flash ? ' level-chip--flash' : '' }}">{% if post.author.is_flash %}<span class="material-symbols-outlined" aria-hidden="true">bolt</span>{% endif %}Lv.{{ post.author.level }}</span>{% endif %}
+                {% if post.author.title is not null %}<span class="level-chip"><span class="material-symbols-outlined" aria-hidden="true">{{ post.author.title.icon }}</span>{{ post.author.title.name }}</span>{% endif %}
+            </div>
             <div class="post-card__sub">
                 <time datetime="{{ post.created_at }}">{{ post.time_ago }}</time>
                 {% if post.is_repost %}<span class="meta-chip">转发</span>{% endif %}
@@ -13,21 +17,58 @@
                 {% if post.is_pinned %}<span class="meta-chip meta-chip--accent">置顶</span>{% endif %}
             </div>
         </div>
-        {% if post.can_edit %}
-        <a class="icon-btn icon-btn--sm" href="/posts/{{ post.id }}" aria-label="查看动态" title="查看动态">
-            <span class="material-symbols-outlined" aria-hidden="true">more_vert</span>
-        </a>
-        {% elseif currentUser %}
-        <button class="icon-btn icon-btn--sm" type="button" data-action="report"
-                data-target-type="post" data-target-id="{{ post.id }}" aria-label="举报">
-            <span class="material-symbols-outlined" aria-hidden="true">flag</span>
-        </button>
-        {% endif %}
+        <div class="card-menu-host" data-card-menu-host>
+            <button class="icon-btn icon-btn--sm" type="button" data-action="toggle-card-menu"
+                    aria-haspopup="menu" aria-expanded="false" aria-label="更多操作">
+                <span class="material-symbols-outlined" aria-hidden="true">more_vert</span>
+            </button>
+            <div class="card-menu" data-card-menu role="menu" hidden>
+                <a class="card-menu__item" role="menuitem" href="/posts/{{ post.id }}">
+                    <span class="material-symbols-outlined" aria-hidden="true">visibility</span>查看详情
+                </a>
+                <button class="card-menu__item" type="button" role="menuitem"
+                        data-action="share" data-share-url="/posts/{{ post.id }}">
+                    <span class="material-symbols-outlined" aria-hidden="true">link</span>复制链接
+                </button>
+                {% if post.can_edit %}
+                <a class="card-menu__item" role="menuitem" href="/posts/{{ post.id }}/edit">
+                    <span class="material-symbols-outlined" aria-hidden="true">edit</span>编辑
+                </a>
+                {% endif %}
+                {% if post.can_delete %}
+                <button class="card-menu__item card-menu__item--danger" type="button" role="menuitem"
+                        data-action="delete-post" data-post-id="{{ post.id }}">
+                    <span class="material-symbols-outlined" aria-hidden="true">delete</span>删除
+                </button>
+                {% endif %}
+                {% if currentUser %}
+                <button class="card-menu__item card-menu__item--danger" type="button" role="menuitem"
+                        data-action="report" data-target-type="post" data-target-id="{{ post.id }}">
+                    <span class="material-symbols-outlined" aria-hidden="true">flag</span>举报
+                </button>
+                {% endif %}
+            </div>
+        </div>
     </header>
 
     <div class="post-card__body">
         {% if post.content_text is not empty %}
-        <div class="post-content">{{ post.content_html|raw }}</div>
+        <div class="post-content" data-post-content>
+            <div class="post-content__text" data-post-content-text>{{ post.content_html|raw }}</div>
+            <a class="post-more" href="/posts/{{ post.id }}" hidden>…查看更多</a>
+        </div>
+        {% endif %}
+
+        {% if post.is_paid and not post.unlocked %}
+        <div class="paid-lock">
+            <p class="paid-lock__excerpt">{{ post.excerpt|slice(0, 60) }}</p>
+            <div class="paid-lock__foot">
+                <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+                <span class="paid-lock__price">{{ post.price + 0 }} M币</span>
+                <button class="filled-btn filled-btn--sm" type="button"
+                        data-action="purchase-post" data-post-id="{{ post.id }}">解锁查看</button>
+            </div>
+        </div>
         {% endif %}
 
         {% if post.repost %}
@@ -49,20 +90,6 @@
         </div>
         {% endif %}
 
-        {% if post.media|length > 0 %}
-        <div class="post-media" data-count="{{ min(post.media|length, 4) }}">
-            {% for m in post.media|slice(0, 4) %}
-            {% if m.kind == 'video' %}
-            <video class="post-media__video" controls preload="metadata" playsinline src="{{ m.url }}"></video>
-            {% else %}
-            <button class="post-media__item" type="button" data-action="lightbox" data-src="{{ m.url }}">
-                <img src="{{ m.thumb }}" alt="动态图片" loading="lazy" decoding="async">
-            </button>
-            {% endif %}
-            {% endfor %}
-        </div>
-        {% endif %}
-
         {% if post.topics|length > 0 %}
         <div class="post-topics">
             {% for t in post.topics %}
@@ -70,7 +97,42 @@
             {% endfor %}
         </div>
         {% endif %}
+
+        {% if post.tags|default([])|length > 0 %}
+        <div class="post-tags">
+            {% for tag in post.tags %}
+            <a class="tag-chip" href="{{ tag.url }}"{% if tag.color is not empty %} style="--tag-color: {{ tag.color }}"{% endif %}>{{ tag.name }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
+
+    {% if post.media|length > 0 %}
+    {% set shownMedia = post.media|slice(0, 3) %}
+    <div class="post-preview-media" data-count="{{ shownMedia|length }}" aria-label="动态媒体预览">
+        {% for m in shownMedia %}
+        {% set more = loop.last and post.media|length > 3 %}
+        {% if m.kind == 'video' %}
+        <a class="post-preview-media__item post-preview-media__item--video" href="/posts/{{ post.id }}" aria-label="进入帖子查看视频">
+            <video preload="metadata" muted playsinline src="{{ m.url }}"></video>
+            <span class="post-preview-media__play material-symbols-outlined" aria-hidden="true">play_arrow</span>
+            <span class="post-preview-media__tag">视频</span>
+        </a>
+        {% elseif more %}
+        <a class="post-preview-media__item post-preview-media__item--more" href="/posts/{{ post.id }}"
+           aria-label="查看全部 {{ post.media|length }} 张图片">
+            <img src="{{ m.thumb }}" alt="" loading="lazy" decoding="async">
+            <span class="post-preview-media__more">+{{ post.media|length - 2 }}</span>
+        </a>
+        {% else %}
+        <button class="post-preview-media__item" type="button" data-action="lightbox" data-kind="image"
+                data-src="{{ m.url }}" aria-label="预览图片">
+            <img src="{{ m.thumb }}" alt="动态图片" loading="lazy" decoding="async">
+        </button>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <footer class="post-card__foot">
         <button class="post-action{{ post.liked ? ' is-active' : '' }}" type="button"
@@ -81,12 +143,14 @@
         </button>
         <a class="post-action" href="/posts/{{ post.id }}#comments" aria-label="评论">
             <span class="material-symbols-outlined" aria-hidden="true">chat_bubble</span>
-            <span class="post-action__count">{{ post.comment_count }}</span>
+            {# 评论由 Twikoo 承载，数量由前端取 Twikoo 计数填充 #}
+            <span class="post-action__count" data-twikoo-count data-comment-path="/posts/{{ post.id }}">{{ post.comment_count }}</span>
         </a>
         <button class="post-action{{ post.favorited ? ' is-active' : '' }}" type="button"
                 data-action="toggle-favorite" data-target-type="post" data-target-id="{{ post.id }}"
                 aria-pressed="{{ post.favorited ? 'true' : 'false' }}" aria-label="收藏">
             <span class="material-symbols-outlined" aria-hidden="true">bookmark</span>
+            <span class="post-action__count" data-favorite-count>{{ post.favorite_count }}</span>
         </button>
         <button class="post-action post-action--tail" type="button" data-action="share"
                 data-share-url="/posts/{{ post.id }}" aria-label="复制链接">

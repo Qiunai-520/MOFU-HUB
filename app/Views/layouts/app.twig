@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN" class="no-js" data-page="{% block page_id %}page{% endblock %}">
+<html lang="zh-CN" class="no-js" data-page="{% block page_id %}page{% endblock %}" data-appearance="{{ appearance|default('auto') }}"{% if navCompact %} data-nav-compact{% endif %}>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1">
-<meta name="theme-color" content="">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="{{ appearance|default('auto') == 'dark' ? '#000000' : '#F5F5F7' }}">
 <title>{% block title %}{{ app.name }}{% endblock %}</title>
 <meta name="csrf-token" content="{{ csrfToken }}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -28,37 +28,36 @@
 document.documentElement.classList.remove('no-js');
 window.__MOFU__ = {
   csrf: {{ csrfToken|json_encode|raw }},
-  user: {% if currentUser %}{"id": {{ currentUser.id }}, "username": {{ currentUser.username|json_encode|raw }}, "nickname": {{ currentUser.nickname|json_encode|raw }}, "can_admin": {{ currentUser.can_admin ? 'true' : 'false' }}}{% else %}null{% endif %},
+  user: {% if currentUser %}{"id": {{ currentUser.id }}, "username": {{ currentUser.username|json_encode|raw }}, "nickname": {{ currentUser.nickname|json_encode|raw }}, "email": {{ currentUser.email|json_encode|raw }}, "avatar_url": {{ currentUser.avatar_url|json_encode|raw }}, "profile_url": {{ ("/u/" ~ currentUser.username)|json_encode|raw }}, "can_admin": {{ currentUser.can_admin ? 'true' : 'false' }}}{% else %}null{% endif %},
   theme: {{ themeConfig|json_encode|raw }},
   upload: { maxMb: {{ upload.maxMb }}, videoMaxMb: {{ upload.videoMaxMb }} },
-  twikoo: { envId: {{ twikooEnvId|json_encode|raw }}, scriptUrl: {{ twikooScriptUrl|json_encode|raw }}, lang: {{ twikooLang|json_encode|raw }} }
+  twikoo: { envId: {{ twikooEnvId|json_encode|raw }}, scriptUrl: {{ twikooScriptUrl|json_encode|raw }}, lang: {{ twikooLang|json_encode|raw }}, emotionCdn: {{ twikooEmotionCdn|json_encode|raw }} },
+  navPrimaryPaths: {{ navPrimaryPaths|json_encode|raw }}
 };
 </script>
-{{ vite_asset('src-client/main.ts') }}
-{# 主题变量必须在样式表之后：#theme-vars 与 base.css 的 M3 别名同特异度，需由主题胜出 #}
-<style id="theme-vars">{{ themeCss|raw }}</style>
+{# 首帧外观：在样式表加载前把游客的本机偏好写回 <html>，避免刷新闪白。 #}
 <script>
 (function () {
   try {
-    var raw = localStorage.getItem('mofu.theme.guest');
-    if (!raw) return;
-    var data = JSON.parse(raw);
-    if (data && typeof data.css === 'string' && data.css) {
-      var el = document.getElementById('theme-vars');
-      if (el) el.textContent = data.css;
+    var mode = localStorage.getItem('mofu.appearance');
+    var legacy = mode === null ? localStorage.getItem('mofu.theme.guest') : null;
+    if (mode === null && legacy !== null) {
+      var saved = JSON.parse(legacy);
+      mode = saved && saved.state ? saved.state.scheme : null;
+    }
+    if (mode === 'light' || mode === 'dark' || mode === 'auto') {
+      document.documentElement.dataset.appearance = mode;
+      var meta = document.querySelector('meta[name="theme-color"]');
+      var dark = mode === 'dark' || (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (meta) meta.setAttribute('content', dark ? '#000000' : '#F5F5F7');
     }
   } catch (e) {}
 })();
 </script>
-<style id="brand-vars">{{ brandCss|raw }}</style>
+{{ vite_asset('src-client/main.ts') }}
 </head>
 <body class="mofu-body">
-<m3e-theme id="app-theme"
-    color="{{ themeConfig.sourceColor }}"
-    scheme="{{ themeConfig.scheme }}"
-    contrast="{{ themeConfig.contrast }}"
-    density="{{ themeConfig.density }}"
-    motion="{{ themeConfig.motion }}">
+<div class="app-shell" id="app-theme">
 
 <a class="skip-link" href="#swup">跳到主要内容</a>
 
@@ -69,9 +68,6 @@ window.__MOFU__ = {
         </button>
 
         <a class="brand" href="/" data-nav-item="/">
-            <span class="brand-mark brand-mark--sm" aria-hidden="true">
-                <img src="/logo.png" alt="" width="26" height="26" loading="eager" decoding="async">
-            </span>
             <span class="brand__name">{{ app.name }}</span>
         </a>
 
@@ -86,41 +82,43 @@ window.__MOFU__ = {
                 <span class="material-symbols-outlined" aria-hidden="true">search</span>
             </a>
             {% if currentUser %}
-                <div class="user-menu" data-user-menu>
-                    <button class="user-menu__trigger" type="button" aria-haspopup="menu" aria-expanded="false" data-action="toggle-user-menu" aria-label="用户菜单">
-                        {{ include('components/avatar.twig', { user: currentUser, size: 'sm' }) }}
-                    </button>
-                    <div class="user-menu__panel" hidden data-user-menu-panel role="menu">
-                        <div class="user-menu__header">
-                            <strong>{{ currentUser.nickname }}</strong>
-                            <span>@{{ currentUser.username }}</span>
-                        </div>
-                        <a class="user-menu__item" role="menuitem" href="/u/{{ currentUser.username }}">
-                            <span class="material-symbols-outlined" aria-hidden="true">person</span><span data-i18n="header.profile">个人主页</span>
-                        </a>
-                        <a class="user-menu__item" role="menuitem" href="/messages">
-                            <span class="material-symbols-outlined" aria-hidden="true">chat</span><span data-i18n="header.messages">私信</span>
-                        </a>
-                        <a class="user-menu__item" role="menuitem" href="/my/confessions">
-                            <span class="material-symbols-outlined" aria-hidden="true">favorite</span><span data-i18n="header.my_confessions">我的投稿</span>
-                        </a>
-                        <a class="user-menu__item" role="menuitem" href="/settings/profile">
-                            <span class="material-symbols-outlined" aria-hidden="true">settings</span><span data-i18n="header.settings">设置</span>
-                        </a>
-                        {% if currentUser.can_admin %}
-                        <a class="user-menu__item" role="menuitem" href="/admin">
-                            <span class="material-symbols-outlined" aria-hidden="true">admin_panel_settings</span><span data-i18n="header.admin_panel">管理后台</span>
-                        </a>
-                        {% endif %}
-                        <form method="post" action="/logout" class="user-menu__form">
-                            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
-                            <button class="user-menu__item user-menu__item--button" type="submit" role="menuitem">
-                                <span class="material-symbols-outlined" aria-hidden="true">logout</span><span data-i18n="header.logout">退出登录</span>
-                            </button>
-                        </form>
+            <details class="account-menu" data-account-menu>
+                <summary class="account-menu__trigger" aria-label="{{ currentUser.nickname }} 的账户菜单">
+                    {{ include('components/avatar.twig', { user: currentUser, size: 'sm' }) }}
+                    <span class="account-menu__name">{{ currentUser.nickname }}{{ include('components/name-badge.twig', { user: currentUser }) }}</span>
+                    <span class="account-menu__chevron material-symbols-outlined" aria-hidden="true">expand_more</span>
+                </summary>
+                <div class="account-menu__panel">
+                    <div class="account-menu__head">
+                        <strong>{{ currentUser.nickname }}</strong>
+                        <span>@{{ currentUser.username }}</span>
                     </div>
+                    <a class="account-menu__item" href="/messages">
+                        <span class="material-symbols-outlined" aria-hidden="true">chat</span>
+                        <span>消息</span>
+                        <span class="nav-badge nav-badge--offset" data-message-badge hidden></span>
+                    </a>
+                    <a class="account-menu__item" href="/me">
+                        <span class="material-symbols-outlined" aria-hidden="true">person</span><span>我的主页</span>
+                    </a>
+                    <a class="account-menu__item" href="/settings">
+                        <span class="material-symbols-outlined" aria-hidden="true">settings</span><span>设置</span>
+                    </a>
+                    {% if currentUser.can_admin %}
+                    <a class="account-menu__item" href="/admin/dashboard">
+                        <span class="material-symbols-outlined" aria-hidden="true">admin_panel_settings</span><span>管理后台</span>
+                    </a>
+                    {% endif %}
+                    <form method="post" action="/logout" class="account-menu__form">
+                        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                        <button class="account-menu__item account-menu__item--button" type="submit">
+                            <span class="material-symbols-outlined" aria-hidden="true">logout</span><span>退出登录</span>
+                        </button>
+                    </form>
                 </div>
-            {% else %}
+            </details>
+            {% endif %}
+            {% if not currentUser %}
                 <a class="text-btn" href="/login"><span data-i18n="header.login">登录</span></a>
                 <a class="filled-btn filled-btn--sm" href="/register"><span data-i18n="header.register">注册</span></a>
             {% endif %}
@@ -138,6 +136,9 @@ window.__MOFU__ = {
         </div>
         <nav class="side-nav__group">
             <p class="side-nav__label" data-i18n="nav.browse">浏览</p>
+            <a class="side-nav__item" href="/boards" data-nav-item="/boards">
+                <span class="material-symbols-outlined" aria-hidden="true">dashboard</span><span data-i18n="nav.boards">板块</span>
+            </a>
             <a class="side-nav__item" href="/wall" data-nav-item="/wall">
                 <span class="material-symbols-outlined" aria-hidden="true">favorite</span><span data-i18n="nav.wall">表白墙</span>
             </a>
@@ -147,14 +148,17 @@ window.__MOFU__ = {
             <a class="side-nav__item" href="/circles" data-nav-item="/circles">
                 <span class="material-symbols-outlined" aria-hidden="true">groups</span><span data-i18n="nav.circles">圈子</span>
             </a>
-            <a class="side-nav__item" href="/boards" data-nav-item="/boards">
-                <span class="material-symbols-outlined" aria-hidden="true">dashboard</span><span data-i18n="nav.boards">板块</span>
+            <a class="side-nav__item" href="/konbini" data-nav-item="/konbini">
+                <span class="material-symbols-outlined" aria-hidden="true">view_in_ar</span><span>3D 街景</span>
             </a>
             <a class="side-nav__item" href="/events" data-nav-item="/events">
                 <span class="material-symbols-outlined" aria-hidden="true">event</span><span data-i18n="nav.events">活动</span>
             </a>
             <a class="side-nav__item" href="/news" data-nav-item="/news">
                 <span class="material-symbols-outlined" aria-hidden="true">newspaper</span><span data-i18n="nav.news">资讯</span>
+            </a>
+            <a class="side-nav__item" href="/music" data-nav-item="/music">
+                <span class="material-symbols-outlined" aria-hidden="true">music_note</span><span>音乐</span>
             </a>
             {% if currentUser %}
             <a class="side-nav__cta filled-btn" href="/compose">
@@ -195,28 +199,27 @@ window.__MOFU__ = {
                 <span data-i18n="footer.tagline">分享校园生活 · 记录每一份心情</span>
             </div>
         </div>
-        <nav class="site-footer__links" aria-label="页脚导航">
-            <a href="/about" data-i18n="nav.about">关于</a>
-            <a href="/boards" data-i18n="nav.boards">板块</a>
-            <a href="/circles" data-i18n="nav.circles">圈子</a>
-            <a href="/events" data-i18n="nav.events">活动</a>
-            <a href="/news" data-i18n="nav.news">资讯</a>
-        </nav>
-        <p class="site-footer__copy">© {{ "now"|date("Y") }} {{ app.name }}</p>
+        <p class="site-footer__copy">© {{ "now"|date("Y") }} {{ app.name }} · v{{ app.version }}</p>
     </div>
 </footer>
 
 <div class="fab-stack" data-fab-stack>
+    {% if currentUser %}
+    <a class="fab-compose" href="/compose" aria-label="发布动态">
+        <span class="material-symbols-outlined" aria-hidden="true">edit_square</span>
+        <span>发布</span>
+    </a>
+    {% endif %}
+    {% if musicAppUrl is not empty %}
+    <button class="fab-btn fab-music" type="button" data-action="toggle-music" aria-label="打开音乐播放器"
+            aria-expanded="false" aria-controls="music-dock-panel">
+        <span class="material-symbols-outlined" aria-hidden="true">music_note</span>
+    </button>
+    {% endif %}
     {# 回到顶部：并入悬浮按钮栈（滚动足够多才出现，默认 hidden） #}
     <button class="fab-btn back-to-top" id="back-to-top" type="button" hidden data-action="back-to-top" aria-label="回到顶部">
         <span class="material-symbols-outlined" aria-hidden="true">arrow_upward</span>
     </button>
-    <a class="fab-btn fab-btn--primary" href="/compose" aria-label="发布帖子" data-tooltip="发布帖子">
-        <span class="material-symbols-outlined" aria-hidden="true">edit_square</span>
-    </a>
-    <a class="fab-btn" href="/music" aria-label="音乐" data-tooltip="音乐">
-        <span class="material-symbols-outlined" aria-hidden="true">music_note</span>
-    </a>
 </div>
 
 <nav class="bottom-nav" aria-label="主导航">
@@ -238,17 +241,41 @@ window.__MOFU__ = {
     </div>
 </nav>
 
+{% if musicAppUrl is not empty %}
+<div class="music-dock" id="music-dock-panel" data-music-dock>
+    <section class="music-dock__panel" data-music-panel aria-hidden="true">
+        <header class="music-dock__head">
+            <span class="music-dock__title">
+                <span class="material-symbols-outlined" aria-hidden="true">graphic_eq</span>
+                MOFU 音乐
+            </span>
+            <span class="music-dock__hint">播放会随页面保持</span>
+            <a class="icon-btn icon-btn--sm" href="{{ musicAppUrl }}" target="_blank" rel="noopener" aria-label="在新窗口打开音乐">
+                <span class="material-symbols-outlined" aria-hidden="true">open_in_new</span>
+            </a>
+            <button class="icon-btn icon-btn--sm" type="button" data-action="close-music" aria-label="收起音乐播放器">
+                <span class="material-symbols-outlined" aria-hidden="true">close</span>
+            </button>
+        </header>
+        <iframe class="music-dock__frame" data-music-frame data-src="{{ musicAppUrl }}"
+                title="MOFU 音乐播放器" allow="autoplay; clipboard-write; encrypted-media; fullscreen"
+                loading="lazy"></iframe>
+    </section>
+</div>
+{% endif %}
+
 <div class="toast-host" id="toast-host" aria-live="polite"></div>
 <div class="lightbox" id="lightbox" hidden>
     <button class="lightbox__close icon-btn" type="button" aria-label="关闭预览" data-action="close-lightbox">
         <span class="material-symbols-outlined" aria-hidden="true">close</span>
     </button>
     <img class="lightbox__img" src="" alt="" loading="lazy" decoding="async">
+    <video class="lightbox__video" controls playsinline hidden></video>
 </div>
 
 <div class="page-loading" data-page-loading aria-hidden="true" hidden>
-    <m3e-loading-indicator></m3e-loading-indicator>
+    <span class="mofu-spinner"></span>
 </div>
-</m3e-theme>
+</div>
 </body>
 </html>

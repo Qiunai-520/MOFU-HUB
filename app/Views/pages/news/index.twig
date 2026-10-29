@@ -12,13 +12,14 @@
         </div>
     </header>
 
-    <nav class="feed-tabs" aria-label="资讯分类">
+    <nav class="feed-tabs" aria-label="资讯分类" data-swup-persist="news-tabs">
         <a class="feed-tab{{ category == '' ? ' is-active' : '' }}"{{ category == '' ? ' aria-current="page"' : '' }} href="/news">全部</a>
         <a class="feed-tab{{ category == 'notice' ? ' is-active' : '' }}"{{ category == 'notice' ? ' aria-current="page"' : '' }} href="/news?category=notice">通知公告</a>
         <a class="feed-tab{{ category == 'campus' ? ' is-active' : '' }}"{{ category == 'campus' ? ' aria-current="page"' : '' }} href="/news?category=campus">校园新闻</a>
         <a class="feed-tab{{ category == 'resource' ? ' is-active' : '' }}"{{ category == 'resource' ? ' aria-current="page"' : '' }} href="/news?category=resource">学习资源</a>
     </nav>
 
+    <div class="news-panel" data-tabs-panel>
     <div class="news-list" data-list="news">
         {% for item in news.items %}
             {{ include('components/news-card.twig', { news: item }) }}
@@ -32,5 +33,6 @@
     </div>
 
     {{ include('components/load-more.twig', { pagination: news, base: baseUrl, target: 'news' }) }}
+    </div>
 </section>
 {% endblock %}

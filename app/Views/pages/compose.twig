@@ -11,7 +11,8 @@
          {% if composeCommunity %}data-community-id="{{ composeCommunity.id }}"{% endif %}
          {% if isEdit %}data-edit-post-id="{{ editPost.id }}"
          data-edit-topics="{{ editPost.topics|json_encode|e('html_attr') }}"
-         data-edit-media="{{ editPost.media|json_encode|e('html_attr') }}"{% endif %}>
+         data-edit-media="{{ editPost.media|json_encode|e('html_attr') }}"
+         data-edit-tags="{{ editPost.tags|default([])|json_encode|e('html_attr') }}"{% endif %}>
     <h1 class="page-title">{{ composeCommunity ? '发布到「' ~ composeCommunity.name ~ '」' : (isEdit ? '编辑动态' : '发布动态') }}</h1>
 
     {% if composeCommunity %}
@@ -21,31 +22,48 @@
 
     <form class="compose-form" data-compose-form>
         <textarea class="compose-form__input" name="content" rows="6" maxlength="2000" data-counter
-                  placeholder="分享你的校园新鲜事…（支持 Markdown 与表情）" data-compose-input>{% if isEdit %}{{ editPost.content }}{% endif %}</textarea>
+                  placeholder="分享此刻的想法… 支持 Markdown、表情与 @提及" data-compose-input>{% if isEdit %}{{ editPost.content }}{% endif %}</textarea>
 
-        <p class="compose-form__hint">支持 Markdown：<code>**加粗**</code> <code>*斜体*</code> <code>~~删除~~</code> <code>`代码`</code> <code>[链接](https://…)</code>；行首 <code>-</code> 列表、<code>&gt;</code> 引用、<code>#</code> 标题。</p>
+        <p class="compose-form__media-note">
+            <span class="material-symbols-outlined" aria-hidden="true">view_carousel</span>
+            <span>图片 / 视频在信息流中只展示最多 3 个矩形预览，完整内容进入帖子查看。</span>
+        </p>
 
         <div class="compose-form__media" data-compose-media hidden></div>
 
-        {% if isEdit %}
-        <p class="compose-form__hint">编辑时暂不支持修改图片；如需更换图片，请删除动态后重新发布。</p>
-        {% endif %}
+        {# 次要选项收进折叠区，让发布页保持简洁 #}
+        <details class="compose-form__more">
+            <summary>更多选项（话题 / Markdown 语法）</summary>
 
-        <div class="compose-form__topics">
-            <div class="compose-form__chips" data-compose-chips></div>
-            <input class="compose-form__topic-input" type="text" maxlength="24"
-                   placeholder="添加话题后回车，例如：社团招新" data-topic-input aria-label="添加话题">
-        </div>
+            <div class="compose-form__topics">
+                <div class="compose-form__chips" data-compose-chips></div>
+                <input class="compose-form__topic-input" type="text" maxlength="24"
+                       placeholder="添加话题后回车，例如：社团招新" data-topic-input aria-label="添加话题">
+            </div>
+
+            {% if tags|default([])|length > 0 %}
+            <div class="compose-form__tags" data-compose-tags>
+                <span class="compose-form__tags-label">{{ canTag|default(false) ? '标签（最多 5 个）' : '标签（达到 Lv.3 解锁）' }}</span>
+                <div class="compose-form__tag-list">
+                    {% for item in tags %}
+                    <button class="tag-chip{{ canTag|default(false) ? '' : ' is-locked' }}" type="button"
+                            data-tag-pick data-tag-slug="{{ item.slug }}"
+                            {% if not canTag|default(false) %}disabled{% endif %}>{{ item.name }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <p class="compose-form__hint">支持 Markdown：<code>**加粗**</code> <code>*斜体*</code> <code>~~删除~~</code> <code>`代码`</code> <code>[链接](https://…)</code>；行首 <code>-</code> 列表、<code>&gt;</code> 引用、<code>#</code> 标题。</p>
+        </details>
 
         <div class="compose-form__foot">
             <div class="compose-form__tools">
-                {% if not isEdit %}
                 <label class="icon-btn" data-tooltip="添加图片或视频（图片最多 9 张，视频 1 个）">
                     <span class="visually-hidden">添加图片或视频（图片最多 9 张，视频 1 个）</span>
                     <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" multiple hidden data-compose-file>
                     <span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span>
                 </label>
-                {% endif %}
                 <button class="icon-btn" type="button" data-action="toggle-emoji" aria-label="插入表情" aria-expanded="false">
                     <span class="material-symbols-outlined" aria-hidden="true">sentiment_satisfied</span>
                 </button>
@@ -56,10 +74,31 @@
                         <option value="private" {{ isEdit and editPost.visibility == 'private' ? 'selected' : '' }}>仅自己可见</option>
                     </select>
                 </label>
+                {# 付费动态：价格 1 ~ 15 M币，购买一次永久解锁 #}
+                <label class="compose-form__visibility">
+                    <span class="material-symbols-outlined" aria-hidden="true">paid</span>
+                    <select data-compose-paid aria-label="是否付费">
+                        <option value="0" {{ isEdit and editPost.is_paid ? '' : 'selected' }}>免费</option>
+                        <option value="1" {{ isEdit and editPost.is_paid ? 'selected' : '' }}>付费</option>
+                    </select>
+                </label>
+                <label class="compose-form__visibility" data-compose-price-wrap{{ isEdit and editPost.is_paid ? '' : ' hidden' }}>
+                    <span class="material-symbols-outlined" aria-hidden="true">sell</span>
+                    <select data-compose-price aria-label="价格（M币）">
+                        {% for p in 1..15 %}
+                        <option value="{{ p }}" {{ isEdit and editPost.price == p ? 'selected' : '' }}>{{ p }} M币</option>
+                        {% endfor %}
+                    </select>
+                </label>
             </div>
             <p class="compose-form__draft-hint" data-draft-hint hidden></p>
             <button class="filled-btn" type="submit" data-compose-submit>{{ isEdit ? '保存修改' : '发布' }}</button>
         </div>
+
+        <p class="compose-form__flow-hint">
+            <span class="material-symbols-outlined" aria-hidden="true">home</span>
+            发布后会回到信息流，先看到自己的新帖，再点开查看详情。
+        </p>
 
         <div class="emoji-panel" data-emoji-panel hidden role="listbox" aria-label="表情"></div>
         <div class="mention-panel" data-mention-panel hidden role="listbox" aria-label="提及用户"></div>

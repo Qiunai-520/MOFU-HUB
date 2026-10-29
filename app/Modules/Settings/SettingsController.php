@@ -17,8 +17,12 @@ use Mofu\Core\View\Page;
 use Mofu\Core\View\Present;
 use Mofu\Modules\Follows\FollowService;
 use Mofu\Modules\Media\MediaService;
+use Mofu\Modules\Membership\TaskService;
+use Mofu\Modules\Membership\VerificationService;
 use Mofu\Modules\Notifications\NotificationService;
 use Mofu\Modules\Users\BlockService;
+use Mofu\Modules\Users\NicknameService;
+use Mofu\Modules\Users\ProfileDecorations;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Message\UploadedFileInterface;
@@ -36,6 +40,9 @@ final class SettingsController
         private readonly FollowService $follows,
         private readonly Config $config,
         private readonly Page $page,
+        private readonly TaskService $tasks,
+        private readonly VerificationService $verification,
+        private readonly NicknameService $nicknames,
     ) {
     }
 
@@ -61,9 +68,11 @@ final class SettingsController
             isset($profile['cover_thumb']) ? (string) $profile['cover_thumb'] : null,
             isset($profile['cover_path']) ? (string) $profile['cover_path'] : null,
         );
+        $profile = $profile + ProfileDecorations::present($profile);
 
         return $this->page->render($request, 'pages/settings/profile.twig', [
             'profile' => $profile,
+            'nicknameStatus' => $this->nicknames->status((int) $user['id']),
             'errors' => [],
             'saved' => isset($request->getQueryParams()['ok']),
         ]);
@@ -105,13 +114,30 @@ final class SettingsController
                     'location' => $location,
                     'website' => $website,
                 ],
+                'nicknameStatus' => $this->nicknames->status((int) $user['id']),
                 'errors' => $errors,
                 'saved' => false,
             ], 422);
         }
 
+        // 昵称走计费服务（首次免费、之后 6 M币、间隔 ≥3 天）；其余字段直接更新
+        try {
+            $this->nicknames->change((int) $user['id'], $nickname);
+        } catch (HttpException $e) {
+            return $this->page->render($request, 'pages/settings/profile.twig', [
+                'profile' => [
+                    'nickname' => $nickname,
+                    'bio' => $bio,
+                    'location' => $location,
+                    'website' => $website,
+                ],
+                'nicknameStatus' => $this->nicknames->status((int) $user['id']),
+                'errors' => ['nickname' => $e->getMessage()],
+                'saved' => false,
+            ], 422);
+        }
+
         $this->query->update('user_profiles', [
-            'nickname' => $nickname,
             'bio' => $bio,
             'location' => $location,
             'website' => $website,
@@ -143,6 +169,8 @@ final class SettingsController
             'UPDATE user_profiles SET avatar_media_id = :media_id, updated_at = :now WHERE user_id = :id',
             ['media_id' => (int) $media['id'], 'now' => date('Y-m-d H:i:s'), 'id' => (int) $user['id']],
         );
+
+        $this->tasks->awardOnce((int) $user['id'], 'set_avatar');
 
         return $response->withHeader('Location', '/settings/profile?ok=1')->withStatus(302);
     }
@@ -187,6 +215,16 @@ final class SettingsController
 
     // ---------------------------------------------------------------- 账号安全
 
+    /** 设置首页（二级列表菜单）：点每一项进入对应的三级设置页 */
+    public function index(Request $request, Response $response): Response
+    {
+        Guard::requireLogin(Ctx::user($request));
+
+        return $this->page->render($request, 'pages/settings/index.twig', [
+            'title' => '设置',
+        ]);
+    }
+
     public function security(Request $request, Response $response): Response    {
         $user = Guard::requireLogin(Ctx::user($request));
 
@@ -203,6 +241,9 @@ final class SettingsController
         $confirm = (string) ($body['confirm_password'] ?? '');
         $revokeOthers = (string) ($body['revoke_others'] ?? '') === '1';
 
+        $row = $this->query->one('SELECT password_hash, password_set FROM users WHERE id = :id', ['id' => (int) $user['id']]);
+        $hasPassword = (int) ($row['password_set'] ?? 1) === 1;
+
         $errors = [];
 
         if (!$this->limiter->attempt('password:' . (int) $user['id'], 10, 3600)) {
@@ -210,15 +251,14 @@ final class SettingsController
         }
 
         if ($errors === []) {
-            $row = $this->query->one('SELECT password_hash FROM users WHERE id = :id', ['id' => (int) $user['id']]);
-
-            if (!password_verify($current, (string) ($row['password_hash'] ?? ''))) {
+            // 邮箱注册的账号尚未设置密码：首次设置不需要当前密码
+            if ($hasPassword && !password_verify($current, (string) ($row['password_hash'] ?? ''))) {
                 $errors['current_password'] = '当前密码不正确';
             }
 
             if (mb_strlen($new) < 8) {
                 $errors['new_password'] = '新密码至少 8 位';
-            } elseif ($new === $current) {
+            } elseif ($hasPassword && $new === $current) {
                 $errors['new_password'] = '新密码不能与当前密码相同';
             }
 
@@ -238,8 +278,13 @@ final class SettingsController
 
         $this->query->update('users', [
             'password_hash' => $this->auth->hashPassword($new),
+            'password_set' => 1,
             'updated_at' => date('Y-m-d H:i:s'),
         ], 'id = :id', ['id' => (int) $user['id']]);
+
+        if (!$hasPassword) {
+            $this->tasks->awardOnce((int) $user['id'], 'set_password');
+        }
 
         if ($revokeOthers) {
             $this->revokeOtherSessionsFor($request, (int) $user['id']);
@@ -249,6 +294,97 @@ final class SettingsController
         $this->limiter->clear('password:' . (int) $user['id']);
 
         return $response->withHeader('Location', '/settings/security?ok=1')->withStatus(302);
+    }
+
+    /** 更换邮箱第一步：向新邮箱发送验证码 */
+    public function sendEmailChange(Request $request, Response $response): Response
+    {
+        $user = Guard::requireLogin(Ctx::user($request));
+        $userId = (int) $user['id'];
+        $newEmail = strtolower(trim((string) (((array) $request->getParsedBody())['new_email'] ?? '')));
+        $currentEmail = strtolower((string) $this->query->value('SELECT email FROM users WHERE id = :id', ['id' => $userId]) ?? '');
+
+        $errors = $this->emailChangeErrors($userId, $newEmail, $currentEmail);
+
+        // 频率限制只在「发送验证码」这一步消耗，避免用户输错验证码时被提前限流
+        if ($errors === [] && !$this->limiter->attempt('email-change:' . $userId, 5, 3600)) {
+            $errors['new_email'] = '操作过于频繁，请 1 小时后再试';
+        }
+
+        if ($errors !== []) {
+            $data = $this->securityData($request, $user);
+            $data['emailErrors'] = $errors;
+
+            return $this->page->render($request, 'pages/settings/security.twig', $data, 422);
+        }
+
+        $result = $this->verification->send($newEmail, 'change_email');
+
+        if (!$result['ok']) {
+            $data = $this->securityData($request, $user);
+            $data['emailErrors'] = ['new_email' => $result['error']];
+
+            return $this->page->render($request, 'pages/settings/security.twig', $data, 422);
+        }
+
+        return $response->withHeader('Location', '/settings/security?email_pending=' . rawurlencode($newEmail))->withStatus(302);
+    }
+
+    /** 更换邮箱第二步：校验验证码并改绑 */
+    public function verifyEmailChange(Request $request, Response $response): Response
+    {
+        $user = Guard::requireLogin(Ctx::user($request));
+        $userId = (int) $user['id'];
+        $body = (array) $request->getParsedBody();
+        $newEmail = strtolower(trim((string) ($body['new_email'] ?? '')));
+        $code = trim((string) ($body['code'] ?? ''));
+
+        $errors = $this->emailChangeErrors($userId, $newEmail, '');
+
+        if ($errors === [] && !$this->verification->verify($newEmail, 'change_email', $code)) {
+            $errors['code'] = '验证码不正确或已过期';
+        }
+
+        if ($errors !== []) {
+            $data = $this->securityData($request, $user);
+            $data['emailErrors'] = $errors;
+            $data['emailPending'] = $newEmail;
+
+            return $this->page->render($request, 'pages/settings/security.twig', $data, 422);
+        }
+
+        $this->query->update('users', [
+            'email' => $newEmail,
+            'email_verified_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ], 'id = :id', ['id' => $userId]);
+
+        $this->audit->log($userId, 'account.email_change', 'user', $userId);
+        $this->limiter->clear('email-change:' . $userId);
+
+        return $response->withHeader('Location', '/settings/security?ok=1')->withStatus(302);
+    }
+
+    /**
+     * 更换邮箱的校验：格式、是否与当前相同、是否被占用、频率限制
+     *
+     * @return array<string, string>
+     */
+    private function emailChangeErrors(int $userId, string $newEmail, string $currentEmail): array
+    {
+        if (!filter_var($newEmail, FILTER_VALIDATE_EMAIL) || mb_strlen($newEmail) > 190) {
+            return ['new_email' => '邮箱格式不正确'];
+        }
+
+        if ($currentEmail !== '' && $newEmail === $currentEmail) {
+            return ['new_email' => '新邮箱与当前邮箱相同'];
+        }
+
+        if ($this->query->value('SELECT id FROM users WHERE email = :email AND id != :id', ['email' => $newEmail, 'id' => $userId]) !== null) {
+            return ['new_email' => '该邮箱已被其他账号使用'];
+        }
+
+        return [];
     }
 
     /** @param array<string, string> $args */
@@ -329,6 +465,12 @@ final class SettingsController
         return [
             'errors' => $errors,
             'saved' => isset($request->getQueryParams()['ok']),
+            'welcome' => isset($request->getQueryParams()['welcome']),
+            // 更换邮箱：待验证的新邮箱（发送成功后带回）与错误
+            'emailPending' => (string) ($request->getQueryParams()['email_pending'] ?? ''),
+            'emailErrors' => [],
+            'passwordSet' => (int) ($this->query->value('SELECT password_set FROM users WHERE id = :id', ['id' => (int) $user['id']]) ?? 1) === 1,
+            'email' => (string) ($this->query->value('SELECT email FROM users WHERE id = :id', ['id' => (int) $user['id']]) ?? ''),
             'sessions' => $sessions,
         ];
     }
@@ -377,11 +519,11 @@ final class SettingsController
         $prefs = [];
 
         foreach (array_keys(NotificationService::PREF_GROUPS) as $group) {
-            $prefs[$group] = isset($body['pref_' . $group]);
+            $prefs[$group] = (string) ($body['pref_' . $group] ?? '0') === '1';
         }
 
         $prefs['dnd'] = [
-            'enabled' => isset($body['dnd_enabled']),
+            'enabled' => (string) ($body['dnd_enabled'] ?? '0') === '1',
             'start' => (int) ($body['dnd_start'] ?? 23),
             'end' => (int) ($body['dnd_end'] ?? 7),
         ];
@@ -413,9 +555,119 @@ final class SettingsController
         $this->preferences->savePrivacyPrefs((int) $user['id'], [
             'dm_policy' => (string) ($body['dm_policy'] ?? 'all'),
             'connections_visibility' => (string) ($body['connections_visibility'] ?? 'public'),
+            'read_receipt' => ($body['read_receipt'] ?? '1') === '1',
         ]);
 
         return $response->withHeader('Location', '/settings/privacy?ok=1')->withStatus(302);
+    }
+
+    // ---------------------------------------------------------------- 头像框 / 昵称挂件
+
+    public function decorations(Request $request, Response $response): Response
+    {
+        $user = Guard::requireLogin(Ctx::user($request));
+        $row = $this->query->one(
+            'SELECT avatar_frame, name_badge FROM user_profiles WHERE user_id = :id',
+            ['id' => $user['id']],
+        ) ?? [];
+
+        [$ownedFrames, $ownedBadges] = $this->ownedDecorations((int) $user['id']);
+        $current = ProfileDecorations::present($row);
+
+        $frames = [];
+        foreach (ProfileDecorations::FRAMES as $key => $frame) {
+            $free = ProfileDecorations::isFreeFrame((string) $key);
+            $frames[] = [
+                'key' => (string) $key,
+                'label' => (string) $frame['label'],
+                'class' => (string) $frame['class'],
+                'free' => $free,
+                'owned' => $free || in_array((string) $key, $ownedFrames, true),
+                'selected' => $current['avatar_frame'] === (string) $key,
+            ];
+        }
+
+        $badges = [];
+        foreach (ProfileDecorations::BADGES as $key => $badge) {
+            $free = ProfileDecorations::isFreeBadge((string) $key);
+            $badges[] = [
+                'key' => (string) $key,
+                'label' => (string) $badge['label'],
+                'emoji' => (string) $badge['emoji'],
+                'image' => (string) ($badge['image'] ?? ''),
+                'free' => $free,
+                'owned' => $free || in_array((string) $key, $ownedBadges, true),
+                'selected' => $current['name_badge'] === (string) $key,
+            ];
+        }
+
+        return $this->page->render($request, 'pages/settings/decorations.twig', [
+            'frames' => $frames,
+            'badges' => $badges,
+            'current' => $current,
+            'saved' => isset($request->getQueryParams()['ok']),
+        ]);
+    }
+
+    public function saveDecorations(Request $request, Response $response): Response
+    {
+        $user = Guard::requireLogin(Ctx::user($request));
+        $body = (array) $request->getParsedBody();
+        $frame = (string) ($body['avatar_frame'] ?? '');
+        $badge = (string) ($body['name_badge'] ?? '');
+        [$ownedFrames, $ownedBadges] = $this->ownedDecorations((int) $user['id']);
+
+        if (!array_key_exists($frame, ProfileDecorations::FRAMES)
+            || (!ProfileDecorations::isFreeFrame($frame) && !in_array($frame, $ownedFrames, true))) {
+            throw HttpException::badRequest('该头像框尚未拥有');
+        }
+
+        if (!array_key_exists($badge, ProfileDecorations::BADGES)
+            || (!ProfileDecorations::isFreeBadge($badge) && !in_array($badge, $ownedBadges, true))) {
+            throw HttpException::badRequest('该昵称挂件尚未拥有');
+        }
+
+        $this->query->run(
+            'UPDATE user_profiles SET avatar_frame = :frame, name_badge = :badge, updated_at = :now WHERE user_id = :id',
+            [
+                'frame' => $frame,
+                'badge' => $badge,
+                'now' => date('Y-m-d H:i:s'),
+                'id' => $user['id'],
+            ],
+        );
+
+        return $response->withHeader('Location', '/settings/decorations?ok=1')->withStatus(302);
+    }
+
+    /** @return array{0: list<string>, 1: list<string>} */
+    private function ownedDecorations(int $userId): array
+    {
+        $rows = $this->query->all(
+            "SELECT p.type, p.payload
+             FROM user_inventory i JOIN shop_products p ON p.id = i.product_id
+             WHERE i.user_id = :id AND p.type IN ('avatar_frame', 'badge')",
+            ['id' => $userId],
+        );
+
+        $frames = [];
+        $badges = [];
+
+        foreach ($rows as $row) {
+            $payload = json_decode((string) ($row['payload'] ?? ''), true);
+
+            if (!is_array($payload)) {
+                continue;
+            }
+
+            if ((string) $row['type'] === 'avatar_frame' && isset($payload['frame'])) {
+                $frames[] = (string) $payload['frame'];
+            } elseif ((string) $row['type'] === 'badge' && isset($payload['badge'])) {
+                $badges[] = (string) $payload['badge'];
+            }
+        }
+
+        return [array_values(array_unique($frames)), array_values(array_unique($badges))];
     }
 
     // ---------------------------------------------------------------- 背景图
@@ -474,6 +726,10 @@ final class SettingsController
             'background' => ['media_id' => $mediaId, 'url' => $url, 'opacity' => $opacity],
         ]);
 
+        if ($url !== '' || $mediaId > 0) {
+            $this->tasks->awardOnce($userId, 'set_background');
+        }
+
         return $response->withHeader('Location', '/settings/background?ok=1')->withStatus(302);
     }
 
@@ -498,6 +754,8 @@ final class SettingsController
         $this->preferences->saveAppearancePrefs((int) $user['id'], [
             'background' => ['media_id' => (int) $media['id'], 'url' => '', 'opacity' => (int) $current['opacity']],
         ]);
+
+        $this->tasks->awardOnce((int) $user['id'], 'set_background');
 
         return $response->withHeader('Location', '/settings/background?ok=1')->withStatus(302);
     }

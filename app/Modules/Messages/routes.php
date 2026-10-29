@@ -17,6 +17,9 @@ return static function (App $app, Container $container): void {
         $group->get('/messages/unread-count', fn ($rq, $rs) => $container->get(MessageApiController::class)->unreadCount($rq, $rs));
         $group->get('/conversations/{id:[0-9]+}/messages', fn ($rq, $rs, $args) => $container->get(MessageApiController::class)->messages($rq, $rs, $args));
         $group->post('/conversations/{id:[0-9]+}/messages', fn ($rq, $rs, $args) => $container->get(MessageApiController::class)->send($rq, $rs, $args));
+        // 撤回自己的消息（2 分钟内）
+        $group->post('/messages/{id:[0-9]+}/recall', fn ($rq, $rs, $args) => $container->get(MessageApiController::class)->recall($rq, $rs, $args));
+        // 把某个会话标为已读（会话列表长按菜单用）
         $group->post('/conversations/{id:[0-9]+}/read', fn ($rq, $rs, $args) => $container->get(MessageApiController::class)->markRead($rq, $rs, $args));
     });
 };

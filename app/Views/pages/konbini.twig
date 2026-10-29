@@ -1,0 +1,56 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}konbini{% endblock %}
+{% block title %}街角便利店 · {{ app.name }}{% endblock %}
+{% block meta_description %}一家雨夜里仍然亮着的日本街角便利店，可拖动视角、缩放并切换店灯。{% endblock %}
+
+{% block content %}
+<section class="world-experience world-experience--konbini" data-konbini-scene>
+    <canvas class="world-canvas" data-konbini-canvas tabindex="0" role="img"
+            aria-label="可交互的日本街角便利店 3D 场景。使用方向键旋转视角，加号和减号缩放。"></canvas>
+    <div class="world-vignette" aria-hidden="true"></div>
+    <div class="world-grain" aria-hidden="true"></div>
+
+    <header class="world-topbar">
+        <a class="world-back" href="/">
+            <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+            <span>回到社区</span>
+        </a>
+        <span class="world-index">MOFU / TOKYO NIGHT 01</span>
+    </header>
+
+    <div class="world-copy" data-konbini-copy>
+        <p class="world-kicker">A LIGHT LEFT ON AFTER THE RAIN</p>
+        <h1>街角便利店</h1>
+        <p class="world-lead">雨停以后，城市慢了下来。<br>玻璃门里还亮着灯，像一封写给夜归人的短信。</p>
+        <div class="world-actions">
+            <button class="world-reset" type="button" data-konbini-reset>
+                <span class="material-symbols-outlined" aria-hidden="true">center_focus_strong</span>
+                重置视角
+            </button>
+            <button class="world-lights is-lit" type="button"
+                    data-konbini-lights aria-pressed="true">
+                <span class="material-symbols-outlined" aria-hidden="true">lightbulb</span>
+                <span data-konbini-lights-label>营业灯已开</span>
+            </button>
+        </div>
+    </div>
+
+    <p class="world-hint">
+        <span class="material-symbols-outlined" aria-hidden="true">drag_pan</span>
+        拖动环视 · 滚轮缩放 · 双指捏合
+    </p>
+
+    <div class="world-loading" data-konbini-loading>
+        <span class="world-loading__orb" aria-hidden="true"></span>
+        <span>正在走进雨后的街道…</span>
+    </div>
+
+    <div class="world-fallback" data-konbini-fallback hidden>
+        <span class="material-symbols-outlined" aria-hidden="true">local_convenience_store</span>
+        <h2>这台设备暂时无法渲染 3D 场景</h2>
+        <p>请更新浏览器或开启硬件加速后再试。</p>
+        <a class="world-back world-back--solid" href="/">回到社区</a>
+    </div>
+</section>
+{% endblock %}

@@ -22,7 +22,7 @@
     </header>
 
     <div class="board__filters">
-        <nav class="feed-tabs" aria-label="排序">
+        <nav class="feed-tabs" aria-label="排序" data-swup-persist="confessions-sort-tabs">
             {% for key, label in sorts %}
             <a class="feed-tab{{ sort == key ? ' is-active' : '' }}"{{ sort == key ? ' aria-current="page"' : '' }} href="?sort={{ key }}{{ category != '' ? '&category=' ~ category : '' }}">{{ label }}</a>
             {% endfor %}
@@ -35,6 +35,7 @@
         </div>
     </div>
 
+    <div class="board-panel" data-tabs-panel>
     <div class="board__list" data-list="confessions">
         {% for item in items %}
             {{ include('components/confession-card.twig', { item: item }) }}
@@ -50,5 +51,6 @@
     </div>
 
     {{ include('components/load-more.twig', { pagination: pagination, base: baseQuery, target: 'confessions' }) }}
+    </div>
 </section>
 {% endblock %}

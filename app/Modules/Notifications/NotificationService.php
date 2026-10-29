@@ -7,6 +7,7 @@ namespace Mofu\Modules\Notifications;
 use Mofu\Core\Database\Query;
 use Mofu\Core\Support\Text;
 use Mofu\Core\View\Present;
+use Mofu\Modules\Users\ProfileDecorations;
 use Mofu\Modules\Settings\PreferenceService;
 
 /**
@@ -150,6 +151,7 @@ final class NotificationService
         }
 
         $sql = 'SELECT n.*, a.username AS actor_username, ap.nickname AS actor_nickname,
+                       ap.avatar_frame AS actor_avatar_frame, ap.name_badge AS actor_name_badge,
                        am.thumb_path AS actor_avatar_thumb, am.disk_path AS actor_avatar_path
                 FROM notifications n
                 LEFT JOIN users a ON a.id = n.actor_id
@@ -219,6 +221,10 @@ final class NotificationService
                     isset($row['actor_avatar_thumb']) ? (string) $row['actor_avatar_thumb'] : null,
                     isset($row['actor_avatar_path']) ? (string) $row['actor_avatar_path'] : null,
                 ),
+                ...ProfileDecorations::present([
+                    'avatar_frame' => $row['actor_avatar_frame'] ?? '',
+                    'name_badge' => $row['actor_name_badge'] ?? '',
+                ]),
             ];
         }
 

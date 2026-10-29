@@ -1,0 +1,53 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}banned{% endblock %}
+{% block title %}账号受限 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<div class="banned-page">
+    <div class="banned-card">
+        <span class="material-symbols-outlined banned-card__icon" aria-hidden="true">gavel</span>
+
+        {% if ban is null %}
+        <h1 class="banned-card__title">当前没有生效的封禁</h1>
+        <p class="banned-card__text">你的账号可以正常使用。如果刚刚被解除处罚，权限已经恢复。</p>
+        {% else %}
+        <h1 class="banned-card__title">你的账号受到限制</h1>
+        <p class="banned-card__text">{{ ban.type_label }}</p>
+
+        <dl class="banned-meta">
+            <div><dt>原因</dt><dd>{{ ban.reason }}</dd></div>
+            <div><dt>开始时间</dt><dd>{{ ban.starts_at }}</dd></div>
+            <div>
+                <dt>结束时间</dt>
+                <dd>{{ ban.permanent ? '永久封禁' : ban.ends_at }}</dd>
+            </div>
+            {% if ban.note is not empty %}
+            <div><dt>说明</dt><dd>{{ ban.note }}</dd></div>
+            {% endif %}
+        </dl>
+
+        <div class="banned-card__actions">
+            <a class="filled-btn" href="/appeal">提交申诉</a>
+            <a class="text-btn" href="/">返回首页</a>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if history is not empty %}
+    <section class="banned-history">
+        <h2 class="comments__title">处罚记录</h2>
+        <ul class="banned-history__list">
+            {% for item in history %}
+            <li class="banned-history__row">
+                <span class="tag">{{ item.type_label }}</span>
+                <span class="banned-history__reason">{{ item.reason }}</span>
+                <span class="banned-history__time">{{ item.starts_at }}{% if item.ends_at %} → {{ item.ends_at }}{% endif %}</span>
+                {% if not item.active %}<span class="tag">已结束</span>{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

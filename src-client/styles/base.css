@@ -1,274 +1,362 @@
-/* ============ MOFU社区 基础样式 ============ */
-/*
- * 字体：全局使用 Apple 系统字体栈，不加载任何第三方字体。
- * iOS/macOS 走 -apple-system（SF Pro）；其它平台回退到系统同族（Helvetica / 苹方 等）。
- */
+/* ============================================================
+ * Mofukey Design System — Apple-inspired foundations
+ * ------------------------------------------------------------
+ * The single source of truth for colour, type, spacing, shape,
+ * elevation and motion. Components must consume these tokens;
+ * page-level CSS should not invent its own palette.
+ * ============================================================ */
 
-/*
- * 设计令牌（Design Tokens）
- *
- * 颜色：全部 M3 颜色角色（--md-sys-color-*）由主题系统（m3e-theme + 内联主题 CSS）
- *       提供，客户端与构建期双端由 material-color-utilities 生成（54 角色 × 明暗两套），
- *       本文件只消费角色，不定义颜色；语义扩展色见下方注释。
- * 形状：radius 五档与 M3 shape scale 对齐（xs4 / sm8 / md12 / lg16 / xl28），圆形直接用 999px。
- * 字体：与 M3 type roles 的映射——display↔Headline S、title-lg↔Title L、title↔Title M、
- *       body↔Body L、label↔Label L；考虑到 CJK 阅读密度，Body/Title 档做了适当下调。
- * 间距：4px 基准刻度（space-1..8），组件内边距与区块间距优先取刻度值。
- * 层级：elev-1..4，阴影颜色由 on-surface 混合，暗色主题自动适配。
- * 动效：短/中/长三档时长 + M3E spring 令牌（主题动效设为「回应式」时由 m3e-theme 覆盖）。
- */
 :root {
-  /* Shape（整体上移一档：Material You 大圆角风格，消灭直角） */
-  --mofu-radius-xs: 6px;
-  --mofu-radius-sm: 12px;
-  --mofu-radius-md: 16px;
-  --mofu-radius-lg: 24px;
-  --mofu-radius-xl: 32px;
-
-  /* Spacing（4px 基准） */
-  --mofu-space-1: 4px;
-  --mofu-space-2: 8px;
-  --mofu-space-3: 12px;
-  --mofu-space-4: 16px;
-  --mofu-space-5: 20px;
-  --mofu-space-6: 24px;
-  --mofu-space-7: 32px;
-  --mofu-space-8: 48px;
-
-  /* Typography（映射见文件头注释） */
-  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
-  --font-cjk: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-  --mofu-font: var(--font-body);
-  --mofu-fs-display: 24px;
-  --mofu-fs-title-lg: 20px;
-  --mofu-fs-title: 16px;
-  --mofu-fs-body: 15px;
-  --mofu-fs-body-sm: 14px;
-  --mofu-fs-label: 13px;
-  --mofu-fs-label-sm: 12px;
-  --mofu-fs-label-xs: 11px;
-
-  /* Elevation（阴影色随明暗主题自适应） */
-  --mofu-elev-1: 0 1px 3px color-mix(in srgb, var(--md-sys-color-on-surface) 14%, transparent);
-  --mofu-elev-2: 0 2px 8px color-mix(in srgb, var(--md-sys-color-on-surface) 16%, transparent);
-  --mofu-elev-3: 0 8px 24px color-mix(in srgb, var(--md-sys-color-on-surface) 20%, transparent);
-  --mofu-elev-4: 0 14px 40px color-mix(in srgb, var(--md-sys-color-on-surface) 26%, transparent);
-
-  /* Motion */
-  --mofu-dur-short: 120ms;
-  --mofu-dur-medium: 220ms;
-  --mofu-dur-long: 320ms;
-  --mofu-motion: var(--mofu-dur-medium) cubic-bezier(0.2, 0, 0, 1);
-  /* 空间/形变类动效引用 M3E spring 令牌；主题动效设为「回应式」时由 m3e-theme 覆盖变量值 */
-  --mofu-motion-effects: var(--md-sys-motion-spring-fast-effects, 150ms cubic-bezier(0.31, 0.94, 0.34, 1));
-  --mofu-motion-spatial: var(--md-sys-motion-spring-fast-spatial, 350ms cubic-bezier(0.27, 1.06, 0.18, 1));
-  /* 缓动曲线：出场用「快起慢收」，滑块等需要生命感的位移用带轻微回弹的 spring */
-  --mofu-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --mofu-ease-spring: cubic-bezier(0.32, 1.28, 0.55, 1);
-  --mofu-slide: 340ms var(--mofu-ease-spring);
-
-  /* 遮罩（浮层背景）：取 M3 scrim 角色，避免页面里散落 rgba 字面值 */
-  --mofu-scrim: color-mix(in srgb, var(--md-sys-color-scrim) 47%, transparent);
-  --mofu-scrim-strong: color-mix(in srgb, var(--md-sys-color-scrim) 88%, transparent);
-
-  /* 交互状态层（M3 state layers：悬停 8% / 按下 10%） */
-  --mofu-state-hover: 8%;
-  --mofu-state-press: 10%;
-
-  /* 语义扩展色：M3 无 success/warning 角色。
-     成功确认（toast）映射到 tertiary 族；ok/warning 仅用于状态点等小面积功能指示。 */
-  --mofu-color-success-container: var(--color-success-background);
-  --mofu-color-on-success-container: var(--color-success-foreground);
-  --mofu-color-ok: var(--color-success-foreground);
-  --mofu-color-warning: var(--color-warning-foreground);
-
-  --mofu-max-width: 1240px;
-  --mofu-header-height: 60px;
-  /* 底部悬浮导航几何：外层圆角由条高推导，内层圆角 = 外层 − 内边距，保证内外同心；
-     内边距同时作为「内外轮廓的呼吸缝」与滑块的四个方向留白 */
-  --mofu-nav-h: 64px;
-  --mofu-nav-inset: 6px;
-  --mofu-nav-radius: calc(var(--mofu-nav-h) * 0.4);
-  --mofu-nav-item-radius: calc(var(--mofu-nav-radius) - var(--mofu-nav-inset));
-  /* 移动端底部导航占位高度（含安全区）：内容留白 / toast / 回到顶部共用 */
-  --mofu-bottom-nav-h: calc(var(--mofu-nav-h) + env(safe-area-inset-bottom, 0px));
-
-  /* 层级令牌（统一使用，不要在组件里写裸数字） */
-  --z-below: -1;        /* 背景层（站点背景图） */
-  --z-base: 0;          /* 滑块等底层装饰 */
-  --z-raised: 1;        /* 滑块之上的内容 */
-  --z-popover: 30;      /* 输入框内部弹出层（表情/提及） */
-  --z-sticky: 100;      /* 顶栏 / 悬浮导航 */
-  --z-float: 150;       /* 回到顶部等浮动按钮 */
-  --z-menu: 200;        /* 下拉菜单 */
-  --z-indicator: 260;   /* 页面切换加载指示 */
-  --z-scrim: 299;       /* 抽屉遮罩 */
-  --z-drawer: 300;      /* 侧边抽屉 */
-  --z-tooltip: 400;     /* 提示气泡 */
-  --z-skip-link: 999;   /* 跳转主内容（可访问性） */
-  --z-toast: 1000;      /* 全局提示 */
-  --z-lightbox: 1100;   /* 图片预览 */
-  --z-modal: 1200;      /* 对话框 / 抽屉模态 */
-
-  /* 断点刻度（CSS 媒体查询不支持 var()，此处作为统一规范，新增查询请沿用）
-     600 移动细节 / 720 外壳切换 / 1024 桌面 / 1200 宽屏 */
-}
-
-/* ---------- 品牌语义配色（Warm Brown / Antique Gold） ----------
- * 品牌基准色 #775A0D；中性色为暖调，明暗各自设计，light-dark() 跟随 color-scheme。 */
-:root {
-  /* ============================================================
-   * 语义化色彩系统（Apple HIG 取向）
-   * 三层结构：系统色（--sys-* 与 --gray-*）→ 语义令牌（--color-*）→ M3 兼容别名（--md-sys-color-*）
-   * 字面色值只允许出现在本层，业务组件一律引用语义令牌。
-   * ============================================================ */
   color-scheme: light dark;
 
-  /* ---- 系统色（浅/深成对） ---- */
-  --sys-blue: light-dark(#007AFF, #0A84FF);
-  --sys-blue-fill: light-dark(#0B63CE, #0A6EDB);
-  --sys-green: light-dark(#34C759, #30D158);
-  --sys-red: light-dark(#FF3B30, #FF453A);
-  --sys-orange: light-dark(#FF9500, #FF9F0A);
-  --sys-yellow: light-dark(#FFCC00, #FFD60A);
-  --sys-purple: light-dark(#AF52DE, #BF5AF2);
-  --sys-teal: light-dark(#30B0C7, #40C8E0);
+  /* ---------- Typography ---------- */
+  /* Platform system fonts only. No SF Pro / SF Mono files are bundled
+     or fetched: Apple platform fonts are used where the OS provides
+     them, with a carefully ordered cross-platform fallback. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Helvetica Neue", "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+  --font-body: var(--font-sans);
+  --font-cjk: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+  --mofu-font: var(--font-sans);
 
-  /* ---- 中性灰阶（Apple System Gray 组织方式，按用途分层） ---- */
-  --gray-secondary-text: light-dark(#8E8E93, #8E8E93);
-  --gray-tertiary-fill: light-dark(#C7C7CC, #48484A);
-  --gray-quaternary-fill: light-dark(#D1D1D6, #3A3A3C);
-  --gray-5: light-dark(#E5E5EA, #2C2C2E);
-  --gray-6: light-dark(#F2F2F7, #1C1C1E);
+  --font-size-caption-2: 11px;
+  --font-size-caption: 12px;
+  --font-size-footnote: 13px;
+  --font-size-subheadline: 15px;
+  --font-size-body: 16px;
+  --font-size-title-3: 20px;
+  --font-size-title-2: 24px;
+  --font-size-title-1: 28px;
+  --font-size-large-title: 34px;
 
-  /* ---- 品牌色阶（Hue 44，Warm Brown / Antique Gold） ----
-     500 为品牌基准色 #775A0D（不得擅改）；其余按色相/明度/饱和度协调推导，非透明度生成。 */
-  --brand-50: #FCF9F3;
-  --brand-100: #F8F2E3;
-  --brand-200: #EBE0C2;
-  --brand-300: #DAC895;
-  --brand-400: #C49D31;
-  --brand-500: #775A0D;   /* Brand Primary（基准色） */
-  --brand-600: #614A0A;
-  --brand-700: #4E3C09;
-  --brand-800: #3A2D08;
-  --brand-900: #2C2207;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
 
-  /* ---- 品牌语义令牌（组件统一引用这些，不要直接用色阶） ---- */
-  --color-brand-primary: light-dark(#775A0D, #8A6A14);      /* 实心主按钮 / 主交互底 */
-  --color-brand-hover: light-dark(#614A0A, #9A7718);
-  --color-brand-active: light-dark(#4E3C09, #775A0D);
-  --color-brand-subtle: light-dark(#F3EDE0, #3A2F14);       /* 低饱和品牌底：选中项 / 选中滑块 */
-  --color-brand-subtle-strong: light-dark(#EBE0C2, #4E3C09);
-  --color-brand-muted: light-dark(#FAF7F0, #241F16);        /* 极浅品牌底：分区 / 提示 */
-  --color-brand-foreground: light-dark(#775A0D, #D5C08F);   /* 中性表面上的品牌前景（图标/链接/文字） */
-  --color-brand-on-subtle: light-dark(#775A0D, #E7DBC2);    /* 置于 brand-subtle 之上 */
-  --color-brand-focus: light-dark(#775A0D, #D5C08F);
+  --line-height-tight: 1.15;
+  --line-height-title: 1.25;
+  --line-height-body: 1.55;
+  --line-height-relaxed: 1.65;
+  --line-height-caption: 1.4;
 
-  /* ---- 强调色（= 品牌色；保留 --color-accent* 兼容命名） ---- */
-  --color-accent: var(--color-brand-foreground);        /* 图标 / 选中 / 焦点（非文字） */
-  --color-accent-fill: var(--color-brand-primary);      /* 实心按钮底（配 on-accent） */
-  --color-accent-hover: var(--color-brand-hover);
-  --color-accent-active: var(--color-brand-active);
-  --color-accent-subtle: var(--color-brand-subtle);
+  /* Legacy aliases consumed by existing components. */
+  --mofu-fs-display: var(--font-size-title-1);
+  --mofu-fs-title-lg: var(--font-size-title-3);
+  --mofu-fs-title: var(--font-size-title-3);
+  --mofu-fs-body: var(--font-size-body);
+  --mofu-fs-body-sm: var(--font-size-subheadline);
+  --mofu-fs-label: var(--font-size-footnote);
+  --mofu-fs-label-sm: var(--font-size-caption);
+  --mofu-fs-label-xs: var(--font-size-caption-2);
+  --mofu-fs-headline: var(--font-size-title-1);
+
+  /* ---------- Brand colour ---------- */
+  --color-accent: #FFCC38;
+  --color-accent-hover: #E6B62F;
+  --color-accent-pressed: #B88B14;
+  --color-accent-container: light-dark(#FFF3C4, #3A2F10);
+  --color-on-accent: #241D0B;
+  --color-accent-soft: light-dark(#FFFAE8, #241F0E);
+  --color-accent-text: light-dark(#8A6500, #FFD75E);
+  --color-on-accent-container: light-dark(#5C4300, #FFE9A8);
+  --color-focus-ring: light-dark(#8A6500, #FFD75E);
+
+  /* ---------- Light / Dark system neutrals ---------- */
+  --color-background: light-dark(#F5F5F7, #000000);
+  --color-surface: light-dark(#FFFFFF, #1C1C1E);
+  --color-surface-secondary: light-dark(#F2F2F7, #2C2C2E);
+  --color-surface-tertiary: light-dark(#E5E5EA, #3A3A3C);
+  --color-label-primary: light-dark(#1D1D1F, #F5F5F7);
+  --color-label-secondary: light-dark(#6E6E73, #AEAEB2);
+  --color-label-tertiary: light-dark(#8E8E93, #8E8E93);
+  --color-border: light-dark(#D2D2D7, #48484A);
+  --color-separator: light-dark(#E5E5EA, #38383A);
+  --color-border-strong: light-dark(#C7C7CC, #636366);
+  /* 3:1 against surface — used for control boundaries, not decorative cards. */
+  --color-control-border: light-dark(#8E8E93, #8E8E93);
+
+  /* Compatibility aliases used by the existing component layer. */
+  --color-background-secondary: var(--color-surface);
+  --color-background-tertiary: var(--color-surface-secondary);
+  --color-surface-elevated: var(--color-surface);
+  --color-surface-overlay: var(--color-surface);
+  --color-surface-sunken: var(--color-background);
+  --color-surface-container-low: var(--color-surface);
+  --color-fill-secondary: var(--color-surface-secondary);
+  --color-fill-tertiary: var(--color-background);
+  --color-glass: color-mix(in srgb, var(--color-background) 82%, transparent);
+  --color-glass-border: color-mix(in srgb, var(--color-border) 65%, transparent);
+  --color-label-quaternary: var(--color-label-tertiary);
+  --color-label-placeholder: light-dark(#6E6E73, #8E8E93);
+  --color-label-disabled: light-dark(#AEAEB2, #636366);
+  --color-label-inverse: light-dark(#FFFFFF, #1D1D1F);
+  --color-label-link: var(--color-accent-text);
+  --color-label-on-media: #FFFFFF;
+  --color-media-backdrop: #000000;
+  --color-brand-mark-bg: #FFFFFF;
+
+  /* ---------- Semantic colours ---------- */
+  --color-success: light-dark(#248A3D, #30D158);
+  --color-success-background: light-dark(#E8F5EC, #0E2E1A);
+  --color-success-border: light-dark(#B7E0C3, #1F5C36);
+  --color-success-foreground: light-dark(#1B7134, #5FDD86);
+
+  --color-destructive: light-dark(#D70015, #FF453A);
+  --color-on-destructive: light-dark(#FFFFFF, #241D0B);
+  --color-error: var(--color-destructive);
+  --color-destructive-background: light-dark(#FFEBE9, #3A1513);
+  --color-destructive-border: light-dark(#F5B5AE, #7A2A24);
+  --color-destructive-foreground: light-dark(#B80012, #FF9A93);
+
+  --color-warning: light-dark(#9A6700, #FFD60A);
+  --color-warning-background: light-dark(#FFF4D6, #332B0A);
+  --color-warning-border: light-dark(#E9C46A, #6B4E12);
+  --color-warning-foreground: light-dark(#805500, #FFE066);
+
+  --color-info: light-dark(#0066CC, #0A84FF);
+  --color-info-background: light-dark(#E8F1FF, #0A2540);
+  --color-info-border: light-dark(#B8D4F8, #1F4C80);
+  --color-info-foreground: light-dark(#0055AD, #7FB6FF);
+
+  --color-success-strong: var(--color-success);
+  --color-destructive-strong: var(--color-destructive);
+
+  /* ---------- Brand compatibility aliases ---------- */
+  --color-brand-primary: var(--color-accent);
+  --color-brand-hover: var(--color-accent-hover);
+  --color-brand-active: var(--color-accent-pressed);
+  --color-brand-subtle: var(--color-accent-container);
+  --color-brand-subtle-strong: light-dark(#FFE48A, #4A3C14);
+  --color-brand-muted: var(--color-accent-soft);
+  --color-brand-foreground: var(--color-accent-text);
+  --color-brand-on-subtle: var(--color-on-accent-container);
+  --color-brand-focus: var(--color-focus-ring);
+  --color-accent-fill: var(--color-accent);
+  --color-accent-active: var(--color-accent-pressed);
+  --color-accent-subtle: var(--color-accent-container);
   --color-accent-subtle-strong: var(--color-brand-subtle-strong);
-  --color-accent-muted: var(--color-brand-muted);
-  --color-on-accent: #FFFFFF;
-  --color-on-accent-subtle: var(--color-brand-on-subtle);
-  --color-focus-ring: var(--color-brand-focus);
-  --color-label-on-media: #FFFFFF;   /* 媒体 / 遮罩上的文字（始终反白） */
+  --color-accent-muted: var(--color-accent-soft);
+  --color-accent-soft-foreground: var(--color-on-accent-container);
+  --color-on-accent-subtle: var(--color-on-accent-container);
+  --mofu-color-success-container: var(--color-success-background);
+  --mofu-color-on-success-container: var(--color-success-foreground);
+  --mofu-color-ok: var(--color-success);
+  --mofu-color-warning: var(--color-warning);
 
-  /* ---- 状态色（底色 / 描边 / 前景 三元组） ---- */
-  --color-success: var(--sys-green);
-  --color-success-background: light-dark(#E7F8EC, #12331F);
-  --color-success-border: light-dark(#B7E6C3, #1F5C36);
-  --color-success-foreground: light-dark(#1B7A3D, #7FE0A0);
+  /* Kept for components that still consume Apple system colour names. */
+  --sys-blue: var(--color-info);
+  --sys-blue-fill: light-dark(#0B63CE, #0A6EDB);
+  --sys-green: var(--color-success);
+  --sys-red: var(--color-destructive);
+  --sys-orange: light-dark(#C93400, #FF9F0A);
+  --sys-yellow: var(--color-accent);
+  --sys-purple: light-dark(#8944AB, #BF5AF2);
+  --sys-teal: light-dark(#007C89, #40C8E0);
 
-  --color-warning: var(--sys-orange);
-  --color-warning-background: light-dark(#FFF1E0, #3A2A0A);
-  --color-warning-border: light-dark(#FFD8A8, #6B4E12);
-  --color-warning-foreground: light-dark(#9A5B00, #FFC061);
-
-  --color-destructive: light-dark(#B3261E, #FF453A);
-  --color-destructive-background: light-dark(#FFE8E6, #3A1513);
-  --color-destructive-border: light-dark(#FFC7C2, #7A2A24);
-  --color-destructive-foreground: light-dark(#B3261E, #FF9A93);
-
-  --color-info: var(--sys-blue);
-  --color-info-background: light-dark(#E4F0FF, #0A2A4D);   /* 信息色独立于品牌色 */
-  --color-info-border: light-dark(#BBD8FF, #1F4C80);
-  --color-info-foreground: light-dark(#0A5FD0, #7FB6FF);
-
-  /* ---- 语义文本（标签）：暖调中性 ---- */
-  --color-label-primary: light-dark(#1F1B16, #F5F1EA);
-  --color-label-secondary: light-dark(#5C554B, #C9C2B6);
-  --color-label-tertiary: light-dark(#6E6659, #9A9286);
-  --color-label-quaternary: light-dark(#8E8A80, #7C766B);
-  --color-label-placeholder: light-dark(#6E6659, #9A9286);
-  --color-label-disabled: light-dark(#B0A99E, #4A443B);
-  --color-label-inverse: light-dark(#FFFFFF, #1F1B16);
-  --color-label-link: var(--color-brand-foreground);
-
-  /* ---- 背景与表面层级（暖调中性，明暗各自设计） ---- */
-  --color-background: light-dark(#F7F5F2, #12100D);
-  --color-background-secondary: light-dark(#FFFFFF, #1C1915);
-  --color-background-tertiary: light-dark(#EFEBE4, #2A251E);
-  --color-surface: light-dark(#FFFFFF, #1C1915);
-  --color-surface-secondary: light-dark(#F2EFEA, #2A251E);
-  --color-surface-elevated: light-dark(#FFFFFF, #2A251E);
-  --color-surface-overlay: light-dark(#FFFFFF, #1C1915);
-  --color-surface-sunken: light-dark(#EAE5DD, #0D0B09);
-  --color-media-backdrop: #000000;   /* 视频等媒体底（始终黑） */
-  --color-brand-mark-bg: #FFFFFF;    /* Logo 承载底（始终浅色，保证透明 Logo 在深色模式可辨） */
-
-  /* ---- 边框与分隔线 ---- */
-  --color-border: light-dark(#E2DCD3, #3A342B);
-  --color-border-strong: light-dark(#C9C1B4, #4A443B);
-  --color-separator: light-dark(#EDE8E0, #282319);
-
-  /* ---- 填充（选中段 / 芯片 / 嵌套底） ---- */
-  --color-fill-secondary: light-dark(#EFEBE4, #2A251E);
-  --color-fill-tertiary: light-dark(#F7F5F2, #221E17);
-
-  /* ---- 浮层材质（Liquid Glass，仅用于导航/弹层） ---- */
-  --color-glass: light-dark(color-mix(in srgb, #FFFFFF 74%, transparent), color-mix(in srgb, #1C1915 74%, transparent));
-  --color-glass-border: light-dark(color-mix(in srgb, #000000 8%, transparent), color-mix(in srgb, #FFFFFF 14%, transparent));
-
-  /* ---- M3 兼容别名（业务组件沿用 --md-sys-color-*，值全部来自语义令牌） ---- */
-  --md-sys-color-primary: var(--color-accent-fill);
+  /* ---------- M3 compatibility aliases ----------
+     The site no longer runs the HCT palette generator. These aliases
+     keep the older component CSS on the same Apple token set. */
+  --md-sys-color-primary: var(--color-accent);
   --md-sys-color-on-primary: var(--color-on-accent);
-  --md-sys-color-primary-container: var(--color-accent-subtle);
-  --md-sys-color-on-primary-container: var(--color-on-accent-subtle);
+  --md-sys-color-primary-container: var(--color-accent-container);
+  --md-sys-color-on-primary-container: var(--color-on-accent-container);
   --md-sys-color-secondary: var(--color-label-secondary);
-  --md-sys-color-secondary-container: var(--color-accent-subtle);
-  --md-sys-color-on-secondary-container: var(--color-on-accent-subtle);
-  --md-sys-color-tertiary: var(--color-success);
-  --md-sys-color-tertiary-container: var(--color-success-background);
-  --md-sys-color-on-tertiary-container: var(--color-success-foreground);
+  --md-sys-color-on-secondary: var(--color-surface);
+  --md-sys-color-secondary-container: var(--color-accent-soft);
+  --md-sys-color-on-secondary-container: var(--color-on-accent-container);
+  --md-sys-color-tertiary: var(--color-info);
+  --md-sys-color-on-tertiary: #FFFFFF;
+  --md-sys-color-tertiary-container: var(--color-info-background);
+  --md-sys-color-on-tertiary-container: var(--color-info-foreground);
   --md-sys-color-error: var(--color-destructive);
+  --md-sys-color-on-error: var(--color-on-destructive);
   --md-sys-color-error-container: var(--color-destructive-background);
   --md-sys-color-on-error-container: var(--color-destructive-foreground);
-  --md-sys-color-on-error: #FFFFFF;
   --md-sys-color-background: var(--color-background);
   --md-sys-color-on-background: var(--color-label-primary);
   --md-sys-color-surface: var(--color-surface);
+  --md-sys-color-surface-container-lowest: var(--color-surface);
   --md-sys-color-surface-container-low: var(--color-surface);
   --md-sys-color-surface-container: var(--color-surface-secondary);
-  --md-sys-color-surface-container-high: var(--color-surface-elevated);
-  --md-sys-color-surface-container-highest: var(--color-fill-secondary);
+  --md-sys-color-surface-container-high: var(--color-surface);
+  --md-sys-color-surface-container-highest: var(--color-surface-secondary);
   --md-sys-color-surface-variant: var(--color-surface-secondary);
-  --md-sys-color-surface-dim: var(--color-surface-sunken);
-  --md-sys-color-surface-bright: var(--color-surface-elevated);
+  --md-sys-color-surface-dim: var(--color-background);
+  --md-sys-color-surface-bright: var(--color-surface);
   --md-sys-color-surface-tint: var(--color-accent);
   --md-sys-color-on-surface: var(--color-label-primary);
   --md-sys-color-on-surface-variant: var(--color-label-secondary);
   --md-sys-color-outline: var(--color-border);
   --md-sys-color-outline-variant: var(--color-separator);
   --md-sys-color-scrim: #000000;
-  --md-sys-color-inverse-surface: var(--color-label-inverse);
-  --md-sys-color-inverse-on-surface: var(--color-label-primary);
+  --md-sys-color-inverse-surface: light-dark(#1D1D1F, #F5F5F7);
+  --md-sys-color-inverse-on-surface: light-dark(#F5F5F7, #1D1D1F);
+  --md-sys-font-family: var(--font-sans);
+
+  /* ---------- Spacing scale (4px) ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+  --mofu-space-1: var(--space-1);
+  --mofu-space-2: var(--space-2);
+  --mofu-space-3: var(--space-3);
+  --mofu-space-4: var(--space-4);
+  --mofu-space-5: var(--space-5);
+  --mofu-space-6: var(--space-6);
+  --mofu-space-7: var(--space-7);
+  --mofu-space-8: var(--space-8);
+
+  /* ---------- Shape scale ---------- */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-control: 10px;
+  --radius-pill: 999px;
+  --mofu-radius-xs: var(--radius-xs);
+  --mofu-radius-sm: var(--radius-sm);
+  --mofu-radius-md: var(--radius-md);
+  --mofu-radius-lg: var(--radius-lg);
+  --mofu-radius-xl: var(--radius-xl);
+  --mofu-radius-full: var(--radius-pill);
+
+  /* ---------- Elevation ---------- */
+  --shadow-none: none;
+  --shadow-sm: 0 1px 3px light-dark(rgb(0 0 0 / 5%), rgb(0 0 0 / 40%));
+  --shadow-md: 0 4px 12px light-dark(rgb(0 0 0 / 7%), rgb(0 0 0 / 48%));
+  --shadow-lg: 0 12px 32px light-dark(rgb(0 0 0 / 12%), rgb(0 0 0 / 55%));
+  --mofu-elev-1: var(--shadow-sm);
+  --mofu-elev-2: var(--shadow-md);
+  --mofu-elev-3: var(--shadow-md);
+  --mofu-elev-4: var(--shadow-lg);
+  --mofu-shadow-lg: var(--shadow-lg);
+
+  /* ---------- Motion ---------- */
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+  --duration-slow: 300ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --mofu-dur-short: var(--duration-fast);
+  --mofu-dur-medium: var(--duration-base);
+  --mofu-dur-long: var(--duration-slow);
+  --mofu-ease-standard: var(--ease-standard);
+  --mofu-ease-emphasized: var(--ease-out);
+  --mofu-ease-spring: var(--ease-out);
+  --mofu-ease-out: var(--ease-out);
+  --mofu-motion: var(--duration-base) var(--ease-standard);
+  --mofu-motion-effects: var(--duration-fast) var(--ease-standard);
+  --mofu-motion-spatial: var(--duration-slow) var(--ease-out);
+  --mofu-slide: var(--duration-slow) var(--ease-out);
+
+  /* ---------- Layers ---------- */
+  --mofu-scrim: rgb(0 0 0 / 32%);
+  --mofu-scrim-strong: rgb(0 0 0 / 82%);
+  --mofu-state-hover: 6%;
+  --mofu-state-press: 10%;
+
+  /* ---------- Shell ---------- */
+  --mofu-max-width: 1200px;
+  --mofu-header-height: 56px;
+  --mofu-page-gutter: clamp(16px, 4vw, 24px);
+  /* 底部悬浮导航几何：外层圆角由条高推导，内层圆角 = 外层 − 内边距。 */
+  --mofu-nav-h: 64px;
+  --mofu-nav-inset: 6px;
+  --mofu-nav-radius: calc(var(--mofu-nav-h) * 0.4);
+  --mofu-nav-item-radius: calc(var(--mofu-nav-radius) - var(--mofu-nav-inset));
+  --mofu-bottom-nav-h: calc(var(--mofu-nav-h) + env(safe-area-inset-bottom, 0px));
+  --mofu-fab-size: 48px;
+
+  --z-below: -1;
+  --z-base: 0;
+  --z-raised: 1;
+  --z-popover: 30;
+  --z-sticky: 100;
+  --z-float: 150;
+  --z-menu: 200;
+  --z-indicator: 260;
+  --z-scrim: 299;
+  --z-drawer: 300;
+  --z-tooltip: 400;
+  --z-skip-link: 999;
+  --z-toast: 1000;
+  --z-lightbox: 1100;
+  --z-modal: 1200;
 }
+
+/* Explicit appearance modes. The default (auto) follows the OS. */
+:root[data-appearance="light"] {
+  color-scheme: light;
+}
+
+:root[data-appearance="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-appearance="auto"] {
+  color-scheme: light dark;
+}
+
+/* Fallback for engines without light-dark(): keep the site readable
+   in light mode rather than letting tokens become invalid. */
+@supports not (color: light-dark(#fff, #000)) {
+  :root {
+    --color-background: #F5F5F7;
+    --color-surface: #FFFFFF;
+    --color-surface-secondary: #F2F2F7;
+    --color-surface-tertiary: #E5E5EA;
+    --color-label-primary: #1D1D1F;
+    --color-label-secondary: #6E6E73;
+    --color-label-placeholder: #6E6E73;
+    --color-label-disabled: #AEAEB2;
+    --color-border: #D2D2D7;
+    --color-separator: #E5E5EA;
+    --color-border-strong: #C7C7CC;
+    --color-control-border: #8E8E93;
+    --color-fill-secondary: #F2F2F7;
+    --color-fill-tertiary: #F5F5F7;
+    --color-accent-container: #FFF3C4;
+    --color-accent-soft: #FFFAE8;
+    --color-accent-text: #8A6500;
+    --color-on-accent-container: #5C4300;
+    --color-brand-subtle-strong: #FFE48A;
+    --color-success-border: #B7E0C3;
+    --color-destructive-border: #F5B5AE;
+    --color-warning-border: #E9C46A;
+    --color-info-border: #B8D4F8;
+    --color-success: #248A3D;
+    --color-destructive: #D70015;
+    --color-on-destructive: #FFFFFF;
+    --color-warning: #9A6700;
+    --color-info: #0066CC;
+    --color-success-background: #E8F5EC;
+    --color-destructive-background: #FFEBE9;
+    --color-warning-background: #FFF4D6;
+    --color-info-background: #E8F1FF;
+    --color-info-foreground: #0055AD;
+    --color-destructive-foreground: #B80012;
+    --color-success-foreground: #1B7134;
+    --color-warning-foreground: #805500;
+    --color-focus-ring: #8A6500;
+    --shadow-sm: 0 1px 3px rgb(0 0 0 / 5%);
+    --shadow-md: 0 4px 12px rgb(0 0 0 / 7%);
+    --shadow-lg: 0 12px 32px rgb(0 0 0 / 12%);
+  }
+}
+
 
 /* 卡片基类使用中性表面 */
 .card {
@@ -294,10 +382,6 @@ body {
   line-height: 1.6;
   color: var(--md-sys-color-on-surface);
   background: var(--md-sys-color-surface);
-}
-
-m3e-theme {
-  display: block;
 }
 
 img {
@@ -641,40 +725,59 @@ textarea:focus-visible {
   pointer-events: none;
 }
 
-.is-loading m3e-loading-indicator {
+.mofu-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mofu-spinner {
+    animation: mofu-spin 700ms linear infinite;
+  }
+}
+
+@keyframes mofu-spin {
+  to { transform: rotate(360deg); }
+}
+
+.is-loading .mofu-spinner {
   position: absolute;
   left: 50%;
   top: 50%;
   translate: -50% -50%;
-  --m3e-loading-indicator-size: 20px;
-  --m3e-loading-indicator-active-indicator-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-primary);
 }
 
-.filled-btn.is-loading m3e-loading-indicator {
-  --m3e-loading-indicator-active-indicator-color: var(--md-sys-color-on-primary);
+.filled-btn.is-loading .mofu-spinner {
+  color: var(--md-sys-color-on-primary);
 }
 
-.tonal-btn.is-loading m3e-loading-indicator {
-  --m3e-loading-indicator-active-indicator-color: var(--md-sys-color-on-secondary-container);
+.tonal-btn.is-loading .mofu-spinner {
+  color: var(--md-sys-color-on-secondary-container);
 }
 
-.filled-btn--danger.is-loading m3e-loading-indicator {
-  --m3e-loading-indicator-active-indicator-color: var(--md-sys-color-on-error);
+.filled-btn--danger.is-loading .mofu-spinner {
+  color: var(--md-sys-color-on-error);
 }
 
-.text-btn--danger.is-loading m3e-loading-indicator {
-  --m3e-loading-indicator-active-indicator-color: var(--md-sys-color-error);
+.text-btn--danger.is-loading .mofu-spinner {
+  color: var(--md-sys-color-error);
 }
 
-.icon-btn.is-loading m3e-loading-indicator {
-  --m3e-loading-indicator-active-indicator-color: var(--md-sys-color-on-surface-variant);
+.icon-btn.is-loading .mofu-spinner {
+  color: var(--md-sys-color-on-surface-variant);
 }
 
-.filled-btn--sm.is-loading m3e-loading-indicator,
-.outlined-btn--sm.is-loading m3e-loading-indicator,
-.text-btn--sm.is-loading m3e-loading-indicator,
-.icon-btn--sm.is-loading m3e-loading-indicator {
-  --m3e-loading-indicator-size: 18px;
+.filled-btn--sm.is-loading .mofu-spinner,
+.outlined-btn--sm.is-loading .mofu-spinner,
+.text-btn--sm.is-loading .mofu-spinner,
+.icon-btn--sm.is-loading .mofu-spinner {
+  width: 18px;
+  height: 18px;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1002,6 +1105,12 @@ img.avatar {
   color: var(--md-sys-color-on-surface-variant);
 }
 
+/* ---------- 触底自动加载的哨兵（首页信息流） ---------- */
+.feed-sentinel {
+  height: 1px;
+  margin-top: var(--mofu-space-3);
+}
+
 /* ---------- 分页导航（无 JS 时经 <noscript> 呈现） ---------- */
 .pagination {
   display: flex;
@@ -1093,10 +1202,15 @@ img.avatar {
   background: var(--mofu-scrim-strong);
 }
 
-.lightbox__img {
+.lightbox__img,
+.lightbox__video {
   max-width: 92vw;
   max-height: 88vh;
   border-radius: var(--mofu-radius-sm);
+}
+
+.lightbox__video {
+  background: #000;
 }
 
 .lightbox__close {
@@ -1590,3 +1704,5 @@ input[type="radio"]:focus-visible {
   gap: 10px;
   margin-top: var(--mofu-space-4);
 }
+
+

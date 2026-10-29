@@ -1,0 +1,58 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}settings{% endblock %}
+{% block title %}设置 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="settings-layout settings-layout--single">
+    <div class="settings-main" data-tabs-panel>
+        <h1 class="page-title">设置</h1>
+        <p class="page-subtitle">选择要调整的项目，进入后即可修改。</p>
+
+        <div class="me-list card">
+            <a class="me-item" href="/settings/profile">
+                <span class="material-symbols-outlined" aria-hidden="true">badge</span>
+                <span class="me-item__label">个人资料</span>
+                <span class="me-item__sub">昵称、头像、封面与简介</span>
+                <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
+            </a>
+            <a class="me-item" href="/settings/security">
+                <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+                <span class="me-item__label">账号与安全</span>
+                <span class="me-item__sub">密码、邮箱与登录设备</span>
+                <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
+            </a>
+            <a class="me-item" href="/settings/notifications">
+                <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
+                <span class="me-item__label">通知设置</span>
+                <span class="me-item__sub">互动通知与免打扰时段</span>
+                <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
+            </a>
+            <a class="me-item" href="/settings/privacy">
+                <span class="material-symbols-outlined" aria-hidden="true">visibility</span>
+                <span class="me-item__label">隐私设置</span>
+                <span class="me-item__sub">私信权限、列表可见性与已读回执</span>
+                <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
+            </a>
+            <a class="me-item" href="/settings/appearance">
+                <span class="material-symbols-outlined" aria-hidden="true">palette</span>
+                <span class="me-item__label">外观</span>
+                <span class="me-item__sub">浅色、深色或跟随系统</span>
+                <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
+            </a>
+            <a class="me-item" href="/settings/decorations">
+                <span class="material-symbols-outlined" aria-hidden="true">face_retouching_natural</span>
+                <span class="me-item__label">头像框与昵称挂件</span>
+                <span class="me-item__sub">头像外圈、名字后的小图案</span>
+                <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
+            </a>
+            <a class="me-item" href="/settings/background">
+                <span class="material-symbols-outlined" aria-hidden="true">wallpaper</span>
+                <span class="me-item__label">背景设置</span>
+                <span class="me-item__sub">页面背景图与透明度</span>
+                <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
+            </a>
+        </div>
+    </div>
+</section>
+{% endblock %}

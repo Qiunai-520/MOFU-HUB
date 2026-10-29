@@ -62,16 +62,17 @@ final class SettingsService
         $raw = $this->get('site.default_theme');
         $decoded = $raw !== null ? json_decode($raw, true) : null;
 
-        if (!is_array($decoded)) {
-            return [
-                'sourceColor' => '#775A0D',
-                'variant' => 'tonalSpot',
-                'contrast' => 'standard',
-                'density' => 0,
-                'motion' => 'standard',
-            ];
-        }
+        $scheme = is_array($decoded) ? (string) ($decoded['scheme'] ?? 'auto') : 'auto';
 
-        return $decoded;
+        // The accent is a fixed brand value; only the appearance mode is
+        // user-selectable. This also upgrades legacy stored theme JSON.
+        return [
+            'sourceColor' => '#FFCC38',
+            'scheme' => in_array($scheme, ['auto', 'light', 'dark'], true) ? $scheme : 'auto',
+            'variant' => 'tonalSpot',
+            'contrast' => 'standard',
+            'density' => 0,
+            'motion' => 'standard',
+        ];
     }
 }

@@ -20,7 +20,7 @@
             {% if isAnon %}
             <span class="comment__author comment-card__author--anon">{{ displayName }}</span>
             {% else %}
-            <a class="comment__author" href="{{ comment.author.url }}">{{ displayName }}</a>
+            <a class="comment__author" href="{{ comment.author.url }}">{{ displayName }}{{ include('components/name-badge.twig', { user: comment.author }) }}</a>
             {% endif %}
             {% if not isAnon and comment.reply_to %}
             <span class="comment__reply-to">回复 {{ comment.reply_to.nickname }}</span>

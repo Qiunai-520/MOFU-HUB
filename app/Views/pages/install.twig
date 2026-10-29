@@ -91,8 +91,8 @@
                 <input type="text" name="db_user" value="{{ values.db_user }}" required>
                 {% if errors.db_user is defined %}<span class="err">{{ errors.db_user }}</span>{% endif %}
             </label>
-            <label class="f"><span>数据库密码</span>
-                <input type="password" name="db_pass" value="{{ values.db_pass }}" autocomplete="off">
+            <label class="f"><span>数据库密码（留空表示保持现有配置）</span>
+                <input type="password" name="db_pass" value="" autocomplete="off">
             </label>
         </div>
 
@@ -100,6 +100,52 @@
             <input type="text" name="twikoo_env" value="{{ values.twikoo_env|default('') }}" maxlength="190"
                    placeholder="https://your-twikoo.vercel.app">
         </label>
+
+        <details class="install-more">
+            <summary>更多配置（音乐播放器 / 邮件发送）</summary>
+
+            <label class="f"><span>音乐播放器地址（可选，Cloudflare Pages 部署地址）</span>
+                <input type="text" name="music_url" value="{{ values.music_url|default('') }}" maxlength="190"
+                       placeholder="https://music.example.com">
+            </label>
+
+            <label class="f"><span>邮件发送方式</span>
+                <select name="mail_mailer">
+                    <option value="log" {{ values.mail_mailer|default('log') == 'smtp' ? '' : 'selected' }}>log（写入 storage/logs/mail.log，仅本地调试）</option>
+                    <option value="smtp" {{ values.mail_mailer|default('log') == 'smtp' ? 'selected' : '' }}>smtp（真实发送验证码）</option>
+                </select>
+            </label>
+
+            <div class="grid">
+                <label class="f"><span>SMTP 主机</span>
+                    <input type="text" name="mail_host" value="{{ values.mail_host|default('') }}" placeholder="smtp.example.com">
+                </label>
+                <label class="f"><span>SMTP 端口</span>
+                    <input type="number" name="mail_port" value="{{ values.mail_port|default('465') }}" min="1" max="65535">
+                </label>
+            </div>
+
+            <label class="f"><span>加密方式</span>
+                <select name="mail_encryption">
+                    <option value="ssl" {{ values.mail_encryption|default('ssl') == 'ssl' ? 'selected' : '' }}>ssl（465 直连）</option>
+                    <option value="tls" {{ values.mail_encryption|default('ssl') == 'tls' ? 'selected' : '' }}>tls（587 STARTTLS）</option>
+                    <option value="" {{ values.mail_encryption|default('ssl') == '' ? 'selected' : '' }}>留空（25 明文）</option>
+                </select>
+            </label>
+
+            <div class="grid">
+                <label class="f"><span>SMTP 用户名</span>
+                    <input type="text" name="mail_username" value="{{ values.mail_username|default('') }}" autocomplete="off">
+                </label>
+                <label class="f"><span>SMTP 密码（留空表示保持现有配置）</span>
+                    <input type="password" name="mail_password" value="" autocomplete="off">
+                </label>
+            </div>
+
+            <label class="f"><span>发件人地址（可选）</span>
+                <input type="email" name="mail_from" value="{{ values.mail_from|default('') }}" placeholder="no-reply@example.com">
+            </label>
+        </details>
 
         <label class="check-inline">
             <input type="checkbox" name="debug" value="1" {{ values.debug == '1' ? 'checked' : '' }}>
@@ -234,6 +280,30 @@
 
     {% if registryEmpty %}
     <div class="notice">另：上次安装尝试在该库中留下了一个空的 <code>schema_migrations</code> 表（无数据）。确认它不是其他程序的表后，可在 phpMyAdmin 中删除它，使该库恢复原状。</div>
+    {% endif %}
+
+    {% if kind == 'partial' and analysis is not null %}
+    <div class="notice">
+        <b>可尝试自动修复</b>
+        <p class="hint">向导已逐个核对每个迁移所需的表 / 列：若结果构成一个完整前缀，就会补写缺失的迁移记录并继续执行剩余迁移。</p>
+        <p class="hint">
+            {% if analysis.applied|length > 0 %}推断已应用到 <code>{{ analysis.applied|last }}</code>（共 {{ analysis.applied|length }} 个）{% else %}未识别到已应用的迁移{% endif %}
+            {% if analysis.pending|length > 0 %}；待执行 {{ analysis.pending|length }} 个：<code>{{ analysis.pending|join('、') }}</code>{% else %}；没有待执行的迁移{% endif %}
+        </p>
+        {% if not analysis.consistent %}
+        <div class="alert">{{ analysis.reason }}</div>
+        {% endif %}
+        <form method="post" action="/install/repair">
+            <input type="hidden" name="_token" value="{{ token }}">
+            <label class="check-inline">
+                <input type="checkbox" name="confirm" value="1" required>
+                <span>我已备份数据库，并确认该库属于本站</span>
+            </label>
+            <div class="actions">
+                <button class="btn" type="submit">检测并补写迁移记录，继续安装</button>
+            </div>
+        </form>
+    </div>
     {% endif %}
 
     {% if tables|length > 0 %}

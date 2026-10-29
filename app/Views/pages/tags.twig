@@ -1,0 +1,29 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}tags{% endblock %}
+{% block title %}标签 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="tags-page">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">标签</h1>
+            <p class="page-subtitle">按标签浏览大家投稿的内容</p>
+        </div>
+    </header>
+
+    {% if tags|length > 0 %}
+    <div class="tag-cloud">
+        {% for tag in tags %}
+        <a class="tag-chip" href="{{ tag.url }}"{% if tag.color is not empty %} style="--tag-color: {{ tag.color }}"{% endif %}>{{ tag.name }}</a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <span class="material-symbols-outlined empty-state__icon" aria-hidden="true">sell</span>
+        <p class="empty-state__title">还没有标签</p>
+        <p class="empty-state__text">管理员可在后台「标签管理」维护标签库</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

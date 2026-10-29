@@ -15,7 +15,7 @@
         <header class="board-entry__head">
             {{ include('components/avatar.twig', { user: entry.author, size: 'lg' }) }}
             <div class="board-entry__meta">
-                <a class="post-detail__author" href="{{ entry.author.url }}">{{ entry.author.nickname }}</a>
+                <a class="post-detail__author" href="{{ entry.author.url }}">{{ entry.author.nickname }}{{ include('components/name-badge.twig', { user: entry.author }) }}</a>
                 <div class="post-detail__sub">
                     <time>{{ entry.time_ago }}</time>
                     {% if entry.is_hidden %}<span class="meta-chip meta-chip--warn">已被隐藏</span>{% endif %}
@@ -70,34 +70,13 @@
         </footer>
     </article>
 
-    <section class="board-entry__comments" id="comments">
-        <h2 class="feed__title">回复（{{ entry.comment_count }}）</h2>
+    <section class="board-entry__comments" id="comments" data-comment-path="/boards/{{ board.slug }}/{{ entry.id }}">
+        <h2 class="feed__title">回复</h2>
 
-        {% for comment in comments %}
-        <div class="entry-comment">
-            {{ include('components/avatar.twig', { user: comment.author, size: 'md' }) }}
-            <div class="entry-comment__body">
-                <div class="entry-comment__head">
-                    <a class="entry-comment__author" href="{{ comment.author.url }}">{{ comment.author.nickname }}</a>
-                    <time>{{ comment.time_ago }}</time>
-                </div>
-                <div class="entry-comment__content">{{ comment.content_html|raw }}</div>
-            </div>
-        </div>
-        {% else %}
-        {{ include('components/empty-state.twig', { compact: true, text: '还没有回复，来抢沙发' }) }}
-        {% endfor %}
+        {# 回复统一由 Twikoo 提供，与帖子评论区一致 #}
+        <div id="twikoo" class="twikoo-mount" data-twikoo hidden></div>
 
-        {% if currentUser %}
-        <form class="entry-comment-form" method="post" action="/boards/{{ board.slug }}/{{ entry.id }}/comments">
-            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
-            <textarea class="field__input field__input--textarea" name="content" rows="3" maxlength="1000"
-                      placeholder="友善回复，共建友好社区" aria-label="回复内容" required></textarea>
-            <button class="filled-btn filled-btn--sm" type="submit">回复</button>
-        </form>
-        {% else %}
-        {{ include('components/empty-state.twig', { compact: true, icon: 'lock', text: '参与回复需要先登录', cta_href: '/login', cta_label: '去登录' }) }}
-        {% endif %}
+        <noscript><p class="comments__guest">回复需要启用 JavaScript。</p></noscript>
     </section>
 </div>
 {% endblock %}

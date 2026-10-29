@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#FFC107">
+<meta name="theme-color" content="#FFCC38">
 <title>当前离线 · MOFU社区</title>
 <style>
   :root { color-scheme: light dark; }
@@ -15,17 +15,17 @@
     align-items: center;
     justify-content: center;
     padding: 24px;
-    font-family: Roboto, system-ui, -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
-    background: #FFF8E1;
-    color: #3E2C00;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #F5F5F7;
+    color: #1D1D1F;
   }
   .card {
     width: 100%;
     max-width: 420px;
     padding: 36px 28px;
-    border-radius: 28px;
-    background: #ffffff;
-    box-shadow: 0 12px 32px rgba(62, 44, 0, 0.12);
+    border-radius: 20px;
+    background: #FFFFFF;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
     text-align: center;
   }
   .mark {
@@ -35,34 +35,34 @@
     width: 72px;
     height: 72px;
     margin: 0 auto 18px;
-    border-radius: 20px;
-    background: linear-gradient(135deg, #FFD54F, #FFA000);
+    border-radius: 16px;
+    background: #FFCC38;
   }
   .mark svg { width: 44px; height: 44px; }
   h1 { margin: 0 0 8px; font-size: 20px; }
-  p { margin: 0 0 24px; font-size: 14px; line-height: 1.7; color: #6b5a2a; }
+  p { margin: 0 0 24px; font-size: 14px; line-height: 1.7; color: #6E6E73; }
   button {
     padding: 12px 28px;
     border: none;
-    border-radius: 999px;
+    border-radius: 10px;
     font-size: 15px;
     font-weight: 500;
-    background: #FFB300;
-    color: #3E2C00;
+    background: #FFCC38;
+    color: #241D0B;
     cursor: pointer;
   }
   button:active { transform: scale(0.98); }
   @media (prefers-color-scheme: dark) {
-    body { background: #1c1b14; color: #f4e9c8; }
-    .card { background: #26241c; box-shadow: none; }
-    p { color: #c9bd93; }
+    body { background: #000000; color: #F5F5F7; }
+    .card { background: #1C1C1E; box-shadow: none; }
+    p { color: #AEAEB2; }
   }
 </style>
 </head>
 <body>
 <main class="card">
   <div class="mark" aria-hidden="true">
-    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M16 46V18h7.5l8.5 15 8.5-15H48v28h-7V30l-7 12h-4l-7-12v16z" fill="#3E2C00"/></svg>
+    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M16 46V18h7.5l8.5 15 8.5-15H48v28h-7V30l-7 12h-4l-7-12v16z" fill="#241D0B"/></svg>
   </div>
   <h1>当前离线</h1>
   <p>网络似乎断开了，已缓存的内容仍可访问。<br>恢复网络后重新加载即可继续浏览。</p>
@@ -70,3 +70,4 @@
 </main>
 </body>
 </html>
+

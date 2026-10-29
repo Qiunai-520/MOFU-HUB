@@ -1,5 +1,5 @@
 {# 资讯卡片 #}
-<article class="card news-card{{ news.is_pinned ? ' is-pinned' : '' }}">
+<article class="card news-card{{ news.is_pinned ? ' is-pinned' : '' }}{{ news.cover_url is empty ? ' news-card--no-cover' : '' }}">
     <a class="news-card__cover" href="{{ news.url }}">
         {% if news.cover_url is not empty %}
         <img src="{{ news.cover_url }}" alt="" loading="lazy" decoding="async">

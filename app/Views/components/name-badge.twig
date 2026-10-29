@@ -1,0 +1,6 @@
+{# 昵称后的个人挂件：优先图片，其次 emoji/短文本。 #}
+{% if user.name_badge_image is defined and user.name_badge_image is not empty %}
+<img class="name-badge name-badge--image" src="{{ user.name_badge_image }}" alt="" loading="lazy" decoding="async">
+{% elseif user.name_badge_emoji is defined and user.name_badge_emoji is not empty %}
+<span class="name-badge" title="{{ user.name_badge_label|default('个人挂件') }}">{{ user.name_badge_emoji }}</span>
+{% endif %}

@@ -1,0 +1,14 @@
+# 自托管第三方脚本：文件名不带内容哈希，必须让浏览器每次校验。
+# 否则升级脚本（如 Twikoo）后，旧文件会按上层 .htaccess 的「.js 缓存 1 年」继续命中，
+# 站点看起来“版本没更新”。
+<IfModule mod_headers.c>
+    <FilesMatch "\.(js|json)$">
+        Header set Cache-Control "no-cache, must-revalidate"
+        Header unset Expires
+    </FilesMatch>
+</IfModule>
+
+# 关掉该目录的 Expires，避免与上面的 Cache-Control 冲突
+<IfModule mod_expires.c>
+    ExpiresActive Off
+</IfModule>

@@ -1,0 +1,52 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}lab{% endblock %}
+{% block title %}社区实验室 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="lab-page">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">社区实验室</h1>
+            <p class="page-subtitle">提前体验仍在打磨中的功能；开启后随时可以关闭</p>
+        </div>
+    </header>
+
+    {% if ok %}<div class="form-success" role="status">已更新</div>{% endif %}
+    {% if error is not empty %}<div class="form-alert" role="alert">{{ error }}</div>{% endif %}
+
+    <div class="lab-list">
+        {% for f in features %}
+        <article class="card lab-item{{ f.joined ? ' is-joined' : '' }}">
+            <div class="lab-item__head">
+                <span class="lab-item__name">{{ f.name }}</span>
+                <span class="tag">{{ f.rollout_label }}</span>
+                {% if not f.enabled %}<span class="tag tag--warn">已关闭</span>{% endif %}
+            </div>
+            {% if f.description is not empty %}<p class="lab-item__desc">{{ f.description }}</p>{% endif %}
+
+            {% if not f.enabled %}
+            <p class="lab-item__hint">该实验功能当前已关闭</p>
+            {% elseif f.joined %}
+            <form method="post" action="/lab/{{ f.key }}/leave" class="lab-item__action">
+                <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                <button class="outlined-btn outlined-btn--sm" type="submit">关闭</button>
+            </form>
+            {% elseif f.available %}
+            <form method="post" action="/lab/{{ f.key }}/join" class="lab-item__action">
+                <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                <button class="filled-btn filled-btn--sm" type="submit">开启体验</button>
+            </form>
+            {% else %}
+            <p class="lab-item__hint">你暂时还不能开启（需要「{{ f.rollout_label }}」）</p>
+            {% endif %}
+        </article>
+        {% else %}
+        <div class="empty-state">
+            <span class="material-symbols-outlined empty-state__icon" aria-hidden="true">science</span>
+            <p class="empty-state__title">实验室还没有开放功能</p>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

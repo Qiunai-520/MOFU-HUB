@@ -62,7 +62,7 @@ export function setupGlobalActions(): void {
 
       case 'lightbox':
         event.preventDefault();
-        openLightbox(trigger.dataset.src ?? '');
+        openLightbox(trigger.dataset.src ?? '', trigger.dataset.kind === 'video' ? 'video' : 'image');
         break;
 
       case 'close-lightbox':
@@ -85,6 +85,26 @@ export function setupGlobalActions(): void {
         void handleDeletePost(trigger);
         break;
 
+      case 'purchase-post':
+        event.preventDefault();
+        void handlePurchasePost(trigger);
+        break;
+
+      case 'buy-membership':
+        event.preventDefault();
+        void handleBuyMembership(trigger);
+        break;
+
+      case 'buy-invite':
+        event.preventDefault();
+        void handleBuyInvite(trigger);
+        break;
+
+      case 'copy-invite':
+        event.preventDefault();
+        void handleCopyInvite(trigger);
+        break;
+
       case 'delete-confession':
         event.preventDefault();
         void handleDeleteConfession(trigger);
@@ -96,16 +116,34 @@ export function setupGlobalActions(): void {
         break;
 
       case 'open-notification': {
-        const id = Number(trigger.dataset.notificationId ?? 0);
-        if (id > 0) {
-          void api.post('/api/v1/notifications/read', { ids: [id] }).catch(() => undefined);
+        const card = trigger.closest<HTMLElement>('[data-notification-id]') ?? trigger;
+        const id = Number(card.dataset.notificationId ?? 0);
+        const url = card.dataset.notificationUrl ?? '';
+
+        // 乐观更新：先改 UI 再后台登记已读，避免「点进去还是未读、要刷新一下」
+        if (card.classList.contains('is-unread')) {
+          card.classList.remove('is-unread');
+          $unreadCount.set(Math.max(0, $unreadCount.get() - 1));
+
+          if (id > 0) {
+            void api.post('/api/v1/notifications/read', { ids: [id] }).catch(() => undefined);
+          }
+        }
+
+        // 卡片本身不是链接（自行跳转）；卡片内的 <a> 保留默认行为
+        if (!(trigger instanceof HTMLAnchorElement)) {
+          event.preventDefault();
+
+          if (url !== '') {
+            window.location.href = url;
+          }
         }
         break;
       }
 
-      case 'toggle-user-menu':
+      case 'toggle-card-menu':
         event.preventDefault();
-        toggleUserMenu(trigger);
+        toggleCardMenu(trigger);
         break;
 
       case 'back-to-top':
@@ -123,15 +161,17 @@ export function setupGlobalActions(): void {
     }
   });
 
-  // 点击空白处关闭用户菜单
+  // 点击空白处关闭用户菜单 / 卡片菜单
   document.addEventListener('click', (event) => {
     const target = event.target as HTMLElement | null;
 
-    if (target === null || target.closest('[data-user-menu]') !== null) {
+    if (target === null) {
       return;
     }
 
-    closeAllUserMenus();
+    if (target.closest('[data-card-menu-host]') === null) {
+      closeAllCardMenus();
+    }
   });
 
   document.addEventListener('submit', (event) => {
@@ -165,7 +205,7 @@ export function setupGlobalActions(): void {
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       closeLightbox();
-      closeAllUserMenus();
+      closeAllCardMenus();
     }
   });
 
@@ -215,41 +255,6 @@ export function setupGlobalActions(): void {
     }
   });
 
-  // 用户菜单方向键导览（↑/↓/Home/End）
-  document.addEventListener('keydown', (event) => {
-    const panel = document.querySelector<HTMLElement>('[data-user-menu-panel]:not([hidden])');
-
-    if (panel === null || !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-      return;
-    }
-
-    const items = Array.from(panel.querySelectorAll<HTMLElement>('a.user-menu__item, button.user-menu__item'));
-
-    if (items.length === 0) {
-      return;
-    }
-
-    const current = items.indexOf(document.activeElement as HTMLElement);
-    let next = current;
-
-    if (event.key === 'ArrowDown') {
-      next = (current + 1 + items.length) % items.length;
-    } else if (event.key === 'ArrowUp') {
-      next = (current - 1 + items.length) % items.length;
-    } else if (event.key === 'Home') {
-      next = 0;
-    } else {
-      next = items.length - 1;
-    }
-
-    const targetItem = items[next];
-
-    if (targetItem !== undefined) {
-      event.preventDefault();
-      targetItem.focus();
-    }
-  });
-
   // 未读角标联动
   $unreadCount.subscribe((count) => {
     for (const badge of $$<HTMLElement>('[data-unread-badge]')) {
@@ -263,7 +268,58 @@ export function setupGlobalActions(): void {
   });
 
   setupBackToTop();
+  setupPostContentClamps();
   void refreshUnreadCount();
+}
+
+// ---------------------------------------------------------------- 卡片正文折叠
+
+/**
+ * 正文折叠：超过 5 行才截断，并放出「…查看更多」（去详情页的链接）。
+ *
+ * 判断方式：先按 5 行裁一次，再看文本是否真的被裁掉（scrollHeight > clientHeight）。
+ * 不直接算 line-height 像素值 —— 部分环境下拿不到像素值，会把短帖也误判成超长。
+ */
+export function syncPostContentClamps(): void {
+  for (const content of $$<HTMLElement>('[data-post-content]')) {
+    if (content.dataset.postContentBound === '1') {
+      continue;
+    }
+
+    content.dataset.postContentBound = '1';
+
+    const text = $<HTMLElement>('[data-post-content-text]', content);
+    const more = $<HTMLElement>('.post-more', content);
+
+    if (text === null || more === null) {
+      continue;
+    }
+
+    content.classList.add('is-clamped');
+
+    if (text.scrollHeight > text.clientHeight + 1) {
+      more.hidden = false;
+    } else {
+      content.classList.remove('is-clamped');
+    }
+  }
+}
+
+let postContentObserver: MutationObserver | null = null;
+
+/** 首次量测 + 列表 AJAX 追加（加载更多、切 tab）后自动补测 */
+function setupPostContentClamps(): void {
+  syncPostContentClamps();
+
+  if (postContentObserver === null && 'MutationObserver' in window) {
+    postContentObserver = new MutationObserver(() => {
+      if (document.querySelector('[data-post-content]:not([data-post-content-bound])') !== null) {
+        syncPostContentClamps();
+      }
+    });
+
+    postContentObserver.observe(document.body, { childList: true, subtree: true });
+  }
 }
 
 /** 将未读计数应用到角标（SSE 推送与轮询共用） */
@@ -338,43 +394,44 @@ function setupBackToTop(): void {
   syncBackToTop();
 }
 
-// ---------------------------------------------------------------- 用户菜单
+// ---------------------------------------------------------------- 卡片「更多操作」菜单
 
-function toggleUserMenu(trigger: HTMLElement): void {
-  const menu = trigger.closest('[data-user-menu]');
-  const panel = menu?.querySelector<HTMLElement>('[data-user-menu-panel]');
+function toggleCardMenu(trigger: HTMLElement): void {
+  const host = trigger.closest('[data-card-menu-host]');
+  const panel = host?.querySelector<HTMLElement>('[data-card-menu]');
 
   if (panel === null || panel === undefined) {
     return;
   }
 
   const isOpen = !panel.hasAttribute('hidden');
-  closeAllUserMenus();
+  closeAllCardMenus();
 
   if (!isOpen) {
     panel.removeAttribute('hidden');
     trigger.setAttribute('aria-expanded', 'true');
-    panel.querySelector<HTMLElement>('a.user-menu__item, button.user-menu__item')?.focus();
+    host?.closest('.card')?.classList.add('is-menu-open');
+    panel.querySelector<HTMLElement>('a, button')?.focus();
   }
 }
 
-function closeAllUserMenus(): void {
+function closeAllCardMenus(): void {
   const active = document.activeElement;
   let restore: HTMLElement | null = null;
 
-  for (const panel of $$<HTMLElement>('[data-user-menu-panel]')) {
+  for (const panel of $$<HTMLElement>('[data-card-menu]')) {
     if (active !== null && panel.contains(active)) {
-      restore = panel.closest('[data-user-menu]')?.querySelector<HTMLElement>('[data-action="toggle-user-menu"]') ?? null;
+      restore = panel.closest('[data-card-menu-host]')?.querySelector<HTMLElement>('[data-action="toggle-card-menu"]') ?? null;
     }
 
+    panel.closest('.card')?.classList.remove('is-menu-open');
     panel.setAttribute('hidden', '');
   }
 
-  for (const trigger of $$<HTMLElement>('[data-action="toggle-user-menu"]')) {
+  for (const trigger of $$<HTMLElement>('[data-action="toggle-card-menu"]')) {
     trigger.setAttribute('aria-expanded', 'false');
   }
 
-  // 菜单关闭时若焦点在菜单内，还原到触发按钮
   restore?.focus();
 }
 
@@ -417,6 +474,18 @@ async function shareLink(button: HTMLElement): Promise<void> {
   }
 
   toast(copied ? '链接已复制' : '复制失败，请手动复制链接', copied ? 'success' : 'info');
+
+  // 「每日分享视频」经验：分享成功后向服务端登记（按天幂等）
+  if (copied && $user.get() !== null) {
+    try {
+      const { data } = await api.post<{ xp: number }>('/api/v1/membership/tasks/share');
+      if (data.xp > 0) {
+        toast(`分享成功，+${data.xp} 经验`, 'success');
+      }
+    } catch {
+      // 分享经验不是关键路径，失败不打扰用户
+    }
+  }
 }
 
 // ---------------------------------------------------------------- 拉黑
@@ -654,9 +723,104 @@ async function handleDeletePost(button: HTMLElement): Promise<void> {
   try {
     await api.delete(`/api/v1/posts/${postId}`);
     toast('已删除', 'success');
+
+    // 列表里从卡片菜单删除：只移除这张卡，不要整页跳回首页
+    const card = button.closest<HTMLElement>('.post-card');
+
+    if (card !== null) {
+      card.remove();
+
+      return;
+    }
+
     window.location.href = '/';
   } catch (error) {
     toastError(error);
+  }
+}
+
+// ---------------------------------------------------------------- 付费动态
+
+/** 购买付费动态：扣 M币后刷新页面，服务端会带上正文 */
+async function handlePurchasePost(button: HTMLElement): Promise<void> {
+  const postId = Number(button.dataset.postId ?? 0);
+
+  if (postId <= 0) {
+    return;
+  }
+
+  const price = button.closest<HTMLElement>('.paid-lock')?.querySelector<HTMLElement>('.paid-lock__price')?.textContent ?? '';
+
+  if (!(await confirmDialog(`确认花 ${price.trim()} 解锁这条动态吗？`, { confirmLabel: '解锁' }))) {
+    return;
+  }
+
+  button.setAttribute('disabled', '');
+
+  try {
+    const { data } = await api.post<{ price: number; balance: number }>(`/api/v1/posts/${postId}/purchase`);
+    toast(`已解锁，剩余 ${data.balance} M币`, 'success');
+    window.location.reload();
+  } catch (error) {
+    button.removeAttribute('disabled');
+    toastError(error);
+  }
+}
+
+/** 购买大会员：下单调起易支付 */
+async function handleBuyMembership(button: HTMLElement): Promise<void> {
+  const plan = button.dataset.plan ?? '';
+
+  if (plan === '') {
+    return;
+  }
+
+  button.setAttribute('disabled', '');
+
+  try {
+    const { data } = await api.post<{ pay_url: string }>('/api/v1/membership/purchase', { plan });
+
+    if (data.pay_url !== '') {
+      window.location.href = data.pay_url;
+
+      return;
+    }
+
+    button.removeAttribute('disabled');
+  } catch (error) {
+    button.removeAttribute('disabled');
+    toastError(error);
+  }
+}
+
+/** 购买邀请码 */
+async function handleBuyInvite(button: HTMLElement): Promise<void> {
+  button.setAttribute('disabled', '');
+
+  try {
+    const { data } = await api.post<{ code: string }>('/api/v1/invites/purchase');
+
+    toast(`已生成邀请码 ${data.code}`, 'success');
+    window.setTimeout(() => window.location.reload(), 700);
+  } catch (error) {
+    button.removeAttribute('disabled');
+    toastError(error);
+  }
+}
+
+/** 复制邀请码 */
+async function handleCopyInvite(button: HTMLElement): Promise<void> {
+  const code = button.dataset.code ?? '';
+
+  if (code === '') {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(code);
+    toast('已复制邀请码', 'success');
+  } catch {
+    toast('复制失败，请手动选择复制', 'error');
   }
 }
 
@@ -702,16 +866,25 @@ async function handleMarkAllRead(): Promise<void> {
 
 // ---------------------------------------------------------------- 灯箱
 
-function openLightbox(src: string): void {
+function openLightbox(src: string, kind: 'image' | 'video' = 'image'): void {
   const box = $('#lightbox');
   const image = box?.querySelector<HTMLImageElement>('.lightbox__img');
+  const video = box?.querySelector<HTMLVideoElement>('.lightbox__video');
 
   if (box === null || image === null || image === undefined || src === '') {
     return;
   }
 
   lightboxTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  image.src = src;
+  image.hidden = kind !== 'image';
+  image.src = kind === 'image' ? src : '';
+
+  if (video !== null && video !== undefined) {
+    video.hidden = kind !== 'video';
+    video.src = kind === 'video' ? src : '';
+    video.load();
+  }
+
   box.removeAttribute('hidden');
   document.body.classList.add('lightbox-open');
 
@@ -731,7 +904,17 @@ function closeLightbox(): void {
 
   const image = box.querySelector<HTMLImageElement>('.lightbox__img');
   if (image !== null) {
+    image.hidden = false;
     image.src = '';
+  }
+
+  const video = box.querySelector<HTMLVideoElement>('.lightbox__video');
+
+  if (video !== null) {
+    video.pause();
+    video.hidden = true;
+    video.removeAttribute('src');
+    video.load();
   }
 
   lightboxTrigger?.focus();

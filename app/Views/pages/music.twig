@@ -6,6 +6,19 @@
 
 {% block content %}
 <section class="music-page">
+{% if musicAppUrl is not empty %}
+    {# 播放器是独立部署（Cloudflare Pages）的 MOFU 风格应用，这里整屏内嵌 #}
+    <div class="music-app">
+        <div class="music-app__bar">
+            <span class="music-app__hint">播放器由独立应用提供，可全屏使用</span>
+            <a class="outlined-btn outlined-btn--sm" href="{{ musicAppUrl }}" target="_blank" rel="noopener">
+                <span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> 在新窗口打开
+            </a>
+        </div>
+        <iframe class="music-app__frame" src="{{ musicAppUrl }}" title="MOFU 音乐播放器"
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen" loading="eager"></iframe>
+    </div>
+{% else %}
     <header class="music-page__head">
         <h1 class="page-title">音乐</h1>
         <p class="page-subtitle">聚合多个平台，一个入口搜索与播放。</p>
@@ -13,8 +26,11 @@
 
     <div class="card music-hero">
         <span class="music-hero__icon material-symbols-outlined" aria-hidden="true">library_music</span>
-        <h2 class="music-hero__title">音乐聚合即将上线</h2>
-        <p class="music-hero__text">正在接入各平台音源，稍后即可在这里搜索与播放。</p>
+        <h2 class="music-hero__title">音乐播放器还没接上</h2>
+        <p class="music-hero__text">
+            播放器是独立应用（<code>music-app/</code>，MOFU 风格的 Solara），部署到 Cloudflare Pages 后，
+            把地址填进 <code>.env</code> 的 <code>MUSIC_APP_URL</code> 即可在这里直接使用。
+        </p>
         <div class="music-sources">
             <span class="meta-chip">网易云</span>
             <span class="meta-chip">QQ 音乐</span>
@@ -22,5 +38,6 @@
             <span class="meta-chip">酷我</span>
         </div>
     </div>
+{% endif %}
 </section>
 {% endblock %}

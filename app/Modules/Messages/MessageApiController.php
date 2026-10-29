@@ -41,6 +41,15 @@ final class MessageApiController extends ApiController
     }
 
     /** @param array<string, string> $args */
+    public function recall(Request $request, Response $response, array $args): Response
+    {
+        $user = $this->requireUser($request);
+
+        $this->messages->recall((int) $user['id'], (int) ($args['id'] ?? 0));
+
+        return $this->ok($response, ['recalled' => true]);
+    }
+
     public function send(Request $request, Response $response, array $args): Response
     {
         $user = $this->requireUser($request);
@@ -52,8 +61,14 @@ final class MessageApiController extends ApiController
 
         $conversationId = (int) ($args['id'] ?? 0);
         $input = $this->input($request);
+        $mediaId = (int) ($input['media_id'] ?? 0);
 
-        $message = $this->messages->send($userId, $conversationId, (string) ($input['content'] ?? ''));
+        $message = $this->messages->send(
+            $userId,
+            $conversationId,
+            (string) ($input['content'] ?? ''),
+            $mediaId > 0 ? $mediaId : null,
+        );
 
         return $this->ok($response, $this->messages->presentMessage($message, $userId), [], 201);
     }

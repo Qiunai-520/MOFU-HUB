@@ -1,7 +1,7 @@
-const INDICATOR_TAG = 'm3e-loading-indicator';
+const INDICATOR_CLASS = 'mofu-spinner';
 
 /**
- * 按钮加载态：显示 M3E 加载指示器，隐藏原有文字/图标但保持按钮尺寸。
+ * 按钮加载态：显示轻量原生加载指示器，隐藏原有文字/图标但保持按钮尺寸。
  */
 export function setButtonLoading(element: HTMLElement | null, loading: boolean): void {
   if (element === null) {
@@ -9,8 +9,9 @@ export function setButtonLoading(element: HTMLElement | null, loading: boolean):
   }
 
   if (loading) {
-    if (element.querySelector(INDICATOR_TAG) === null) {
-      const indicator = document.createElement(INDICATOR_TAG);
+    if (element.querySelector(`.${INDICATOR_CLASS}`) === null) {
+      const indicator = document.createElement('span');
+      indicator.className = INDICATOR_CLASS;
       indicator.setAttribute('aria-hidden', 'true');
       element.append(indicator);
     }
@@ -20,7 +21,7 @@ export function setButtonLoading(element: HTMLElement | null, loading: boolean):
   } else {
     element.classList.remove('is-loading');
     element.removeAttribute('aria-busy');
-    element.querySelector(INDICATOR_TAG)?.remove();
+    element.querySelector(`.${INDICATOR_CLASS}`)?.remove();
   }
 }
 

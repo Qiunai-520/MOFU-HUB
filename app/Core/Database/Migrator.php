@@ -62,60 +62,87 @@ final class Migrator
     /** @return list<string> 本次执行的版本 */
     public function migrate(): array
     {
-        $applied = $this->applied();
-        $executed = [];
+        return $this->withLock(function (): array {
+            $applied = $this->applied();
+            $executed = [];
 
-        foreach ($this->available() as $version => $file) {
-            if (in_array($version, $applied, true)) {
-                continue;
+            foreach ($this->available() as $version => $file) {
+                if (in_array($version, $applied, true)) {
+                    continue;
+                }
+
+                $this->logger->info('migrate: ' . $version);
+                $parts = self::parseFile($file);
+
+                foreach ($parts['up'] as $statement) {
+                    $this->query->run($statement);
+                }
+
+                $this->query->insert('schema_migrations', [
+                    'version' => $version,
+                    'applied_at' => date('Y-m-d H:i:s'),
+                ]);
+                $executed[] = $version;
             }
 
-            $this->logger->info('migrate: ' . $version);
-            $parts = self::parseFile($file);
-
-            foreach ($parts['up'] as $statement) {
-                $this->query->run($statement);
-            }
-
-            $this->query->insert('schema_migrations', [
-                'version' => $version,
-                'applied_at' => date('Y-m-d H:i:s'),
-            ]);
-            $executed[] = $version;
-        }
-
-        return $executed;
+            return $executed;
+        });
     }
 
     /** @return list<string> 回退的版本（按回退顺序） */
     public function rollback(int $steps = 1): array
     {
-        $applied = $this->applied();
-        $targets = array_slice(array_reverse($applied), 0, max(0, $steps));
-        $executed = [];
+        return $this->withLock(function () use ($steps): array {
+            $applied = $this->applied();
+            $targets = array_slice(array_reverse($applied), 0, max(0, $steps));
+            $executed = [];
 
-        foreach ($targets as $version) {
-            $file = rtrim($this->path, '/') . '/' . $version . '.sql';
-            if (!is_file($file)) {
-                throw new RuntimeException(sprintf('Migration file not found for version: %s', $version));
+            foreach ($targets as $version) {
+                $file = rtrim($this->path, '/') . '/' . $version . '.sql';
+                if (!is_file($file)) {
+                    throw new RuntimeException(sprintf('Migration file not found for version: %s', $version));
+                }
+
+                $parts = self::parseFile($file);
+                if ($parts['down'] === []) {
+                    throw new RuntimeException(sprintf('Migration %s has no DOWN section.', $version));
+                }
+
+                $this->logger->info('rollback: ' . $version);
+
+                foreach ($parts['down'] as $statement) {
+                    $this->query->run($statement);
+                }
+
+                $this->query->delete('schema_migrations', 'version = :version', ['version' => $version]);
+                $executed[] = $version;
             }
 
-            $parts = self::parseFile($file);
-            if ($parts['down'] === []) {
-                throw new RuntimeException(sprintf('Migration %s has no DOWN section.', $version));
-            }
+            return $executed;
+        });
+    }
 
-            $this->logger->info('rollback: ' . $version);
+    /**
+     * 数据库级互斥锁：避免网页按钮、CLI 或并发请求同时执行迁移。
+     *
+     * @template T
+     * @param callable(): T $callback
+     * @return T
+     */
+    private function withLock(callable $callback): mixed
+    {
+        $name = 'mofu:migrate:' . substr(hash('sha256', $this->path), 0, 40);
+        $acquired = $this->query->value('SELECT GET_LOCK(:name, 10)', ['name' => $name]);
 
-            foreach ($parts['down'] as $statement) {
-                $this->query->run($statement);
-            }
-
-            $this->query->delete('schema_migrations', 'version = :version', ['version' => $version]);
-            $executed[] = $version;
+        if ((int) $acquired !== 1) {
+            throw new RuntimeException('另一个数据库升级正在执行，请稍后重试。');
         }
 
-        return $executed;
+        try {
+            return $callback();
+        } finally {
+            $this->query->value('SELECT RELEASE_LOCK(:name)', ['name' => $name]);
+        }
     }
 
     /**

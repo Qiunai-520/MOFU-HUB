@@ -5,26 +5,54 @@
 
 {% block content %}
 <section class="me-page">
-    <header class="me-hero card">
-        {{ include('components/avatar.twig', { user: profile, size: 'xl' }) }}
-        <div class="me-hero__info">
-            <h1 class="me-hero__name">{{ profile.nickname }}</h1>
-            <p class="me-hero__username">@{{ profile.username }}</p>
-            {% if profile.bio is not empty %}
-            <p class="me-hero__bio">{{ profile.bio }}</p>
-            {% else %}
-            <p class="me-hero__bio me-hero__bio--empty">还没有简介，去设置里写一句吧</p>
-            {% endif %}
-            <p class="me-hero__counts">{{ profile.following_count }} 关注 · {{ profile.followers_count }} 粉丝</p>
+    <header class="profile-hero{{ profile.cover_url is empty ? ' profile-hero--default' : '' }}">
+        <div class="profile-hero__cover"{% if profile.cover_url is not empty %} style="background-image: url('{{ profile.cover_url|e('css') }}')"{% endif %} aria-hidden="true">
+            <span class="profile-hero__scrim"></span>
         </div>
-        <a class="outlined-btn outlined-btn--sm me-hero__edit" href="/settings/profile">
-            <span class="material-symbols-outlined" aria-hidden="true">edit</span> 编辑资料
-        </a>
+
+        <div class="profile-hero__body">
+            <div class="profile-hero__avatar">
+                {{ include('components/avatar.twig', { user: profile, size: 'xl' }) }}
+            </div>
+
+            <div class="profile-hero__identity">
+                <h1 class="profile-hero__name{{ profile.is_premium ? ' is-premium' : '' }}">{{ profile.nickname }}{{ include('components/name-badge.twig', { user: profile }) }}</h1>
+                <p class="profile-hero__handle">
+                    <span class="profile-hero__at">@{{ profile.username }}</span>
+                    <span class="profile-hero__mid">#{{ profile.mid }}</span>
+                    {% if profile.is_formal %}<span class="level-chip{{ profile.is_flash ? ' level-chip--flash' : '' }}">{% if profile.is_flash %}<span class="material-symbols-outlined" aria-hidden="true">bolt</span>{% endif %}Lv.{{ profile.level_number }}</span>{% endif %}
+                    {% if profile.is_premium %}<span class="level-chip level-chip--premium">大会员</span>{% endif %}
+                    {% if profile.title is not null %}
+                    <span class="level-chip"><span class="material-symbols-outlined" aria-hidden="true">{{ profile.title.icon }}</span>{{ profile.title.name }}</span>
+                    {% endif %}
+                </p>
+
+                {% if profile.bio is not empty %}
+                <p class="profile-hero__bio">{{ profile.bio }}</p>
+                {% endif %}
+            </div>
+
+            <div class="profile-hero__actions">
+                <a class="filled-btn profile-btn" href="/settings/profile">
+                    <span class="material-symbols-outlined" aria-hidden="true">edit</span> 编辑资料
+                </a>
+                <button class="outlined-btn profile-btn" type="button" data-action="share" data-share-url="/u/{{ profile.username }}">
+                    <span class="material-symbols-outlined" aria-hidden="true">share</span> 分享
+                </button>
+            </div>
+
+            <dl class="profile-hero__stats">
+                <div class="profile-stat"><dt>动态</dt><dd>{{ profile.posts_count }}</dd></div>
+                <div class="profile-stat"><dt>获赞</dt><dd>{{ profile.likes_received }}</dd></div>
+                <div class="profile-stat"><dt>关注</dt><dd>{{ profile.following_count }}</dd></div>
+                <div class="profile-stat"><dt>粉丝</dt><dd>{{ profile.followers_count }}</dd></div>
+            </dl>
+        </div>
     </header>
 
     <div class="me-list card">
         {% if currentUser.can_admin %}
-        <a class="me-item" href="/admin">
+        <a class="me-item" href="/admin/dashboard">
             <span class="material-symbols-outlined" aria-hidden="true">admin_panel_settings</span>
             <span class="me-item__label">MOFU 后台管理</span>
             <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
@@ -35,7 +63,42 @@
             <span class="me-item__label">我的主页</span>
             <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
         </a>
-        <a class="me-item" href="/settings/profile">
+        <a class="me-item" href="/growth">
+            <span class="material-symbols-outlined" aria-hidden="true">military_tech</span>
+            <span class="me-item__label">成长中心</span>
+            <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
+        </a>
+        <a class="me-item" href="/membership">
+            <span class="material-symbols-outlined" aria-hidden="true">workspace_premium</span>
+            <span class="me-item__label">会员中心</span>
+            <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
+        </a>
+        <a class="me-item" href="/shop">
+            <span class="material-symbols-outlined" aria-hidden="true">storefront</span>
+            <span class="me-item__label">MOFU小店</span>
+            <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
+        </a>
+        <a class="me-item" href="/invites">
+            <span class="material-symbols-outlined" aria-hidden="true">confirmation_number</span>
+            <span class="me-item__label">邀请码</span>
+            <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
+        </a>
+        <a class="me-item" href="/jury">
+            <span class="material-symbols-outlined" aria-hidden="true">gavel</span>
+            <span class="me-item__label">风纪委员会</span>
+            <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
+        </a>
+        <a class="me-item" href="/jail">
+            <span class="material-symbols-outlined" aria-hidden="true">lock_person</span>
+            <span class="me-item__label">小黑屋</span>
+            <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
+        </a>
+        <a class="me-item" href="/lab">
+            <span class="material-symbols-outlined" aria-hidden="true">science</span>
+            <span class="me-item__label">社区实验室</span>
+            <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>
+        </a>
+        <a class="me-item" href="/settings">
             <span class="material-symbols-outlined" aria-hidden="true">settings</span>
             <span class="me-item__label">设置</span>
             <span class="material-symbols-outlined me-item__chevron" aria-hidden="true">chevron_right</span>

@@ -1,0 +1,24 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}about{% endblock %}
+{% block title %}更新日志 · {{ app.name }}{% endblock %}
+{% block meta_description %}{{ app.name }} 的版本更新日志{% endblock %}
+
+{% block content %}
+<section class="about-page">
+    <div class="page-head">
+        <h1 class="page-title">更新日志</h1>
+        <p class="page-subtitle">
+            记录每个版本的改动{% if updatedAt is not empty %} · 最后更新 {{ updatedAt }}{% endif %}
+        </p>
+    </div>
+
+    <article class="card changelog">
+        <div class="changelog__body">{{ logHtml|raw }}</div>
+    </article>
+
+    <div class="page-foot">
+        <a class="outlined-btn outlined-btn--sm" href="/about">返回关于</a>
+    </div>
+</section>
+{% endblock %}

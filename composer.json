@@ -4,7 +4,7 @@
     "type": "project",
     "license": "proprietary",
     "require": {
-        "php": ">=8.1",
+        "php": "~8.2.35 || ~8.3.36 || ~8.4.27 || ~8.5.12 || >=8.6.0",
         "ext-pdo": "*",
         "ext-mbstring": "*",
         "ext-json": "*",
@@ -30,13 +30,15 @@
         "sort-packages": true,
         "optimize-autoloader": true,
         "platform": {
-            "php": "8.1.0"
+            "php": "8.2.35"
         }
     },
     "scripts": {
         "test": "phpunit",
+        "security": "php bin/security-check.php",
         "migrate": "php bin/migrate.php migrate",
         "migrate:status": "php bin/migrate.php status",
         "serve": "php -S 0.0.0.0:8000 -t public public/router.php"
     }
 }
+

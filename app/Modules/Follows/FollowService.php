@@ -7,6 +7,7 @@ namespace Mofu\Modules\Follows;
 use Mofu\Core\Database\Query;
 use Mofu\Core\Http\HttpException;
 use Mofu\Core\View\Present;
+use Mofu\Modules\Users\ProfileDecorations;
 use Mofu\Modules\Notifications\NotificationService;
 use Mofu\Modules\Users\BlockService;
 
@@ -109,7 +110,7 @@ final class FollowService
      */
     public function followers(int $userId, ?int $viewerId, int $page, int $perPage): array
     {
-        $sql = 'SELECT u.id, u.username, p.nickname, p.bio,
+        $sql = 'SELECT u.id, u.username, p.nickname, p.avatar_frame, p.name_badge, p.bio,
                        am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
                 FROM follows f
                 JOIN users u ON u.id = f.follower_id
@@ -133,7 +134,7 @@ final class FollowService
      */
     public function following(int $userId, ?int $viewerId, int $page, int $perPage): array
     {
-        $sql = 'SELECT u.id, u.username, p.nickname, p.bio,
+        $sql = 'SELECT u.id, u.username, p.nickname, p.avatar_frame, p.name_badge, p.bio,
                        am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
                 FROM follows f
                 JOIN users u ON u.id = f.followee_id
@@ -158,7 +159,7 @@ final class FollowService
     public function suggestions(int $viewerId, int $limit = 5): array
     {
         $rows = $this->query->all(
-            'SELECT u.id, u.username, p.nickname, p.bio, COUNT(po.id) AS recent_posts,
+            'SELECT u.id, u.username, p.nickname, p.avatar_frame, p.name_badge, p.bio, COUNT(po.id) AS recent_posts,
                     am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
              FROM users u
              LEFT JOIN user_profiles p ON p.user_id = u.id
@@ -167,7 +168,7 @@ final class FollowService
                  AND po.created_at >= :since
              WHERE u.id != :viewer AND u.status = :active
                AND u.id NOT IN (SELECT followee_id FROM follows WHERE follower_id = :viewer_follow)
-             GROUP BY u.id, u.username, p.nickname, p.bio
+             GROUP BY u.id, u.username, p.nickname, p.avatar_frame, p.name_badge, p.bio
              ORDER BY recent_posts DESC, u.id DESC
              LIMIT ' . max(1, min($limit, 10)),
             [
@@ -233,6 +234,7 @@ final class FollowService
                     isset($row['avatar_thumb']) ? (string) $row['avatar_thumb'] : null,
                     isset($row['avatar_path']) ? (string) $row['avatar_path'] : null,
                 ),
+                ...ProfileDecorations::present($row),
                 'is_self' => $viewerId !== null && $viewerId === (int) $row['id'],
                 'is_following' => isset($followingSet[(int) $row['id']]),
             ];

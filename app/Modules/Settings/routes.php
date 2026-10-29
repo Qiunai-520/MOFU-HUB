@@ -7,6 +7,7 @@ use Mofu\Modules\Settings\SettingsController;
 use Slim\App;
 
 return static function (App $app, Container $container): void {
+    $app->get('/settings', fn ($rq, $rs) => $container->get(SettingsController::class)->index($rq, $rs));
     $app->get('/settings/profile', fn ($rq, $rs) => $container->get(SettingsController::class)->profile($rq, $rs));
     $app->post('/settings/profile', fn ($rq, $rs) => $container->get(SettingsController::class)->saveProfile($rq, $rs));
     $app->post('/settings/avatar', fn ($rq, $rs) => $container->get(SettingsController::class)->uploadAvatar($rq, $rs));
@@ -15,6 +16,8 @@ return static function (App $app, Container $container): void {
 
     $app->get('/settings/security', fn ($rq, $rs) => $container->get(SettingsController::class)->security($rq, $rs));
     $app->post('/settings/security', fn ($rq, $rs) => $container->get(SettingsController::class)->changePassword($rq, $rs));
+    $app->post('/settings/security/email', fn ($rq, $rs) => $container->get(SettingsController::class)->sendEmailChange($rq, $rs));
+    $app->post('/settings/security/email/verify', fn ($rq, $rs) => $container->get(SettingsController::class)->verifyEmailChange($rq, $rs));
     $app->post('/settings/security/sessions/revoke-others', fn ($rq, $rs) => $container->get(SettingsController::class)->revokeOtherSessions($rq, $rs));
     $app->post('/settings/security/sessions/{id:[a-f0-9]{64}}/revoke', fn ($rq, $rs, $args) => $container->get(SettingsController::class)->revokeSession($rq, $rs, $args));
 
@@ -23,6 +26,9 @@ return static function (App $app, Container $container): void {
 
     $app->get('/settings/privacy', fn ($rq, $rs) => $container->get(SettingsController::class)->privacy($rq, $rs));
     $app->post('/settings/privacy', fn ($rq, $rs) => $container->get(SettingsController::class)->savePrivacy($rq, $rs));
+
+    $app->get('/settings/decorations', fn ($rq, $rs) => $container->get(SettingsController::class)->decorations($rq, $rs));
+    $app->post('/settings/decorations', fn ($rq, $rs) => $container->get(SettingsController::class)->saveDecorations($rq, $rs));
 
     $app->get('/settings/background', fn ($rq, $rs) => $container->get(SettingsController::class)->background($rq, $rs));
     $app->post('/settings/background', fn ($rq, $rs) => $container->get(SettingsController::class)->saveBackground($rq, $rs));

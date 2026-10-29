@@ -1,0 +1,8 @@
+{#
+  返回上一级：固定目标，不跟随浏览历史。
+  用法：{{ include('components/page-back.twig', { href: '/me', label: '返回' }) }}
+#}
+<a class="page-back" href="{{ href|default('/') }}">
+    <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+    <span>{{ label|default('返回') }}</span>
+</a>

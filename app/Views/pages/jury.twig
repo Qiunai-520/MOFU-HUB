@@ -1,0 +1,85 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}jury{% endblock %}
+{% block title %}风纪委员会 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="jury-page">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">风纪委员会</h1>
+            <p class="page-subtitle">参与社区内容众裁，共同维护社区秩序</p>
+        </div>
+    </header>
+
+    {% if ok %}<div class="form-success" role="status">操作已完成</div>{% endif %}
+
+    {% if isMember %}
+    <div class="card jury-status">
+        <p class="jury-status__line">
+            <span class="material-symbols-outlined" aria-hidden="true">gavel</span>
+            你已是风纪委员，可对待审案件投票。
+        </p>
+    </div>
+
+    <section class="jury-cases">
+        <h2 class="side-card__title">待审案件（{{ cases|length }}）</h2>
+        {% for c in cases %}
+        <article class="card jury-case">
+            <div class="jury-case__head">
+                <span class="tag">{{ c.target_type }} #{{ c.target_id }}</span>
+                <span class="jury-case__time">{{ c.opened_at|slice(0, 16) }}</span>
+            </div>
+            <p class="jury-case__reason">{{ c.reason }}</p>
+            {% if c.snapshot is not empty %}<p class="jury-case__snapshot">{{ c.snapshot }}</p>{% endif %}
+            <p class="jury-case__tally">当前票数：违规 {{ c.votes }} 票</p>
+
+            {% if myVotes[c.id] is defined %}
+            <p class="jury-case__voted">你已投票：{{ myVotes[c.id] == 'violation' ? '违规' : '无违规' }}</p>
+            {% else %}
+            <form method="post" action="/jury/cases/{{ c.id }}/vote" class="jury-case__actions">
+                <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                <button class="filled-btn filled-btn--sm" type="submit" name="vote" value="violation">判定违规</button>
+                <button class="outlined-btn outlined-btn--sm" type="submit" name="vote" value="clean">判定无违规</button>
+            </form>
+            {% endif %}
+        </article>
+        {% else %}
+        <div class="empty-state">
+            <span class="material-symbols-outlined empty-state__icon" aria-hidden="true">verified_user</span>
+            <p class="empty-state__title">暂无待审案件</p>
+        </div>
+        {% endfor %}
+    </section>
+
+    {% else %}
+    <div class="card jury-status">
+        <p class="jury-status__line">申请条件：达到 <strong>Lv.{{ minLevel }}</strong>，且近 {{ cleanDays }} 天无违规记录。</p>
+        <p class="jury-status__line">
+            当前等级 <strong>Lv.{{ level }}</strong>
+            · 违规记录：{{ cleanRecord ? '无（符合）' : '有（不符合）' }}
+        </p>
+
+        {% if application is not null %}
+        <p class="jury-status__line">
+            最近一次申请：{{ application.status == 'pending' ? '审核中' : (application.status == 'approved' ? '已通过' : '未通过') }}
+            {% if application.note is not empty %}（{{ application.note }}）{% endif %}
+        </p>
+        {% endif %}
+
+        {% if eligibility.ok %}
+        <form method="post" action="/jury/apply" class="jury-apply">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <label class="field">
+                <span class="field__label">申请理由（可选）</span>
+                <input class="field__input" type="text" name="reason" maxlength="200" placeholder="简单说明你的想法">
+            </label>
+            <button class="filled-btn" type="submit">提交申请</button>
+        </form>
+        {% else %}
+        <p class="jury-status__hint">{{ eligibility.reason }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

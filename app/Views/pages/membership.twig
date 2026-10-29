@@ -1,0 +1,66 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}membership{% endblock %}
+{% block title %}会员中心 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="membership-page">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">会员中心</h1>
+            <p class="page-subtitle">开通大会员：经验加速、专属标识与更多社区特权</p>
+        </div>
+    </header>
+
+    {% if currentUser %}
+    <div class="card membership-status">
+        <div class="membership-status__main">
+            <span class="material-symbols-outlined membership-status__icon{{ subscription.is_premium ? ' is-premium' : '' }}" aria-hidden="true">workspace_premium</span>
+            <div>
+                <p class="membership-status__title">
+                    {% if subscription.is_premium %}{{ subscription.plan_label }}{% else %}当前为普通用户{% endif %}
+                </p>
+                <p class="membership-status__sub">
+                    {% if subscription.is_premium and subscription.expires_at %}
+                    有效期至 {{ subscription.expires_at|slice(0, 10) }}
+                    {% else %}
+                    开通后可享大会员专属权益
+                    {% endif %}
+                    {% if level %} · {{ level.level_name }} · {{ level.xp }} XP{% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="membership-plans">
+        {% for plan in plans %}
+        <div class="card membership-plan">
+            <p class="membership-plan__label">{{ plan.label }}</p>
+            <p class="membership-plan__price"><span>¥</span>{{ plan.price }}</p>
+            <p class="membership-plan__meta">{{ plan.days }} 天{# 权益同大会员 #}</p>
+            {% if currentUser %}
+                {% if paymentReady %}
+                <button class="filled-btn" type="button" data-action="buy-membership" data-plan="{{ plan.key }}">
+                    {{ subscription.is_premium ? '续期' : '开通' }}
+                </button>
+                {% else %}
+                <button class="filled-btn" type="button" disabled>支付未配置</button>
+                {% endif %}
+            {% else %}
+            <a class="filled-btn" href="/login?redirect=/membership">登录后开通</a>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="card membership-benefits">
+        <h2 class="membership-benefits__title">大会员权益</h2>
+        <ul class="membership-benefits__list">
+            <li>每日经验加速包 +10 XP（会员页手动领取）</li>
+            <li>昵称与徽章专属品牌色标识</li>
+            <li>会员任务加成与更多社区特权</li>
+        </ul>
+    </div>
+</section>
+{% endblock %}

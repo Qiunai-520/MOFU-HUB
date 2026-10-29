@@ -56,9 +56,7 @@
 
     <label class="settings-row">
         <span class="settings-row__text"><strong>置顶显示</strong>列表中优先展示</span>
-        <span class="switch">
-            <input type="checkbox" name="is_pinned" value="1" {{ values.is_pinned == '1' ? 'checked' : '' }}>
-        </span>
+        <select class="field__input" name="is_pinned" aria-label="是否置顶"><option value="0" {{ values.is_pinned == '1' ? '' : 'selected' }}>否</option><option value="1" {{ values.is_pinned == '1' ? 'selected' : '' }}>是</option></select>
     </label>
 
     <div class="board-form__foot">

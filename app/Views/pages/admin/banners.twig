@@ -3,8 +3,8 @@
 {% block page_id %}admin{% endblock %}
 {% block title %}首页轮播 · {{ app.name }}{% endblock %}
 
-{% macro bannerRow(image, title, summary, link) %}
-<div class="team-row" data-banner-row>
+{% macro bannerRow(image, title, summary, link, target, type) %}
+<div class="team-row{{ type|default('image') == 'scene3d' ? ' is-scene3d' : '' }}" data-banner-row data-banner-type="{{ type|default('image') }}">
     <div class="team-row__avatar">
         <span class="team-row__avatar-preview team-row__avatar-preview--wide{{ image is empty ? ' is-empty' : '' }}"
               data-banner-image-preview
@@ -24,7 +24,17 @@
         <input class="field__input" type="text" name="banner_summary[]" value="{{ summary }}"
                maxlength="120" placeholder="描述（可省略）">
         <input class="field__input banner-row__link" type="text" name="banner_link[]" value="{{ link }}"
-               maxlength="255" placeholder="点击跳转链接：/posts/123 或 https://…（可省略）">
+               maxlength="255" placeholder="点击后打开：/konbini 或 https://…（留空则仅展示）">
+        <select class="field__input" name="banner_type[]" aria-label="轮播类型">
+            <option value="image" {{ type|default('image') == 'image' ? 'selected' : '' }}>普通图片</option>
+            <option value="scene3d" {{ type|default('image') == 'scene3d' ? 'selected' : '' }}>3D 场景</option>
+        </select>
+        {# 点击行为：站内跳转 / 新标签页打开 / 仅展示（不跳转） #}
+        <select class="field__input" name="banner_target[]" aria-label="点击行为"{{ link is empty ? ' disabled' : '' }}>
+            <option value="self" {{ target|default('self') == 'self' ? 'selected' : '' }}>当前页打开</option>
+            <option value="blank" {{ target|default('self') == 'blank' ? 'selected' : '' }}>新标签页打开</option>
+            <option value="none" {{ target|default('self') == 'none' ? 'selected' : '' }}>仅展示</option>
+        </select>
     </div>
     <button class="icon-btn team-row__remove" type="button" data-banner-remove aria-label="删除这张轮播图">
         <span class="material-symbols-outlined" aria-hidden="true">delete</span>
@@ -42,8 +52,9 @@
 {% endif %}
 
 <p class="page-subtitle">
-    首页顶部的轮播图，按这里的顺序展示（最多 8 张）。留空标题且不上传图片的行会被忽略；
-    一张都不配时，首页会自动改用「置顶的已发布资讯」。
+    首页顶部的轮播图，按这里的顺序展示（最多 8 张）。类型选择「3D 场景」后，
+    首页会显示统一的「进入 3D 场景」按钮，链接填场景地址（例如 /konbini）。
+    留空标题且不上传图片的行会被忽略；一张都不配时，首页会自动改用「置顶的已发布资讯」。
 </p>
 
 <form method="post" action="/admin/banners" data-banner-form>
@@ -51,14 +62,14 @@
 
     <div class="team-form__rows" data-banner-rows>
         {% for item in items %}
-            {{ _self.bannerRow(item.image, item.title, item.summary, item.link) }}
+            {{ _self.bannerRow(item.image, item.title, item.summary, item.link, item.target, item.type) }}
         {% endfor %}
         {% if items|length == 0 %}
-            {{ _self.bannerRow('', '', '', '') }}
+            {{ _self.bannerRow('', '', '', '', 'self', 'image') }}
         {% endif %}
     </div>
 
-    <template data-banner-template>{{ _self.bannerRow('', '', '', '') }}</template>
+    <template data-banner-template>{{ _self.bannerRow('', '', '', '', 'self', 'scene3d') }}</template>
 
     <div class="team-form__foot">
         <button class="outlined-btn" type="button" data-banner-add>

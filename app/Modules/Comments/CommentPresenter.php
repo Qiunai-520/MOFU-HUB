@@ -6,6 +6,7 @@ namespace Mofu\Modules\Comments;
 
 use Mofu\Core\Support\Text;
 use Mofu\Core\View\Present;
+use Mofu\Modules\Users\ProfileDecorations;
 
 final class CommentPresenter
 {
@@ -43,6 +44,7 @@ final class CommentPresenter
                     isset($comment['avatar_thumb']) ? (string) $comment['avatar_thumb'] : null,
                     isset($comment['avatar_path']) ? (string) $comment['avatar_path'] : null,
                 ),
+                ...ProfileDecorations::present($comment),
             ],
             'reply_to' => $replyTo,
             'time_ago' => Text::relativeTime((string) $comment['created_at']),

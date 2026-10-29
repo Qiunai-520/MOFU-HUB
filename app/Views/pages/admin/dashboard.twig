@@ -9,22 +9,53 @@
 <div class="stat-grid">
     <div class="stat-card">
         <span class="stat-card__label">注册用户</span>
-        <span class="stat-card__value">{{ stats.users }}</span>
+        <span class="stat-card__value" data-admin-count="{{ stats.users }}">{{ stats.users }}</span>
         <span class="stat-card__sub">近 7 天 +{{ stats.users_7d }}</span>
     </div>
     <div class="stat-card">
         <span class="stat-card__label">动态总数</span>
-        <span class="stat-card__value">{{ stats.posts }}</span>
+        <span class="stat-card__value" data-admin-count="{{ stats.posts }}">{{ stats.posts }}</span>
         <span class="stat-card__sub">近 7 天 +{{ stats.posts_7d }}</span>
     </div>
     <div class="stat-card">
         <span class="stat-card__label">评论总数</span>
-        <span class="stat-card__value">{{ stats.comments }}</span>
+        <span class="stat-card__value" data-admin-count="{{ stats.comments }}">{{ stats.comments }}</span>
     </div>
     <div class="stat-card{{ stats.pending_reports > 0 ? ' stat-card--alert' : '' }}">
         <span class="stat-card__label">待处理举报</span>
-        <span class="stat-card__value">{{ stats.pending_reports }}</span>
+        <span class="stat-card__value" data-admin-count="{{ stats.pending_reports }}">{{ stats.pending_reports }}</span>
     </div>
+</div>
+
+<div class="admin-columns">
+    <section class="admin-panel">
+        <h2 class="admin-panel__title">近 7 天趋势</h2>
+        <svg class="admin-chart" viewBox="0 0 300 140" role="img" aria-label="近 7 天注册、动态、评论趋势">
+            <polyline class="admin-chart__line admin-chart__line--primary" points="{{ trendPoints.users }}" fill="none" stroke="var(--md-sys-color-primary)" stroke-width="2"></polyline>
+            <polyline class="admin-chart__line admin-chart__line--tertiary" points="{{ trendPoints.posts }}" fill="none" stroke="var(--md-sys-color-tertiary)" stroke-width="2"></polyline>
+            <polyline class="admin-chart__line admin-chart__line--secondary" points="{{ trendPoints.comments }}" fill="none" stroke="var(--md-sys-color-secondary)" stroke-width="2"></polyline>
+            {% for row in trend %}
+            <text x="{{ 24 + loop.index0 * 42 }}" y="134" text-anchor="middle" font-size="9" fill="var(--md-sys-color-on-surface-variant)">{{ row.date }}</text>
+            {% endfor %}
+        </svg>
+        <p class="admin-head__hint">蓝=注册 · 紫=动态 · 绿=评论（各自按峰值归一，仅看趋势）</p>
+    </section>
+
+    <section class="admin-panel">
+        <h2 class="admin-panel__title">内容构成</h2>
+        <svg class="admin-chart admin-chart--pie" viewBox="0 0 42 42" role="img" aria-label="内容构成占比">
+            <circle cx="21" cy="21" r="15.9155" fill="none" stroke="var(--md-sys-color-surface-container-highest)" stroke-width="8"></circle>
+            {% for seg in pieSegments %}
+            <circle class="admin-chart__ring" cx="21" cy="21" r="15.9155" fill="none" stroke="{{ seg.color }}" stroke-width="8"
+                    data-dash="{{ seg.dash }}" stroke-dasharray="{{ seg.dash }}" stroke-dashoffset="{{ seg.offset }}"></circle>
+            {% endfor %}
+        </svg>
+        <ul class="admin-list admin-chart__legend">
+            {% for seg in pieSegments %}
+            <li class="admin-list__item admin-chart__legend-item"><span class="legend-dot" style="background:{{ seg.color }}"></span>{{ seg.label }} · {{ seg.value }}（{{ seg.percent }}%）</li>
+            {% endfor %}
+        </ul>
+    </section>
 </div>
 
 <div class="admin-columns">

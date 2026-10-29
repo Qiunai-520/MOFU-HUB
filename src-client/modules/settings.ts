@@ -31,6 +31,33 @@ export const init: PageModule['init'] = async () => {
     }
   }
 
+  // 头像框 / 昵称挂件：选择时同步顶部预览，保存前即可看到效果
+  const decorForm = $<HTMLFormElement>('[data-decor-form]');
+
+  if (decorForm !== null) {
+    const previewFrame = $<HTMLElement>('[data-decor-frame]');
+    const previewBadge = $<HTMLElement>('[data-decor-badge]');
+
+    const syncPreview = (): void => {
+      const frame = decorForm.querySelector<HTMLInputElement>('input[name="avatar_frame"]:checked');
+      const badge = decorForm.querySelector<HTMLInputElement>('input[name="name_badge"]:checked');
+
+      if (previewFrame !== null && frame !== null) {
+        previewFrame.className = `avatar-frame avatar-frame--xl ${frame.dataset.frameClass ?? ''}`;
+      }
+
+      if (previewBadge !== null && badge !== null) {
+        const image = badge.dataset.badgeImage ?? '';
+        previewBadge.innerHTML = image !== ''
+          ? `<img class="name-badge__image" src="${image}" alt="">`
+          : (badge.dataset.badgeEmoji ?? '');
+      }
+    };
+
+    decorForm.addEventListener('change', syncPreview);
+    teardowns.push(() => decorForm.removeEventListener('change', syncPreview));
+  }
+
   // 语言切换器
   const langSelect = $('[data-lang-select]') as HTMLSelectElement | null;
   if (langSelect !== null) {

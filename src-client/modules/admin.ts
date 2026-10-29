@@ -1,5 +1,5 @@
 import { api } from '@/core/api';
-import { $ } from '@/core/dom';
+import { $, $$ } from '@/core/dom';
 import { setButtonLoading } from '@/core/loading';
 import { toastError } from '@/core/toast';
 import type { PageModule } from './types';
@@ -185,6 +185,12 @@ function setupRowEditor(config: RowEditorConfig): (() => void) | void {
   const onChange = (event: Event): void => {
     const target = event.target;
 
+    if (target instanceof HTMLSelectElement && target.name === 'banner_type[]') {
+      target.closest<HTMLElement>('[data-banner-row]')?.classList.toggle('is-scene3d', target.value === 'scene3d');
+
+      return;
+    }
+
     if (!(target instanceof HTMLInputElement) || !target.matches(config.mediaFileSelector)) {
       return;
     }
@@ -210,11 +216,86 @@ function setupRowEditor(config: RowEditorConfig): (() => void) | void {
   };
 }
 
+/** 仪表盘数据入场：数字递增、折线描边、环形图按占比展开。 */
+function setupDataVisuals(): (() => void) | void {
+  const counts = $$<HTMLElement>('[data-admin-count]');
+  const lines = $$<SVGPolylineElement>('.admin-chart__line');
+  const rings = $$<SVGCircleElement>('.admin-chart__ring');
+
+  if (counts.length === 0 && lines.length === 0 && rings.length === 0) {
+    return;
+  }
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return;
+  }
+
+  const frames: number[] = [];
+
+  counts.forEach((element, index) => {
+    const target = Number(element.dataset.adminCount ?? '0');
+
+    if (!Number.isFinite(target)) {
+      return;
+    }
+
+    const startedAt = performance.now() + index * 70;
+    const duration = 760;
+
+    const tick = (now: number): void => {
+      const progress = Math.min(1, Math.max(0, (now - startedAt) / duration));
+      const eased = 1 - Math.pow(1 - progress, 3);
+      element.textContent = String(Math.round(target * eased));
+
+      if (progress < 1) {
+        frames.push(window.requestAnimationFrame(tick));
+      }
+    };
+
+    frames.push(window.requestAnimationFrame(tick));
+  });
+
+  frames.push(window.requestAnimationFrame(() => {
+    lines.forEach((line, index) => {
+      const length = line.getTotalLength();
+      line.style.strokeDasharray = String(length);
+      line.style.strokeDashoffset = String(length);
+      line.style.transition = `stroke-dashoffset 1150ms cubic-bezier(.2,.8,.2,1) ${index * 110}ms`;
+
+      frames.push(window.requestAnimationFrame(() => {
+        line.style.strokeDashoffset = '0';
+      }));
+    });
+
+    rings.forEach((ring, index) => {
+      const target = ring.dataset.dash ?? '0 100';
+      ring.style.strokeDasharray = '0 100';
+      ring.style.transition = `stroke-dasharray 950ms cubic-bezier(.2,.8,.2,1) ${index * 90}ms`;
+
+      frames.push(window.requestAnimationFrame(() => {
+        ring.style.strokeDasharray = target;
+      }));
+    });
+  }));
+
+  return () => {
+    frames.forEach((id) => window.cancelAnimationFrame(id));
+    counts.forEach((element) => {
+      element.textContent = element.dataset.adminCount ?? element.textContent;
+    });
+  };
+}
+
 /** 后台模块：团队名单与首页轮播的行编辑器（按页面存在的表单各自挂载） */
 export const init: PageModule['init'] = () => {
   const teardowns = [setupRowEditor(TEAM_EDITOR), setupRowEditor(BANNER_EDITOR)].filter(
     (fn): fn is () => void => typeof fn === 'function',
   );
+  const visuals = setupDataVisuals();
+
+  if (typeof visuals === 'function') {
+    teardowns.push(visuals);
+  }
 
   if (teardowns.length === 0) {
     return;

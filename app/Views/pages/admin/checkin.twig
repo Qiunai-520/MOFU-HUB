@@ -1,0 +1,50 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}签到规则 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">签到规则</h1>
+    <p class="admin-head__hint">
+        每行一条：<code>连续天数, M币, XP, 说明, 称号ID(可空)</code>。例如 <code>7, 100, 50, 连续七天, 3</code>。
+        没有精确匹配的连续天数会回落到第 1 天奖励；第 5 列留空表示不额外授予称号（称号 ID 见上方称号列表）。
+    </p>
+</div>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">连续签到奖励</h2>
+    <form class="admin-form" method="post" action="/admin/checkin/rewards">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <label class="field">
+            <span class="field__label">奖励配置</span>
+            <textarea class="field__input" name="rewards" rows="12" spellcheck="false">{% for r in rewards %}{{ r.day }}, {{ r.reward_mofu }}, {{ r.reward_xp }}, {{ r.label }}, {{ r.title_id is not null ? r.title_id : '' }}
+{% endfor %}</textarea>
+        </label>
+        <div class="admin-form__actions">
+            <button class="filled-btn filled-btn--sm" type="submit">保存规则</button>
+        </div>
+    </form>
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">当前规则</h2>
+    <div class="table-wrap">
+        <table class="admin-table">
+            <thead><tr><th>连续天数</th><th>M币</th><th>XP</th><th>说明</th></tr></thead>
+            <tbody>
+                {% for r in rewards %}
+                <tr>
+                    <td data-label="连续天数">第 {{ r.day }} 天</td>
+                    <td data-label="M币">{{ r.reward_mofu }}</td>
+                    <td data-label="XP">{{ r.reward_xp }}</td>
+                    <td data-label="说明" class="admin-table__sub">{{ r.label }}{% if r.title_id %} · 含称号 #{{ r.title_id }}{% endif %}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="admin-table__empty">暂无规则</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

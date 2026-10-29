@@ -1,0 +1,96 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}用户成长 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">用户成长</h1>
+    <form class="admin-search" method="get" action="/admin/growth">
+        <input class="field__input" type="number" name="user_id" min="1" placeholder="输入用户 ID" value="{{ subject ? subject.id : '' }}">
+        <button class="outlined-btn outlined-btn--sm" type="submit">查询</button>
+    </form>
+</div>
+
+{% if subject is null %}
+<p class="admin-empty">输入用户 ID 查看其等级、M币、签到、称号与处罚记录。</p>
+{% else %}
+<section class="admin-card">
+    <h2 class="admin-card__title">
+        @{{ subject.username }} <span class="admin-table__sub">{{ subject.nickname }}</span>
+        <span class="tag">{{ subject.status }}</span>
+    </h2>
+    <div class="admin-stats">
+        <div class="stat-card"><span class="stat-card__label">等级</span><strong>Lv.{{ profile.level.level }}</strong></div>
+        <div class="stat-card"><span class="stat-card__label">XP</span><strong>{{ profile.level.xp }}</strong></div>
+        <div class="stat-card"><span class="stat-card__label">M币</span><strong>{{ profile.wallet.balance }}</strong></div>
+        <div class="stat-card"><span class="stat-card__label">连续签到</span><strong>{{ profile.checkin.streak }} 天</strong></div>
+        <div class="stat-card"><span class="stat-card__label">成就</span><strong>{{ profile.achievements.unlocked }}/{{ profile.achievements.total }}</strong></div>
+    </div>
+    <p class="admin-head__hint">
+        已获得称号：
+        {% set owned = profile.titles.titles|filter(t => t.owned) %}
+        {% for t in owned %}<span class="tag">{{ t.name }}</span>{% else %}无{% endfor %}
+    </p>
+    <p class="admin-head__hint">
+        收藏：
+        {% for i in profile.inventory %}<span class="tag">{{ i.name }} ×{{ i.quantity }}</span>{% else %}暂无{% endfor %}
+    </p>
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">处罚操作</h2>
+    <form class="admin-form" method="post" action="/admin/users/{{ subject.id }}/moderate" data-confirm="确认执行该处罚操作吗？">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <div class="admin-form__grid">
+            <label class="field">
+                <span class="field__label">操作</span>
+                <select class="field__input" name="action">
+                    <option value="warn">警告</option>
+                    <option value="suspend">临时封禁</option>
+                    <option value="ban">永久封禁</option>
+                    <option value="unban">解除处罚</option>
+                </select>
+            </label>
+            <label class="field">
+                <span class="field__label">临时封禁时长（小时）</span>
+                <input class="field__input" type="number" name="hours" min="1" value="168">
+            </label>
+            <label class="field">
+                <span class="field__label">原因</span>
+                <input class="field__input" type="text" name="reason" maxlength="200" placeholder="会展示给用户">
+            </label>
+        </div>
+        <label class="field">
+            <span class="field__label">管理员备注（仅内部可见）</span>
+            <input class="field__input" type="text" name="note" maxlength="500">
+        </label>
+        <div class="admin-form__actions">
+            <button class="filled-btn filled-btn--sm" type="submit">执行</button>
+        </div>
+    </form>
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">处罚历史</h2>
+    <div class="table-wrap">
+        <table class="admin-table">
+            <thead><tr><th>类型</th><th>原因</th><th>开始</th><th>结束</th><th>状态</th></tr></thead>
+            <tbody>
+                {% for b in bans %}
+                <tr>
+                    <td data-label="类型">{{ b.type_label }}</td>
+                    <td data-label="原因">{{ b.reason }}</td>
+                    <td data-label="开始" class="admin-table__sub">{{ b.starts_at }}</td>
+                    <td data-label="结束" class="admin-table__sub">{{ b.ends_at ?? '永久' }}</td>
+                    <td data-label="状态">{{ b.active ? '生效中' : '已结束' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="admin-table__empty">暂无处罚记录</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

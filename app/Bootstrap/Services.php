@@ -21,9 +21,12 @@ final class Services
         \Mofu\Modules\Users\FavoriteService::class,
         \Mofu\Modules\Posts\PostRepository::class,
         \Mofu\Modules\Posts\PostService::class,
+        \Mofu\Modules\Posts\PaidPostService::class,
         \Mofu\Modules\Posts\FeedService::class,
         \Mofu\Modules\Comments\CommentRepository::class,
         \Mofu\Modules\Comments\CommentService::class,
+        \Mofu\Modules\Comments\TwikooCountService::class,
+        \Mofu\Modules\Tags\TagService::class,
         \Mofu\Modules\Reactions\ReactionService::class,
         \Mofu\Modules\Notifications\NotificationService::class,
         \Mofu\Modules\Settings\SettingsService::class,
@@ -36,20 +39,51 @@ final class Services
         \Mofu\Modules\Comments\CommentExporter::class,
         \Mofu\Modules\Follows\FollowService::class,
         \Mofu\Modules\Users\BlockService::class,
+        \Mofu\Modules\Users\NicknameService::class,
         \Mofu\Modules\Messages\MessageService::class,
         \Mofu\Modules\Reports\ReportService::class,
+        \Mofu\Modules\Moderation\BanService::class,
+        \Mofu\Modules\Moderation\BannedController::class,
+        \Mofu\Modules\Moderation\BanApiController::class,
+        \Mofu\Modules\Announcements\AnnouncementService::class,
+        \Mofu\Modules\Announcements\AnnouncementApiController::class,
+        \Mofu\Modules\Growth\WalletService::class,
+        \Mofu\Modules\Growth\LevelService::class,
+        \Mofu\Modules\Growth\LevelGate::class,
+        \Mofu\Modules\Growth\TitleService::class,
+        \Mofu\Modules\Growth\AchievementService::class,
+        \Mofu\Modules\Growth\CheckInService::class,
+        \Mofu\Modules\Growth\ShopService::class,
+        \Mofu\Modules\Growth\GrowthService::class,
+        \Mofu\Modules\Growth\GrowthApiController::class,
+        \Mofu\Modules\Growth\GrowthController::class,
+        \Mofu\Modules\Growth\ShopController::class,
+        \Mofu\Modules\Growth\CoinService::class,
+        \Mofu\Modules\Growth\CoinApiController::class,
+        \Mofu\Modules\Growth\ViewRewardService::class,
+        \Mofu\Modules\Membership\TaskService::class,
+        \Mofu\Modules\Membership\MembershipService::class,
+        \Mofu\Modules\Membership\MembershipController::class,
+        \Mofu\Modules\Payment\PaymentService::class,
+        \Mofu\Modules\Payment\PaymentController::class,
+        \Mofu\Modules\Membership\MembershipApiController::class,
         \Mofu\Modules\Search\SearchService::class,
         \Mofu\Modules\Communities\CommunityService::class,
         \Mofu\Modules\Boards\BoardService::class,
         \Mofu\Modules\Events\EventService::class,
         \Mofu\Modules\News\NewsService::class,
         \Mofu\Modules\History\HistoryService::class,
+        \Mofu\Modules\Invites\InviteService::class,
+        \Mofu\Modules\Jury\JuryService::class,
+        \Mofu\Modules\Jail\JailService::class,
+        \Mofu\Modules\Lab\LabService::class,
 
         // 控制器
         \Mofu\Modules\Auth\AuthController::class,
         \Mofu\Modules\Home\HomeController::class,
         \Mofu\Modules\Posts\PostController::class,
         \Mofu\Modules\Posts\PostApiController::class,
+        \Mofu\Modules\Tags\TagController::class,
         \Mofu\Modules\Media\MediaApiController::class,
         \Mofu\Modules\Comments\CommentApiController::class,
         \Mofu\Modules\Reactions\ReactionApiController::class,
@@ -74,6 +108,11 @@ final class Services
         \Mofu\Modules\Events\EventController::class,
         \Mofu\Modules\News\NewsController::class,
         \Mofu\Modules\History\HistoryController::class,
+        \Mofu\Modules\Invites\InviteController::class,
+        \Mofu\Modules\Invites\InviteApiController::class,
+        \Mofu\Modules\Jury\JuryController::class,
+        \Mofu\Modules\Jail\JailController::class,
+        \Mofu\Modules\Lab\LabController::class,
         \Mofu\Modules\Stream\StreamController::class,
     ];
 
@@ -84,6 +123,33 @@ final class Services
 
         $container->set(\Mofu\Core\Security\RateLimiter::class, fn () => new \Mofu\Core\Security\RateLimiter(
             $root . '/storage/cache',
+        ));
+
+        $container->set(\Mofu\Modules\Payment\EzfpClient::class, fn () => new \Mofu\Modules\Payment\EzfpClient(
+            (string) $container->get(Config::class)->get('payment.api', 'https://www.ezfp.cn/'),
+            (string) $container->get(Config::class)->get('payment.pid', ''),
+            (string) $container->get(Config::class)->get('payment.key', ''),
+        ));
+
+        $container->set(\Mofu\Modules\Membership\MailService::class, fn (Container $c) => new \Mofu\Modules\Membership\MailService(
+            (array) $container->get(Config::class)->get('mail', []),
+            $root . '/storage/logs/mail.log',
+        ));
+
+        $container->set(\Mofu\Modules\Membership\VerificationService::class, fn (Container $c) => new \Mofu\Modules\Membership\VerificationService(
+            $c->get(\Mofu\Core\Database\Query::class),
+            $c->get(\Mofu\Modules\Membership\MailService::class),
+            $c->get(\Mofu\Core\Security\RateLimiter::class),
+            \Mofu\Modules\Membership\VerificationService::secretFrom($container->get(Config::class)),
+            (string) $container->get(Config::class)->get('app.name', 'MOFU'),
+        ));
+
+        $container->set(\Mofu\Modules\Membership\QuizService::class, fn (Container $c) => new \Mofu\Modules\Membership\QuizService(
+            $c->get(\Mofu\Core\Database\Query::class),
+            $c->get(\Mofu\Modules\Growth\LevelService::class),
+            $c->get(\Mofu\Core\Security\RateLimiter::class),
+            $root . '/app/Modules/Membership/questions.json',
+            $root . '/app/Modules/Membership/questions-advanced.json',
         ));
 
         $container->set(\Mofu\Modules\Media\MediaService::class, fn (Container $c) => new \Mofu\Modules\Media\MediaService(

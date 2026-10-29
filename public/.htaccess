@@ -23,6 +23,17 @@
     Header set X-Frame-Options "SAMEORIGIN"
     Header set Referrer-Policy "strict-origin-when-cross-origin"
     Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    # 内容安全策略：已从观察模式转为强制。策略放宽到 allow inline 与 http(s) 外链资源，
+    # 保留真正有效的部分（default-src self、object-src none、base-uri/form-action 限制）。
+    Header set Content-Security-Policy "default-src 'self'; img-src 'self' data: blob: http: https:; media-src 'self' blob: http: https:; style-src 'self' 'unsafe-inline' http: https:; script-src 'self' 'unsafe-inline' http: https:; font-src 'self' data: http: https:; connect-src 'self' http: https:; frame-src http: https:; object-src 'none'; base-uri 'self'; form-action 'self'"
+</IfModule>
+
+# Brotli 优先，未启用时回退到 gzip。字体本身已压缩，不重复压缩。
+<IfModule mod_brotli.c>
+    AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/css text/javascript application/javascript application/json application/manifest+json image/svg+xml
+</IfModule>
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json application/manifest+json image/svg+xml
 </IfModule>
 
 # PWA：Service Worker 不缓存（保证版本更新即时生效），补充 manifest MIME 类型
@@ -39,15 +50,19 @@
     # 自托管字体（public/fonts）
     AddType font/ttf .ttf
     AddType font/woff2 .woff2
+    # 语言包与表情包是 .json，显式声明 MIME，避免部分主机缺失映射
+    AddType application/json .json
 </IfModule>
 
 # 隐藏敏感文件类型
-<FilesMatch "\.(env|sql|log|md|json|lock)$">
+# 注意：不能整类拒绝 .json —— 前端会读取 /i18n/*.json（语言包）与 /vendor/emoji-apple.json（表情包），
+# 整类拒绝会导致 Apache 部署下这两者 403。这里只拒绝确属配置/构建元数据的具体文件。
+<FilesMatch "\.(env|sql|log|md|lock)$">
     Require all denied
 </FilesMatch>
-<Files "composer.json">
+<FilesMatch "^(composer\.json|composer\.lock|package\.json|package-lock\.json|manifest\.json)$">
     Require all denied
-</Files>
+</FilesMatch>
 
 # 静态资源缓存（构建产物带内容哈希，可长期缓存）
 <IfModule mod_expires.c>

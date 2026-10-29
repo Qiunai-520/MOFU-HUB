@@ -51,6 +51,16 @@ final class InstallEnvTest extends TestCase
         self::assertArrayHasKey('TWIKOO_SCRIPT_URL', $empty);
     }
 
+    public function testWizardEnvValuesCoverAllManagedKeys(): void
+    {
+        // 回归：向导生成的 .env 必须覆盖全部管理键，否则部署后会缺项（曾出现 MAIL_* 等缺失）
+        $values = Installer::envValues(['site_name' => 'x'], 3306);
+
+        foreach (\Mofu\Install\EnvFileWriter::MANAGED_KEYS as $key) {
+            self::assertArrayHasKey($key, $values, '安装向导缺少 .env 键：' . $key);
+        }
+    }
+
     public function testEnvRoundtripWithSpecialCharacters(): void
     {
         $password = 'p@s s\'"$#\\=done';

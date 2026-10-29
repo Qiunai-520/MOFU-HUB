@@ -59,6 +59,41 @@ export function setupRealtime(): void {
     }
   });
 
+  source.addEventListener('dm', (event) => {
+    errors = 0;
+
+    try {
+      const data = JSON.parse((event as MessageEvent).data) as { messages?: unknown[] };
+
+      if (Array.isArray(data.messages) && data.messages.length > 0) {
+        window.dispatchEvent(
+          new CustomEvent('mofu:realtime-message', { detail: { messages: data.messages } }),
+        );
+      }
+    } catch {
+      // 忽略无法解析的数据
+    }
+  });
+
+  source.addEventListener('post', (event) => {
+    errors = 0;
+
+    try {
+      const data = JSON.parse((event as MessageEvent).data) as { ids?: unknown[] };
+      const ids = Array.isArray(data.ids)
+        ? data.ids.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+        : [];
+
+      if (ids.length > 0) {
+        window.dispatchEvent(
+          new CustomEvent('mofu:realtime-post', { detail: { ids } }),
+        );
+      }
+    } catch {
+      // 忽略无法解析的数据
+    }
+  });
+
   source.onerror = () => {
     // EventSource 会自动重连；连续失败时降级轮询兜底
     errors += 1;

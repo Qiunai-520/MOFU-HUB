@@ -1,0 +1,141 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}风纪委员会 · {{ app.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">风纪委员会</h1>
+    <p class="admin-head__hint">审批加入申请、维护委员名册与评级、开设 / 结案众裁，并按月发放津贴（最高 {{ stipendMax }} M币 / 人）。</p>
+</div>
+
+{% if ok %}<div class="form-success" role="status">已保存</div>{% endif %}
+{% if notice is not empty %}<div class="form-success" role="status">{{ notice }}</div>{% endif %}
+
+<section class="admin-card">
+    <h2 class="admin-card__title">待审申请（{{ applications|length }}）</h2>
+    {% for a in applications %}
+    <form class="admin-form jury-app-row" method="post" action="/admin/jury/applications/{{ a.id }}/decide">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <p class="admin-row__title">{{ a.nickname }} <span class="admin-table__sub">@{{ a.username }} · {{ a.created_at|slice(0, 16) }}</span></p>
+        {% if a.reason is not empty %}<p class="admin-table__sub">{{ a.reason }}</p>{% endif %}
+        <div class="admin-form__grid">
+            <label class="field">
+                <span class="field__label">备注（拒绝时建议填写）</span>
+                <input class="field__input" type="text" name="note" maxlength="120">
+            </label>
+            <div class="admin-form__actions">
+                <button class="filled-btn filled-btn--sm" type="submit" name="action" value="approve">通过</button>
+                <button class="text-btn text-btn--danger text-btn--sm" type="submit" name="action" value="reject">拒绝</button>
+            </div>
+        </div>
+    </form>
+    {% else %}
+    <p class="admin-empty">没有待审申请</p>
+    {% endfor %}
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">委员名册（{{ members|length }}）</h2>
+    {% for m in members %}
+    <div class="admin-row jury-member-row">
+        <p class="admin-row__title">{{ m.nickname }} <span class="admin-table__sub">@{{ m.username }} · 自 {{ m.term_start }}</span></p>
+        <form class="admin-form admin-form--inline" method="post" action="/admin/jury/members/{{ m.user_id }}/rate">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <select class="field__input" name="rating">
+                {% for value, label in ratings %}
+                <option value="{{ value }}" {{ m.rating == value ? 'selected' : '' }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button class="outlined-btn outlined-btn--sm" type="submit">更新评级</button>
+        </form>
+        <form class="inline-form" method="post" action="/admin/jury/members/{{ m.user_id }}/remove" data-confirm="确定移出风纪委员会吗？">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <button class="text-btn text-btn--danger text-btn--sm" type="submit">移出</button>
+        </form>
+    </div>
+    {% else %}
+    <p class="admin-empty">还没有委员</p>
+    {% endfor %}
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">开设众裁案件</h2>
+    <form class="admin-form" method="post" action="/admin/jury/cases">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <div class="admin-form__grid">
+            <label class="field">
+                <span class="field__label">目标类型</span>
+                <select class="field__input" name="target_type">
+                    <option value="post">动态</option>
+                    <option value="comment">评论</option>
+                    <option value="confession">投稿</option>
+                    <option value="user">用户</option>
+                    <option value="report">举报</option>
+                </select>
+            </label>
+            <label class="field">
+                <span class="field__label">目标 ID</span>
+                <input class="field__input" type="number" name="target_id" min="1" required>
+            </label>
+        </div>
+        <label class="field">
+            <span class="field__label">争议点</span>
+            <input class="field__input" type="text" name="reason" maxlength="200">
+        </label>
+        <label class="field">
+            <span class="field__label">内容快照 / 说明（可选）</span>
+            <input class="field__input" type="text" name="snapshot" maxlength="500">
+        </label>
+        <div class="admin-form__actions">
+            <button class="filled-btn filled-btn--sm" type="submit">开设案件</button>
+        </div>
+    </form>
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">案件（{{ cases|length }}）</h2>
+    {% for c in cases %}
+    <div class="admin-row jury-case-row">
+        <p class="admin-row__title">
+            {{ c.target_type }} #{{ c.target_id }}
+            <span class="tag">{{ c.status == 'closed' ? (c.verdict == 'violation' ? '已结案·违规' : '已结案·无违规') : '投票中' }}</span>
+            <span class="admin-table__sub">{{ c.votes }} 票 · {{ c.opened_at|slice(0, 16) }}</span>
+        </p>
+        {% if c.reason is not empty %}<p class="admin-table__sub">{{ c.reason }}</p>{% endif %}
+        {% if c.status != 'closed' %}
+        <form class="admin-form admin-form--inline" method="post" action="/admin/jury/cases/{{ c.id }}/close">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <button class="filled-btn filled-btn--sm" type="submit" name="verdict" value="violation">结案：违规</button>
+            <button class="outlined-btn outlined-btn--sm" type="submit" name="verdict" value="clean">结案：无违规</button>
+        </form>
+        {% endif %}
+    </div>
+    {% else %}
+    <p class="admin-empty">还没有案件</p>
+    {% endfor %}
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">津贴与结算</h2>
+    <form class="admin-form" method="post" action="/admin/jury/stipend">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <p class="admin-table__sub">按当前评级发放本月津贴（A 30 / B 20 / C 10 M币），同一月份只发一次。</p>
+        <div class="admin-form__actions">
+            <button class="filled-btn filled-btn--sm" type="submit">发放本月津贴</button>
+        </div>
+    </form>
+    <form class="admin-form" method="post" action="/admin/jury/settle">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <div class="admin-form__grid">
+            <label class="field">
+                <span class="field__label">结算年份</span>
+                <input class="field__input" type="number" name="year" value="{{ "now"|date("Y") }}" min="2020" max="2100">
+            </label>
+            <div class="admin-form__actions">
+                <button class="outlined-btn outlined-btn--sm" type="submit">年度结算（案件数 ÷ 20）</button>
+            </div>
+        </div>
+    </form>
+</section>
+{% endblock %}

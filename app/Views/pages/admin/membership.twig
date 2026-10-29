@@ -1,0 +1,145 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}会员与答题 · {{ app.name }}{% endblock %}
+
+{% macro questionBlock(tier, title, questions, hint, csrfToken, categories) %}
+<section class="admin-card">
+    <h2 class="admin-card__title">{{ title }}（题库 {{ questions|length }} 题）</h2>
+    <p class="admin-table__sub">{{ hint }}</p>
+    <form class="admin-form" method="post" action="/admin/membership/questions">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <input type="hidden" name="tier" value="{{ tier }}">
+        <label class="field">
+            <span class="field__label">题干</span>
+            <input class="field__input" type="text" name="question" maxlength="255" required>
+        </label>
+        <div class="admin-form__grid">
+            <label class="field">
+                <span class="field__label">选项 A</span>
+                <input class="field__input" type="text" name="options[]" required>
+            </label>
+            <label class="field">
+                <span class="field__label">选项 B</span>
+                <input class="field__input" type="text" name="options[]" required>
+            </label>
+            <label class="field">
+                <span class="field__label">选项 C（可选）</span>
+                <input class="field__input" type="text" name="options[]">
+            </label>
+            <label class="field">
+                <span class="field__label">选项 D（可选）</span>
+                <input class="field__input" type="text" name="options[]">
+            </label>
+        </div>
+        <div class="admin-form__grid">
+            <label class="field">
+                <span class="field__label">分类（抽题时用来错开同类题）</span>
+                <select class="field__input" name="category">
+                    <option value="">未分类</option>
+                    {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+                </select>
+            </label>
+            <label class="field">
+                <span class="field__label">正确答案</span>
+                <select class="field__input" name="answer">
+                    <option value="0">A</option>
+                    <option value="1">B</option>
+                    <option value="2">C</option>
+                    <option value="3">D</option>
+                </select>
+            </label>
+        </div>
+            <label class="field">
+                <span class="field__label">启用</span>
+                <select class="field__input" name="active">
+                    <option value="1" selected>启用</option>
+                    <option value="0">停用</option>
+                </select>
+            </label>
+        </div>
+        <div class="admin-form__actions">
+            <button class="filled-btn filled-btn--sm" type="submit">添加到{{ title }}</button>
+        </div>
+    </form>
+
+    <div class="table-wrap">
+        <table class="admin-table">
+            <thead><tr><th>题干</th><th>分类</th><th>正确答案</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+                {% for q in questions %}
+                <tr>
+                    <td data-label="题干">{{ q.question }}<span class="admin-table__sub">{{ q.options|join(' / ') }}</span></td>
+                    <td data-label="分类" class="admin-table__sub">{{ q.category is not empty ? q.category : '未分类' }}</td>
+                    <td data-label="正确答案" class="admin-table__sub">{{ q.options[q.answer] ?? '—' }}</td>
+                    <td data-label="状态">{{ q.active ? '启用' : '停用' }}</td>
+                    <td class="admin-table__actions">
+                        <form class="inline-form" method="post" action="/admin/membership/questions/{{ q.id }}/delete" data-confirm="确定删除这道题吗？">
+                            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+                            <button class="text-btn text-btn--danger text-btn--sm" type="submit">删除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="admin-table__empty">题库为空</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endmacro %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">会员与答题</h1>
+    <p class="admin-head__hint">Lv0 为待转正；通过 {{ question_count }} 题测试（{{ pass_score }} 分及格）转为 Lv1 正式会员，Lv2-Lv6 按累计经验升级。</p>
+</div>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">等级门槛</h2>
+    <form class="admin-form" method="post" action="/admin/membership/levels">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <label class="field">
+            <span class="field__label">每行一条：等级, 所需累计经验, 名称, 升级奖励 M币</span>
+            <textarea class="field__input" name="levels" rows="8" spellcheck="false">{% for l in levels %}{{ l.level }}, {{ l.xp_required }}, {{ l.name }}, {{ l.reward_mofu }}
+{% endfor %}</textarea>
+        </label>
+        <div class="admin-form__actions">
+            <button class="filled-btn filled-btn--sm" type="submit">保存等级</button>
+        </div>
+    </form>
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">发放经验 / M币 / 会员</h2>
+    <form class="admin-form" method="post" action="/admin/membership/grant">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <div class="admin-form__grid">
+            <label class="field">
+                <span class="field__label">用户 ID</span>
+                <input class="field__input" type="number" name="user_id" min="1" required>
+            </label>
+            <label class="field">
+                <span class="field__label">操作</span>
+                <select class="field__input" name="action">
+                    <option value="xp">发放经验</option>
+                    <option value="coins">发放 M币（可用负数扣减）</option>
+                    <option value="premium">设为大会员</option>
+                    <option value="normal">取消大会员</option>
+                    <option value="formal">直接转为正式会员</option>
+                </select>
+            </label>
+            <label class="field">
+                <span class="field__label">数量（经验 / M币）</span>
+                <input class="field__input" type="number" name="amount" value="100">
+            </label>
+        </div>
+        <div class="admin-form__actions">
+            <button class="filled-btn filled-btn--sm" type="submit">执行</button>
+        </div>
+    </form>
+</section>
+
+{{ _self.questionBlock(1, '转正题', questions, '入站考试：随机抽 ' ~ question_count ~ ' 题，满 ' ~ pass_score ~ ' 分及格', csrfToken, categories) }}
+{{ _self.questionBlock(2, '进阶题（硬核会员）', flashQuestions, '硬核会员进阶测试：随机抽 ' ~ flash_question_count ~ ' 题，满 ' ~ flash_pass_score ~ ' 分及格', csrfToken, categories) }}
+{% endblock %}

@@ -1,10 +1,8 @@
-import '@m3e/web/loading-indicator';
-import '@m3e/web/theme';
-
-import 'material-symbols/outlined.css';
+import './styles/icons.css';
 import './styles/base.css';
 import './styles/layout.css';
 import './styles/pages.css';
+import './styles/design-system.css';
 
 import { setupGlobalActions, refreshUnreadCount, syncBackToTop } from './core/global-actions';
 import { setupFormEnhance } from './core/form-enhance';
@@ -23,8 +21,12 @@ import {
   syncSlidingTabs,
 } from './core/nav';
 import { setupRealtime } from './core/realtime';
+import { setupAnnouncements } from './core/announcements';
 import { setupSwup } from './core/swup-setup';
-import { initTheme } from './theme/manager';
+import { setupTwikoo, setupTwikooCounts } from './core/twikoo';
+import { setupAutoSave } from './core/auto-save';
+import { setupMusicDock } from './core/music-dock';
+import { initTheme, syncAppearanceMeta } from './theme/manager';
 import { initI18n, applyTranslations } from './core/i18n';
 import { installErrorBoundary } from './core/error-boundary';
 import type { PageModule } from './modules/types';
@@ -39,7 +41,10 @@ const pages: Record<string, () => Promise<PageModule>> = {
   search: () => import('./modules/search'),
   messages: () => import('./modules/messages'),
   admin: () => import('./modules/admin'),
+  growth: () => import('./modules/growth'),
+  shop: () => import('./modules/shop'),
   about: () => import('./modules/about'),
+  konbini: () => import('./modules/konbini'),
 };
 
 let teardown: (() => void) | void;
@@ -113,6 +118,10 @@ async function bootstrap(): Promise<void> {
   setupBottomNavThumbSync();
   setupSegmentedControls();
   setupCardLinks();
+  setupTwikoo();
+  setupTwikooCounts();
+  setupAutoSave();
+  setupMusicDock();
   registerServiceWorker();
 
   // 布局（字体/尺寸）稳定后再居中一次选中的标签：首次同步可能早于布局完成
@@ -125,19 +134,25 @@ async function bootstrap(): Promise<void> {
     window.requestAnimationFrame(() => syncSlidingTabs());
   });
   setupRealtime();
+  void setupAnnouncements();
 
   try {
     setupSwup({
       onPageView: () => {
         void activatePage();
         void refreshUnreadCount();
+        void setupAnnouncements();
         setupFormEnhance();
         showFloatingBottomNav();
         syncSegmentedControls();
+        setupTwikoo();
+        setupTwikooCounts();
+        setupAutoSave();
         // 换页后滚动归零，回顶部按钮要重新判断
         syncBackToTop();
         window.requestAnimationFrame(() => centerActiveTabs());
         applyTranslations();
+        syncAppearanceMeta();
       },
     });
   } catch (error) {

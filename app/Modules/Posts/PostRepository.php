@@ -21,7 +21,7 @@ final class PostRepository
     {
         return $this->query->one(
             'SELECT p.*, u.username, u.status AS author_status,
-                    pr.nickname, pr.avatar_media_id,
+                    pr.nickname, pr.avatar_frame, pr.name_badge, pr.avatar_media_id,
                     am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path,
                     cm.slug AS community_slug, cm.name AS community_name
              FROM posts p
@@ -174,8 +174,12 @@ final class PostRepository
         if ($tab === 'recommend') {
             $base .= ' AND p.created_at >= :window_start';
             $params['window_start'] = date('Y-m-d H:i:s', time() - 14 * 86400);
+            // paginate() 会把同一组参数同时绑定到 count SQL；排序里的“当前时间”直接写
+            // 服务端生成的时间字面量，避免 count SQL 出现未使用参数而报 HY093。
+            $rankNow = date('Y-m-d H:i:s');
             $order = 'ORDER BY p.is_pinned DESC,
-                      (p.like_count * 3 + p.comment_count * 4 + 1) / POW(TIMESTAMPDIFF(HOUR, p.created_at, NOW()) + 2, 1.2) DESC,
+                      (p.like_count * 3 + p.comment_count * 4 + 1)
+                      / POW(GREATEST(2, TIMESTAMPDIFF(HOUR, p.created_at, \'' . $rankNow . '\') + 2), 1.2) DESC,
                       p.id DESC';
         } elseif ($tab === 'hot') {
             $base .= ' AND p.created_at >= :window_start';
@@ -186,7 +190,7 @@ final class PostRepository
             $params['follower'] = $viewerId;
         }
 
-        $sql = 'SELECT p.*, u.username, pr.nickname, pr.avatar_media_id,
+        $sql = 'SELECT p.*, u.username, pr.nickname, pr.avatar_frame, pr.name_badge, pr.avatar_media_id,
                        am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
                 ' . $base . ' ' . $order;
         $countSql = 'SELECT COUNT(*) ' . $base;
@@ -199,7 +203,7 @@ final class PostRepository
      *
      * @return array{items: list<array<string, mixed>>, total: int, page: int, per_page: int, pages: int}
      */
-    public function byUser(int $userId, bool $includePrivate, int $page, int $perPage): array
+    public function byUser(int $userId, bool $includePrivate, int $page, int $perPage, string $keyword = ''): array
     {
         $base = 'FROM posts p
                  JOIN users u ON u.id = p.user_id
@@ -216,7 +220,14 @@ final class PostRepository
             $params['community_self'] = $userId;
         }
 
-        $sql = 'SELECT p.*, u.username, pr.nickname, pr.avatar_media_id,
+        $keyword = trim($keyword);
+
+        if ($keyword !== '') {
+            $base .= ' AND p.content LIKE :keyword';
+            $params['keyword'] = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $keyword) . '%';
+        }
+
+        $sql = 'SELECT p.*, u.username, pr.nickname, pr.avatar_frame, pr.name_badge, pr.avatar_media_id,
                        am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
                 ' . $base . ' ORDER BY p.id DESC';
         $countSql = 'SELECT COUNT(*) ' . $base;
@@ -240,7 +251,7 @@ final class PostRepository
                    AND p.deleted_at IS NULL AND p.community_id IS NULL';
         $params = ['topic_id' => $topicId, 'status' => 'published', 'visibility' => 'public'];
 
-        $sql = 'SELECT p.*, u.username, pr.nickname, pr.avatar_media_id,
+        $sql = 'SELECT p.*, u.username, pr.nickname, pr.avatar_frame, pr.name_badge, pr.avatar_media_id,
                        am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
                 ' . $base . ' ORDER BY p.id DESC';
         $countSql = 'SELECT COUNT(*) ' . $base;
@@ -268,12 +279,20 @@ final class PostRepository
             'viewer_self' => $viewerId ?? 0,
         ];
 
-        $sql = 'SELECT p.*, u.username, pr.nickname, pr.avatar_media_id,
+        $sql = 'SELECT p.*, u.username, pr.nickname, pr.avatar_frame, pr.name_badge, pr.avatar_media_id,
                        am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
                 ' . $base . ' ORDER BY p.is_pinned DESC, p.id DESC';
         $countSql = 'SELECT COUNT(*) ' . $base;
 
         return $this->query->paginate($sql, $countSql, $params, $page, $perPage);
+    }
+
+    public function communitySlug(int $communityId): string
+    {
+        return (string) ($this->query->value(
+            'SELECT slug FROM communities WHERE id = :id',
+            ['id' => $communityId],
+        ) ?? '');
     }
 
     /** @return array<string, mixed>|null */
@@ -313,7 +332,7 @@ final class PostRepository
 
         $rows = $this->query->all(
             sprintf(
-                'SELECT p.*, u.username, u.status AS author_status, pr.nickname,
+                'SELECT p.*, u.username, u.status AS author_status, pr.nickname, pr.avatar_frame, pr.name_badge,
                         am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
                  FROM posts p
                  JOIN users u ON u.id = p.user_id

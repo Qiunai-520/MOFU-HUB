@@ -1,0 +1,43 @@
+{% extends 'layouts/app.twig' %}
+
+{% block page_id %}jail{% endblock %}
+{% block title %}小黑屋 · {{ app.name }}{% endblock %}
+
+{% block content %}
+<section class="jail-page">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">小黑屋</h1>
+            <p class="page-subtitle">违规处罚公示：累计公示 {{ stats.total }} 条，生效中 {{ stats.active }} 条</p>
+        </div>
+    </header>
+
+    <div class="jail-list" data-list="jail-list">
+    {% for item in entries.items %}
+    <article class="card jail-entry">
+        <div class="jail-entry__head">
+            <span class="jail-entry__name">{{ item.nickname }}</span>
+            <span class="tag{{ item.type == 'banned' ? ' tag--warn' : '' }}">{{ item.type_label }}</span>
+            <span class="jail-entry__status">
+                {% if item.status == 'active' %}生效中
+                {% elseif item.status == 'expired' %}已到期
+                {% else %}已解除{% endif %}
+            </span>
+        </div>
+        <p class="jail-entry__reason">{{ item.reason }}</p>
+        <p class="jail-entry__time">
+            自 {{ item.starts_at|slice(0, 16) }}
+            {% if item.permanent %} · 永久{% else %} · 至 {{ item.ends_at|slice(0, 16) }}{% endif %}
+        </p>
+    </article>
+    {% else %}
+    <div class="empty-state">
+        <span class="material-symbols-outlined empty-state__icon" aria-hidden="true">sentiment_satisfied</span>
+        <p class="empty-state__title">小黑屋空着，大家都很守规矩</p>
+    </div>
+    {% endfor %}
+    </div>
+
+    {{ include('components/load-more.twig', { pagination: entries, base: '/jail?', target: 'jail-list' }) }}
+</section>
+{% endblock %}

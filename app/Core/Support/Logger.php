@@ -55,6 +55,11 @@ final class Logger
 
         $line = sprintf("[%s] %s: %s%s\n", date('Y-m-d H:i:s'), $level, $message, $suffix);
 
+        // 超过 5MB 轮转一次，避免 app.log 无限增长
+        if (is_file($this->filePath) && filesize($this->filePath) > 5 * 1024 * 1024) {
+            @rename($this->filePath, $this->filePath . '.1');
+        }
+
         // 部分文件系统（Android FUSE / NFS 等）不支持 flock，失败时降级为无锁追加
         if (@file_put_contents($this->filePath, $line, FILE_APPEND | LOCK_EX) === false) {
             @file_put_contents($this->filePath, $line, FILE_APPEND);

@@ -12,15 +12,18 @@ use Mofu\Modules\Confessions\ConfessionService;
 final class ReportService
 {
     public const REASONS = [
-        'spam' => '垃圾广告',
-        'harassment' => '骚扰辱骂',
-        'porn' => '色情低俗',
+        'spam' => '垃圾信息',
+        'harassment' => '骚扰或辱骂',
+        'porn' => '色情或不适当内容',
+        'violence' => '暴力或危险内容',
+        'fraud' => '欺诈/诈骗',
+        'impersonation' => '冒充他人',
+        'copyright' => '侵犯版权',
         'illegal' => '违法违规',
-        'infringement' => '侵权内容',
         'other' => '其他',
     ];
 
-    public const TARGET_TYPES = ['post', 'comment', 'confession', 'confession_comment'];
+    public const TARGET_TYPES = ['user', 'post', 'comment', 'confession', 'confession_comment'];
 
     public function __construct(
         private readonly Query $query,
@@ -76,6 +79,7 @@ final class ReportService
             'reporter_id' => $reporterId,
             'target_type' => $targetType,
             'target_id' => $targetId,
+            'reported_user_id' => $this->ownerOf($targetType, $targetId),
             'reason' => $reason,
             'detail' => $detail,
             'status' => 'pending',
@@ -140,6 +144,10 @@ final class ReportService
             $placeholders = implode(', ', array_fill(0, count($ids), '?'));
 
             $selected = match ($type) {
+                'user' => $this->query->all(
+                    sprintf('SELECT id, username FROM users WHERE id IN (%s)', $placeholders),
+                    $ids,
+                ),
                 'post' => $this->query->all(
                     sprintf('SELECT id, content FROM posts WHERE id IN (%s)', $placeholders),
                     $ids,
@@ -166,9 +174,12 @@ final class ReportService
 
             foreach ($selected as $item) {
                 $targets[$type . ':' . (int) $item['id']] = [
-                    'excerpt' => mb_substr((string) $item['content'], 0, 100),
+                    'excerpt' => $type === 'user'
+                        ? '@' . (string) ($item['username'] ?? '')
+                        : mb_substr((string) $item['content'], 0, 100),
                     'parent_id' => (int) ($item['post_id'] ?? $item['confession_id'] ?? 0),
                     'board' => (string) ($item['board'] ?? 'wall'),
+                    'username' => (string) ($item['username'] ?? ''),
                 ];
             }
         }
@@ -255,6 +266,7 @@ final class ReportService
     public static function targetTypeLabel(string $type): string
     {
         return match ($type) {
+            'user' => '用户',
             'post' => '动态',
             'comment' => '评论',
             'confession' => '表白墙/树洞',
@@ -267,6 +279,7 @@ final class ReportService
     private static function targetUrl(string $type, int $id, ?array $target): string
     {
         return match ($type) {
+            'user' => '/u/' . (string) ($target['username'] ?? ''),
             'post' => '/posts/' . $id,
             'comment' => '/posts/' . (int) ($target['parent_id'] ?? 0) . '#comments',
             'confession' => ConfessionService::boardUrl((string) ($target['board'] ?? 'wall')) . '/' . $id,
@@ -278,6 +291,7 @@ final class ReportService
     private function assertTargetExists(string $type, int $id): void
     {
         [$table, $extra] = match ($type) {
+            'user' => ['users', ''],
             'post' => ['posts', 'AND deleted_at IS NULL'],
             'comment' => ['comments', ''],
             'confession' => ['confessions', 'AND deleted_at IS NULL'],
@@ -294,12 +308,30 @@ final class ReportService
         }
     }
 
+    /** 被举报对象归属的用户（用于封禁动作与展示） */
+    private function ownerOf(string $type, int $id): ?int
+    {
+        $owner = match ($type) {
+            'user' => $this->query->value('SELECT id FROM users WHERE id = :id', ['id' => $id]),
+            'post' => $this->query->value('SELECT user_id FROM posts WHERE id = :id', ['id' => $id]),
+            'comment' => $this->query->value('SELECT user_id FROM comments WHERE id = :id', ['id' => $id]),
+            'confession' => $this->query->value('SELECT creator_id FROM confessions WHERE id = :id', ['id' => $id]),
+            'confession_comment' => $this->query->value('SELECT user_id FROM confession_comments WHERE id = :id', ['id' => $id]),
+            default => null,
+        };
+
+        return $owner === null ? null : (int) $owner;
+    }
+
     /**
      * 接受举报时下架目标内容，返回内容作者的 user id（用于通知）。
      */
     private function hideTarget(string $type, int $id): ?int
     {
         switch ($type) {
+            case 'user':
+                return $this->ownerOf('user', $id);
+
             case 'post':
                 $owner = $this->query->value('SELECT user_id FROM posts WHERE id = :id', ['id' => $id]);
                 $this->query->run("UPDATE posts SET status = 'hidden', updated_at = :now WHERE id = :id", [

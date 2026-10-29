@@ -1,0 +1,215 @@
+{% extends 'layouts/admin.twig' %}
+
+{% block page_id %}admin{% endblock %}
+{% block title %}称号与成就 · {{ app.name }}{% endblock %}
+
+{% macro title_fields(item, rarities, conditions) %}
+    <div class="admin-form__grid">
+        <label class="field">
+            <span class="field__label">名称</span>
+            <input class="field__input" type="text" name="name" maxlength="48" required value="{{ item.name|default('') }}">
+        </label>
+        <label class="field">
+            <span class="field__label">稀有度</span>
+            <select class="field__input" name="rarity">
+                {% for value, label in rarities %}
+                <option value="{{ value }}" {{ item.rarity|default('') == value ? 'selected' : '' }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="field">
+            <span class="field__label">图标（Material 名称）</span>
+            <input class="field__input" type="text" name="icon" value="{{ item.icon|default('military_tech') }}">
+        </label>
+    </div>
+    <label class="field">
+        <span class="field__label">描述</span>
+        <input class="field__input" type="text" name="description" maxlength="255" value="{{ item.description|default('') }}">
+    </label>
+    <div class="admin-form__grid">
+        <label class="field">
+            <span class="field__label">获取条件</span>
+            <select class="field__input" name="condition_type">
+                {% for value, label in conditions %}
+                <option value="{{ value }}" {{ item.condition_type|default('') == value ? 'selected' : '' }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="field">
+            <span class="field__label">条件数值</span>
+            <input class="field__input" type="number" name="condition_value" min="0" value="{{ item.condition_value|default(0) }}">
+        </label>
+        <label class="field">
+            <span class="field__label">排序</span>
+            <input class="field__input" type="number" name="sort" value="{{ item.sort|default(0) }}">
+        </label>
+    </div>
+    <div class="admin-form__grid">
+        <label class="field">
+                <span class="field__label">隐藏（未获得前不显示条件）</span>
+                <select class="field__input" name="hidden">
+                    <option value="0" {{ item is defined and item.hidden ? '' : 'selected' }}>否</option>
+                    <option value="1" {{ item is defined and item.hidden ? 'selected' : '' }}>是</option>
+                </select>
+            </label>
+        <label class="field">
+                <span class="field__label">可佩戴</span>
+                <select class="field__input" name="wearable">
+                    <option value="0" {{ item is not defined or item.wearable ? '' : 'selected' }}>否</option>
+                    <option value="1" {{ item is not defined or item.wearable ? 'selected' : '' }}>是</option>
+                </select>
+            </label>
+        <label class="field">
+                <span class="field__label">启用</span>
+                <select class="field__input" name="active">
+                    <option value="0" {{ item is not defined or item.active is not defined or item.active ? '' : 'selected' }}>否</option>
+                    <option value="1" {{ item is not defined or item.active is not defined or item.active ? 'selected' : '' }}>是</option>
+                </select>
+            </label>
+    </div>
+{% endmacro %}
+
+{% block admin_content %}
+<div class="admin-head">
+    <h1 class="page-title">称号与成就</h1>
+    <p class="admin-head__hint">自动称号会在用户访问成长中心时按条件授予；隐藏称号满足条件前不展示获取方式。</p>
+</div>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">新建称号</h2>
+    <form class="admin-form" method="post" action="/admin/titles">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <label class="field">
+            <span class="field__label">标识 slug（可选，留空自动生成）</span>
+            <input class="field__input" type="text" name="slug" placeholder="例如 founder">
+        </label>
+        {{ _self.title_fields({}, rarities, conditions) }}
+        <div class="admin-form__actions">
+            <button class="filled-btn filled-btn--sm" type="submit">创建称号</button>
+        </div>
+    </form>
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">手动授予 / 收回</h2>
+    <form class="admin-form" method="post" action="/admin/titles/grant">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <div class="admin-form__grid">
+            <label class="field">
+                <span class="field__label">用户 ID</span>
+                <input class="field__input" type="number" name="user_id" min="1" required>
+            </label>
+            <label class="field">
+                <span class="field__label">称号</span>
+                <select class="field__input" name="title_id">
+                    {% for t in titles %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+                </select>
+            </label>
+            <label class="field">
+                <span class="field__label">操作</span>
+                <select class="field__input" name="action">
+                    <option value="grant">授予</option>
+                    <option value="revoke">收回</option>
+                </select>
+            </label>
+        </div>
+        <div class="admin-form__actions">
+            <button class="filled-btn filled-btn--sm" type="submit">执行</button>
+        </div>
+    </form>
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">称号列表（{{ titles|length }}）</h2>
+    {% for item in titles %}
+    <details class="admin-row">
+        <summary class="admin-row__summary">
+            <span class="material-symbols-outlined" aria-hidden="true">{{ item.icon }}</span>
+            <span class="admin-row__title">{{ item.name }}</span>
+            <span class="level-chip">{{ item.rarity_label }}</span>
+            {% if item.hidden %}<span class="tag">隐藏</span>{% endif %}
+            <span class="admin-row__meta">{{ item.condition_text }}</span>
+        </summary>
+        <form class="admin-form" method="post" action="/admin/titles/{{ item.id }}/save">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            {{ _self.title_fields(item, rarities, conditions) }}
+            <div class="admin-form__actions">
+                <button class="filled-btn filled-btn--sm" type="submit">保存</button>
+            </div>
+        </form>
+        <form class="inline-form" method="post" action="/admin/titles/{{ item.id }}/delete"
+              data-confirm="删除称号会同时移除所有用户的持有记录，确定吗？">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <button class="text-btn text-btn--danger text-btn--sm" type="submit">删除</button>
+        </form>
+    </details>
+    {% endfor %}
+</section>
+
+<section class="admin-card">
+    <h2 class="admin-card__title">成就列表（{{ achievements|length }}）</h2>
+    <form class="admin-form" method="post" action="/admin/titles/achievements">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <div class="admin-form__grid">
+            <label class="field">
+                <span class="field__label">成就名称</span>
+                <input class="field__input" type="text" name="name" maxlength="48" required>
+            </label>
+            <label class="field">
+                <span class="field__label">条件类型</span>
+                <select class="field__input" name="condition_type">
+                    <option value="post_count">发布动态</option>
+                    <option value="comment_count">发表评论</option>
+                    <option value="checkin_streak">连续签到</option>
+                    <option value="likes_received">获得点赞</option>
+                    <option value="mofu_earned">累计获得 M币</option>
+                </select>
+            </label>
+            <label class="field">
+                <span class="field__label">条件数值</span>
+                <input class="field__input" type="number" name="condition_value" min="1" value="1">
+            </label>
+        </div>
+        <div class="admin-form__grid">
+            <label class="field">
+                <span class="field__label">奖励 M币</span>
+                <input class="field__input" type="number" name="reward_mofu" min="0" value="0">
+            </label>
+            <label class="field">
+                <span class="field__label">奖励 XP</span>
+                <input class="field__input" type="number" name="reward_xp" min="0" value="0">
+            </label>
+            <label class="field">
+                <span class="field__label">描述</span>
+                <input class="field__input" type="text" name="description" maxlength="255">
+            </label>
+        </div>
+        <div class="admin-form__actions">
+            <button class="filled-btn filled-btn--sm" type="submit">新建成就</button>
+        </div>
+    </form>
+    <div class="table-wrap">
+        <table class="admin-table">
+            <thead>
+                <tr><th>成就</th><th>条件</th><th>奖励</th><th>状态</th></tr>
+            </thead>
+            <tbody>
+                {% for a in achievements %}
+                <tr>
+                    <td data-label="成就">
+                        <span class="material-symbols-outlined" aria-hidden="true">{{ a.icon }}</span>
+                        {{ a.name }}
+                        <span class="admin-table__sub">{{ a.description }}</span>
+                    </td>
+                    <td data-label="条件" class="admin-table__sub">{{ a.condition_type }} ≥ {{ a.condition_value }}</td>
+                    <td data-label="奖励" class="admin-table__sub">{{ a.reward_mofu }} M币 · {{ a.reward_xp }} XP</td>
+                    <td data-label="状态">{{ a.active ? '启用' : '停用' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="admin-table__empty">暂无成就</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

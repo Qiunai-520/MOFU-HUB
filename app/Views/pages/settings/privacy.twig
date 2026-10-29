@@ -9,48 +9,53 @@
 
     <div class="settings-main" data-tabs-panel>
         <h1 class="page-title">隐私设置</h1>
+        <p class="page-subtitle">切换即自动保存，不需要再点保存按钮。</p>
 
         {% if saved %}
         <div class="form-success" role="status">已保存</div>
         {% endif %}
 
-        <form method="post" action="/settings/privacy" class="settings-form">
+        <form method="post" action="/settings/privacy" class="settings-form" data-auto-save>
             <input type="hidden" name="_csrf" value="{{ csrfToken }}">
 
             <div class="settings-group">
                 <h2 class="settings-group__title">谁能给我发私信</h2>
                 <div class="settings-card">
-                    <label class="settings-row" for="dm-policy-all">
-                        <span class="settings-row__text"><strong>所有人</strong>任何登录用户都可以给我发私信</span>
-                        <input type="radio" id="dm-policy-all" name="dm_policy" value="all" {{ prefs.dm_policy == 'all' ? 'checked' : '' }}>
-                    </label>
-                    <label class="settings-row" for="dm-policy-mutual">
-                        <span class="settings-row__text"><strong>仅互相关注的人</strong>需要双方互相关注才能私信我</span>
-                        <input type="radio" id="dm-policy-mutual" name="dm_policy" value="mutual" {{ prefs.dm_policy == 'mutual' ? 'checked' : '' }}>
-                    </label>
-                    <label class="settings-row" for="dm-policy-none">
-                        <span class="settings-row__text"><strong>不接收私信</strong>任何人都无法给我发私信（已有会话仍可查看历史）</span>
-                        <input type="radio" id="dm-policy-none" name="dm_policy" value="none" {{ prefs.dm_policy == 'none' ? 'checked' : '' }}>
-                    </label>
+                    <div class="settings-row">
+                        <span class="settings-row__text"><strong>私信权限</strong>决定谁可以给你发私信</span>
+                        <span class="segmented segmented--radio" role="radiogroup" aria-label="私信权限">
+                            <label class="segmented__item"><input type="radio" name="dm_policy" value="all" {{ prefs.dm_policy == 'all' ? 'checked' : '' }}><span>所有人</span></label>
+                            <label class="segmented__item"><input type="radio" name="dm_policy" value="mutual" {{ prefs.dm_policy == 'mutual' ? 'checked' : '' }}><span>互相关注</span></label>
+                            <label class="segmented__item"><input type="radio" name="dm_policy" value="none" {{ prefs.dm_policy == 'none' ? 'checked' : '' }}><span>不接收</span></label>
+                        </span>
+                    </div>
                 </div>
             </div>
 
             <div class="settings-group">
                 <h2 class="settings-group__title">关注与粉丝列表可见性</h2>
                 <div class="settings-card">
-                    <label class="settings-row">
-                        <span class="settings-row__text"><strong>所有人可见</strong>其他人可以浏览我的关注与粉丝列表</span>
-                        <input type="radio" name="connections_visibility" value="public" {{ prefs.connections_visibility == 'public' ? 'checked' : '' }}>
-                    </label>
-                    <label class="settings-row">
-                        <span class="settings-row__text"><strong>仅自己可见</strong>关注与粉丝列表只对我自己展示</span>
-                        <input type="radio" name="connections_visibility" value="self" {{ prefs.connections_visibility == 'self' ? 'checked' : '' }}>
-                    </label>
+                    <div class="settings-row">
+                        <span class="settings-row__text"><strong>列表可见性</strong>谁可以浏览你的关注与粉丝列表</span>
+                        <span class="segmented segmented--radio" role="radiogroup" aria-label="关注与粉丝列表可见性">
+                            <label class="segmented__item"><input type="radio" name="connections_visibility" value="public" {{ prefs.connections_visibility == 'public' ? 'checked' : '' }}><span>所有人</span></label>
+                            <label class="segmented__item"><input type="radio" name="connections_visibility" value="self" {{ prefs.connections_visibility == 'self' ? 'checked' : '' }}><span>仅自己</span></label>
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            <div class="settings-form__foot">
-                <button class="filled-btn" type="submit">保存设置</button>
+            <div class="settings-group">
+                <h2 class="settings-group__title">已读回执</h2>
+                <div class="settings-card">
+                    <div class="settings-row">
+                        <span class="settings-row__text"><strong>已读回执</strong>需双方都开启才能看到「已读」</span>
+                        <span class="segmented segmented--radio" role="radiogroup" aria-label="已读回执">
+                            <label class="segmented__item"><input type="radio" name="read_receipt" value="1" {{ prefs.read_receipt ? 'checked' : '' }}><span>开启</span></label>
+                            <label class="segmented__item"><input type="radio" name="read_receipt" value="0" {{ prefs.read_receipt ? '' : 'checked' }}><span>关闭</span></label>
+                        </span>
+                    </div>
+                </div>
             </div>
         </form>
 

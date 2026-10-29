@@ -17,7 +17,7 @@ final class UserRepository
     {
         return $this->query->one(
             'SELECT u.id, u.username, u.email, u.status, u.created_at, u.updated_at,
-                    p.nickname, p.avatar_media_id, p.bio,
+                    p.nickname, p.avatar_media_id, p.avatar_frame, p.name_badge, p.bio,
                     am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
              FROM users u
              LEFT JOIN user_profiles p ON p.user_id = u.id
@@ -65,7 +65,8 @@ final class UserRepository
     {
         return $this->query->one(
             'SELECT u.id, u.username, u.email, u.status, u.created_at,
-                    p.nickname, p.avatar_media_id, p.bio, p.cover_media_id,
+                    p.nickname, p.avatar_media_id, p.avatar_frame, p.name_badge,
+                    p.bio, p.cover_media_id, p.location, p.website,
                     am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path,
                     cm.thumb_path AS cover_thumb, cm.disk_path AS cover_path
              FROM users u

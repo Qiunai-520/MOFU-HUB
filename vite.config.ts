@@ -6,6 +6,9 @@ import { defineConfig } from 'vitest/config';
 // 因此构建时 base 必须是 /assets/，否则 CSS 内字体等资源 URL 会指向站点根而 404。
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? '/assets/' : '/',
+  // outDir 本身位于 public/ 下；再复制整个 publicDir 会递归复制静态文件，
+  // 并把 .htaccess、图片和临时预览页塞进 /assets/。静态资源由 PHP 直接托管。
+  publicDir: false,
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src-client', import.meta.url)),
@@ -35,11 +38,5 @@ export default defineConfig(({ command }) => ({
   test: {
     include: ['tests/frontend/**/*.test.ts'],
     environment: 'node',
-    server: {
-      deps: {
-        // 该包内部使用无扩展名 ESM 导入，需要交给 Vite 解析器处理
-        inline: ['@material/material-color-utilities'],
-      },
-    },
   },
 }));

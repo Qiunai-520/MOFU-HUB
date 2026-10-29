@@ -133,7 +133,7 @@ final class SearchService
         [$where, $params] = $this->postsWhere($like);
 
         $result = $this->query->paginate(
-            'SELECT p.*, u.username, pr.nickname, pr.avatar_media_id,
+            'SELECT p.*, u.username, pr.nickname, pr.avatar_frame, pr.name_badge, pr.avatar_media_id,
                     am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
              FROM posts p
              JOIN users u ON u.id = p.user_id
@@ -157,7 +157,7 @@ final class SearchService
         [$where, $params] = $this->usersWhere($like);
 
         $result = $this->query->paginate(
-            'SELECT u.id, u.username, pr.nickname, pr.bio,
+            'SELECT u.id, u.username, pr.nickname, pr.avatar_frame, pr.name_badge, pr.bio,
                     am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
              FROM users u
              LEFT JOIN user_profiles pr ON pr.user_id = u.id
@@ -221,7 +221,7 @@ final class SearchService
 
         $rows = $total > 0
             ? $this->query->all(
-                'SELECT p.*, u.username, pr.nickname, pr.avatar_media_id,
+                'SELECT p.*, u.username, pr.nickname, pr.avatar_frame, pr.name_badge, pr.avatar_media_id,
                         am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
                  FROM posts p
                  JOIN users u ON u.id = p.user_id
@@ -246,7 +246,7 @@ final class SearchService
 
         $rows = $total > 0
             ? $this->query->all(
-                'SELECT u.id, u.username, pr.nickname, pr.bio,
+                'SELECT u.id, u.username, pr.nickname, pr.avatar_frame, pr.name_badge, pr.bio,
                         am.thumb_path AS avatar_thumb, am.disk_path AS avatar_path
                  FROM users u
                  LEFT JOIN user_profiles pr ON pr.user_id = u.id

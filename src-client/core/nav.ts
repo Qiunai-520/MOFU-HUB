@@ -1,4 +1,5 @@
 import { $, $$ } from './dom';
+import { markTabSwitch } from './tab-view';
 
 function normalize(path: string): string {
   const trimmed = path.replace(/\/+$/, '');
@@ -22,8 +23,19 @@ const SECTION_RULES: ReadonlyArray<readonly [string, string]> = [
   ['/my/', '/me'],
 ];
 
-/** 这些前缀下的页面是从「我的」点进去的二级页，不展示悬浮主导航（/me 本身不在内） */
-const NAV_COMPACT_PREFIXES: readonly string[] = ['/u', '/settings', '/my', '/history', '/about'];
+/**
+ * 保留悬浮主导航与发布/音乐悬浮按钮的一级页面。
+ * 事实来源在服务端（ViewContext::NAV_PRIMARY_PATHS）——它同时用同一份数据
+ * 在 <html> 上渲染 data-nav-compact；swup 切页后由本模块增删该属性。
+ * 这里保留一份兜底，避免全局变量缺失（测试/异常）时全站失效。
+ */
+const NAV_PRIMARY_FALLBACK: readonly string[] = ['/', '/boards', '/messages', '/notifications', '/me'];
+
+function navPrimaryPaths(): readonly string[] {
+  const fromServer = window.__MOFU__?.navPrimaryPaths;
+
+  return Array.isArray(fromServer) && fromServer.length > 0 ? fromServer : NAV_PRIMARY_FALLBACK;
+}
 
 /**
  * 把横向标签栏里当前选中的项滚到可见位置。
@@ -53,7 +65,8 @@ export function centerActiveTabs(): void {
     const relRight = relLeft + aRect.width;
     const viewLeft = container.scrollLeft;
     const viewRight = viewLeft + container.clientWidth;
-    let left = relLeft - (container.clientWidth - aRect.width) / 2;
+    // 仅在选中项被裁掉时才滚动，不再无条件居中（居中会把首个标签截断半截）
+    let left = container.scrollLeft;
 
     if (relLeft - margin < viewLeft) {
       left = relLeft - margin;
@@ -136,13 +149,18 @@ function onTabPress(container: HTMLElement, thumb: HTMLElement, event: Event): v
 
   // 标记本次跳转来自标签栏：swup 那边只淡入内容区，标签栏本身不参与动画（避免整页闪一下）
   if (pressed instanceof HTMLAnchorElement && pressed.href !== location.href) {
-    document.documentElement.dataset.tabSwitch = '';
+    markTabSwitch();
   }
 }
 
 /**
  * 持久化的标签栏不会随新页面重建，所以换页（含前进/后退）后要按当前 URL 重新对齐选中项，
- * 否则会把上一页的选中状态留给新页面。只在能确定匹配时改，避免高亮错项。
+ * 否则会把上一页的选中状态留给新页面。
+ *
+ * 匹配规则：优先完整匹配（pathname + 查询串）；当前地址没有查询串时，
+ * 取带 data-tab-default 的链接（如首页无 ?tab 时高亮「最新」），
+ * 都没有则退回第一项（各类筛选栏的首项就是服务端默认值）。
+ * 匹配不到就不改，避免高亮错项。
  */
 function syncTabActiveFromLocation(container: HTMLElement): void {
   const links = tabItems(container).filter(
@@ -153,16 +171,17 @@ function syncTabActiveFromLocation(container: HTMLElement): void {
     return;
   }
 
-  const currentTab = new URLSearchParams(location.search).get('tab') ?? '';
-  const match = links.find((link) => {
-    if (link.pathname !== location.pathname) {
-      return false;
-    }
+  const here = window.location;
+  const exact = links.find((link) => {
+    const url = new URL(link.href, here.origin);
 
-    const linkTab = new URL(link.href).searchParams.get('tab') ?? '';
-
-    return linkTab === currentTab || (currentTab === '' && link.dataset.tabDefault !== undefined);
+    return url.pathname === here.pathname && url.search === here.search;
   });
+  const fallback =
+    here.search === ''
+      ? links.find((link) => link.dataset.tabDefault !== undefined) ?? links[0]
+      : undefined;
+  const match = exact ?? fallback;
 
   if (match === undefined) {
     return;
@@ -182,8 +201,9 @@ function syncTabActiveFromLocation(container: HTMLElement): void {
 /** 给所有横向标签栏挂上滑块并同步位置（幂等，换页后可重复调用） */
 export function syncSlidingTabs(): void {
   for (const container of $$<HTMLElement>(SLIDING_TABS_SELECTOR)) {
-    // 持久化的标签栏要先按当前 URL 对齐选中项，再定位滑块
-    if (container.hasAttribute('data-swup-persist')) {
+    // 持久化的标签栏要先按当前 URL 对齐选中项，再定位滑块。
+    // persist 属性现在挂在吸附容器（.admin-top / .settings-top）上，所以查祖先。
+    if (container.closest('[data-swup-persist]') !== null) {
       syncTabActiveFromLocation(container);
     }
 
@@ -235,6 +255,54 @@ function sectionOf(path: string): string {
   return '/';
 }
 
+/** 持久化后台菜单 / 板块排序栏：Swup 保留 DOM 后，按当前 URL 重新对齐选中态。 */
+function syncPersistentNavState(): void {
+  const path = normalize(window.location.pathname);
+  const adminShell = $<HTMLElement>('[data-admin-nav-shell]');
+
+  if (adminShell !== null) {
+    const links = $$<HTMLAnchorElement>('[data-admin-label]', adminShell);
+    let currentLabel = '后台菜单';
+
+    for (const link of links) {
+      const href = normalize(new URL(link.href, window.location.origin).pathname);
+      const active = href === path || (href === '/admin/dashboard' && path === '/admin');
+      link.classList.toggle('is-active', active);
+
+      if (active) {
+        link.setAttribute('aria-current', 'page');
+        currentLabel = link.dataset.adminLabel ?? currentLabel;
+      } else {
+        link.removeAttribute('aria-current');
+      }
+    }
+
+    const current = $<HTMLElement>('.admin-menu__current', adminShell);
+
+    if (current !== null) {
+      current.textContent = currentLabel;
+    }
+  }
+
+  const toolbar = $<HTMLElement>('[data-board-toolbar]');
+
+  if (toolbar !== null) {
+    const url = new URL(window.location.href);
+    const sort = url.searchParams.get('sort') ?? 'latest';
+    const filter = url.searchParams.get('filter') ?? '';
+
+    for (const link of $$<HTMLElement>('[data-board-sort]', toolbar)) {
+      const active = (link.dataset.boardSort ?? 'latest') === sort;
+      link.classList.toggle('is-active', active);
+      active ? link.setAttribute('aria-current', 'page') : link.removeAttribute('aria-current');
+    }
+
+    for (const link of $$<HTMLElement>('[data-board-filter]', toolbar)) {
+      link.classList.toggle('meta-chip--accent', (link.dataset.boardFilter ?? '') === filter);
+    }
+  }
+}
+
 /** 高亮当前导航项（最长前缀匹配；未命中时按分区状态机兜底） */
 export function syncNav(path: string): void {
   const normalized = normalize(path);
@@ -259,11 +327,9 @@ export function syncNav(path: string): void {
   // 侧栏沿用最长前缀匹配结果，底栏按「路由 → 主导航分区」兜底，保证底栏始终有且只有一个选中项。
   const sectionValue = bestValue !== '' && bottomValues.has(bestValue) ? bestValue : sectionOf(normalized);
 
-  // 供样式层使用：从「我的」点进去的二级页（个人主页 / 设置）不再展示悬浮主导航；
-  // 「我的」首页本身仍然展示，它仍是主导航的一个顶级分区。
-  const compactNav = NAV_COMPACT_PREFIXES.some(
-    (prefix) => normalized === prefix || normalized.startsWith(prefix + '/'),
-  );
+  // 供样式层使用：非一级目的地一律收起悬浮主导航与发布、音乐悬浮按钮（回一级页恢复）。
+  // 清单由服务端下发（唯一事实来源），见 navPrimaryPaths()。
+  const compactNav = !navPrimaryPaths().includes(normalized);
 
   if (compactNav) {
     document.documentElement.dataset.navCompact = '';
@@ -290,6 +356,7 @@ export function syncNav(path: string): void {
   syncSlidingTabs();
   // 窄屏下把选中的标签滚到可见位置
   centerActiveTabs();
+  syncPersistentNavState();
 }
 
 /** 移动端导航抽屉（全局一次性绑定） */
@@ -342,6 +409,34 @@ export function setupNavDrawer(): void {
 
     if (nav.classList.contains('is-open') && target.closest('#side-nav a')) {
       close();
+    }
+
+    const account = $<HTMLDetailsElement>('[data-account-menu]');
+
+    if (account !== null) {
+      if (account.contains(target) && target.closest('a, .account-menu__form button') !== null) {
+        account.open = false;
+      } else if (!account.contains(target)) {
+        account.open = false;
+      }
+    }
+
+    const adminMenu = target.closest<HTMLDetailsElement>('.admin-menu');
+
+    if (adminMenu !== null && target.closest('.admin-menu__item') !== null) {
+      window.setTimeout(() => {
+        adminMenu.open = false;
+      }, 80);
+    }
+
+    const tabLink = target.closest<HTMLAnchorElement>('a[href]');
+
+    if (
+      tabLink !== null
+      && tabLink.closest('[data-board-toolbar], [data-admin-nav-shell]') !== null
+      && tabLink.href !== window.location.href
+    ) {
+      markTabSwitch();
     }
   });
 
@@ -601,10 +696,251 @@ export function navigateTo(href: string): void {
   }
 }
 
-/** 底部导航滑块：只跟随当前路由（不做拖动选择，拖动跟手会和点击/滚动手感打架） */
+/**
+ * 底部导航滑块：跟随当前路由，并支持在导航项上按住横向拖动切换。
+ * 只有按住「导航项」本身才能拖（胶囊上的空白区域拖不动）；位移超过阈值才算拖动，
+ * 未达阈值就交给原生点击跳转 —— 点击与拖动两种操作都保留。
+ */
 export function setupBottomNavThumbSync(): void {
   window.addEventListener('resize', syncBottomNavThumb);
   syncBottomNavThumb();
+
+  const bar = $<HTMLElement>('.bottom-nav__bar');
+
+  if (bar === null) {
+    return;
+  }
+
+  const DRAG_THRESHOLD = 8;
+  let activePointer: number | null = null;
+  let startX = 0;
+  let startY = 0;
+  let dragging = false;
+  let hoverIndex = -1;
+  let originIndex = -1;
+  let suppressClick = false;
+
+  const thumbEl = (): HTMLElement | null => $<HTMLElement>('.bottom-nav__thumb', bar);
+
+  const setTransition = (value: string): void => {
+    const thumb = thumbEl();
+
+    if (thumb !== null) {
+      thumb.style.transition = value;
+    }
+  };
+
+  /** 手指位置对应的导航项下标（落在缝隙里时取最近的） */
+  const indexAt = (clientX: number): number => {
+    const list = visibleBottomNavItems(bar);
+    let nearest = -1;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    list.forEach((el, i) => {
+      const rect = el.getBoundingClientRect();
+
+      if (clientX >= rect.left && clientX <= rect.right) {
+        nearest = i;
+        nearestDistance = -1;
+
+        return;
+      }
+
+      if (nearestDistance < 0) {
+        return;
+      }
+
+      const distance = Math.abs(clientX - (rect.left + rect.width / 2));
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearest = i;
+      }
+    });
+
+    return nearest;
+  };
+
+  const highlight = (index: number): void => {
+    visibleBottomNavItems(bar).forEach((el, i) => {
+      el.classList.toggle('is-active', i === index);
+
+      if (i === index) {
+        el.setAttribute('aria-current', 'page');
+      } else {
+        el.removeAttribute('aria-current');
+      }
+    });
+  };
+
+  /** 滑块跟手：以手指为中心，限制在首尾项范围内 */
+  const followPointer = (clientX: number): void => {
+    const list = visibleBottomNavItems(bar);
+    const thumb = thumbEl();
+    const first = list[0];
+    const last = list[list.length - 1];
+
+    if (thumb === null || first === undefined || last === undefined) {
+      return;
+    }
+
+    const next = indexAt(clientX);
+
+    if (next >= 0 && next !== hoverIndex) {
+      hoverIndex = next;
+      highlight(next);
+    }
+
+    const firstGeom = thumbGeometry(bar, first);
+    const lastGeom = thumbGeometry(bar, last);
+    const barRect = bar.getBoundingClientRect();
+    const raw = clientX - barRect.left - bar.clientLeft - firstGeom.width / 2;
+    const x = Math.min(Math.max(raw, firstGeom.x), lastGeom.x);
+
+    thumb.style.width = `${firstGeom.width}px`;
+    thumb.style.transform = `translateX(${x}px)`;
+  };
+
+  const capture = (pointerId: number): void => {
+    try {
+      bar.setPointerCapture(pointerId);
+    } catch {
+      // 指针已失效（或为合成事件）：忽略即可，拖动仍靠 pointermove 继续
+    }
+  };
+
+  const reset = (): void => {
+    activePointer = null;
+    dragging = false;
+    hoverIndex = -1;
+    setTransition('');
+
+    if (originIndex >= 0) {
+      highlight(originIndex);
+    }
+
+    syncBottomNavThumb();
+  };
+
+  bar.addEventListener('pointerdown', (event) => {
+    suppressClick = false;
+
+    if (event.pointerType === 'mouse' && event.button !== 0) {
+      return;
+    }
+
+    const target = event.target;
+
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    // 只有按住导航项本身才进入拖动候选；胶囊上的空白区域不响应
+    const item = target.closest<HTMLElement>('.bottom-nav__item');
+
+    if (item === null) {
+      return;
+    }
+
+    const list = visibleBottomNavItems(bar);
+
+    activePointer = event.pointerId;
+    startX = event.clientX;
+    startY = event.clientY;
+    dragging = false;
+    hoverIndex = list.indexOf(item);
+    originIndex = list.findIndex((el) => el.classList.contains('is-active'));
+  });
+
+  bar.addEventListener('pointermove', (event) => {
+    if (activePointer === null || event.pointerId !== activePointer) {
+      return;
+    }
+
+    if (!dragging) {
+      const dx = Math.abs(event.clientX - startX);
+      const dy = Math.abs(event.clientY - startY);
+
+      if (dx < DRAG_THRESHOLD) {
+        return;
+      }
+
+      // 纵向意图更明显：当作滚动，放弃拖动
+      if (dy > dx) {
+        activePointer = null;
+
+        return;
+      }
+
+      dragging = true;
+      suppressClick = true;
+      setTransition('none');
+      capture(activePointer);
+    }
+
+    followPointer(event.clientX);
+  });
+
+  bar.addEventListener('pointerup', (event) => {
+    if (activePointer === null || event.pointerId !== activePointer) {
+      return;
+    }
+
+    const wasDragging = dragging;
+    const targetIndex = hoverIndex;
+
+    if (bar.hasPointerCapture(event.pointerId)) {
+      bar.releasePointerCapture(event.pointerId);
+    }
+
+    activePointer = null;
+    dragging = false;
+    // 必须无条件恢复过渡：拖动中把它设成了 none，而底部导航在 #swup 之外、
+    // inline 样式会跨页保留 —— 一旦漏掉，之后所有点击滑动都没动画了。
+    setTransition('');
+
+    // 没到阈值：交给原生 click 跳转
+    if (!wasDragging) {
+      hoverIndex = -1;
+
+      return;
+    }
+
+    const item = visibleBottomNavItems(bar)[targetIndex];
+    const href = item?.getAttribute('href') ?? '';
+
+    if (item === undefined || href === '' || href === window.location.pathname) {
+      reset();
+
+      return;
+    }
+
+    hoverIndex = -1;
+    navigateTo(href);
+  });
+
+  bar.addEventListener('pointercancel', (event) => {
+    if (activePointer === null || event.pointerId !== activePointer) {
+      return;
+    }
+
+    if (bar.hasPointerCapture(event.pointerId)) {
+      bar.releasePointerCapture(event.pointerId);
+    }
+
+    reset();
+  });
+
+  // 拖动结束后抑制随之而来的 click（否则又会跳回按下的那一项）
+  bar.addEventListener('click', (event) => {
+    if (!suppressClick) {
+      return;
+    }
+
+    suppressClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
 }
 
 /* ---------- 通用分段滑块（消息：私信/通知） ---------- */
@@ -657,7 +993,7 @@ export function setupCardLinks(): void {
       return;
     }
 
-    if (target.closest('a, button, input, textarea, select, video, audio, [data-action]') !== null) {
+    if (target.closest('a, button, input, textarea, select, video, audio, [data-action], [data-card-menu]') !== null) {
       return;
     }
 

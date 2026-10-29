@@ -16,42 +16,60 @@ final class RateLimiter
     /**
      * 尝试执行一次操作。
      *
+     * 采用「追加时间戳 + 扫描窗口」而不是「读-改-写」：
+     * 后者在并发或锁不可用的文件系统上会互相覆盖、把计数改小（限流被绕过）。
+     *
      * @return bool true = 允许；false = 超出限制
      */
     public function attempt(string $key, int $maxAttempts, int $windowSeconds): bool
     {
         $file = $this->path($key);
-        $now = time();
-        $data = ['start' => $now, 'count' => 0];
-
-        if (is_file($file)) {
-            $raw = @file_get_contents($file);
-            $decoded = $raw !== false ? json_decode($raw, true) : null;
-
-            if (is_array($decoded) && isset($decoded['start'], $decoded['count'])) {
-                $data = ['start' => (int) $decoded['start'], 'count' => (int) $decoded['count']];
-            }
-        }
-
-        if ($now - $data['start'] >= $windowSeconds) {
-            $data = ['start' => $now, 'count' => 0];
-        }
-
-        $data['count']++;
-
         $dir = dirname($file);
+
         if (!is_dir($dir)) {
             @mkdir($dir, 0775, true);
         }
 
-        // 部分文件系统（Android FUSE / NFS 等）不支持 flock，失败时降级为无锁写入
-        $json = (string) json_encode($data);
+        $now = time();
+        $line = $now . "\n";
 
-        if (@file_put_contents($file, $json, LOCK_EX) === false) {
-            @file_put_contents($file, $json);
+        // 部分文件系统（Android FUSE / NFS 等）不支持 flock，失败时降级为普通追加
+        if (@file_put_contents($file, $line, FILE_APPEND | LOCK_EX) === false) {
+            @file_put_contents($file, $line, FILE_APPEND);
         }
 
-        return $data['count'] <= $maxAttempts;
+        $raw = @file_get_contents($file);
+
+        if ($raw === false || $raw === '') {
+            return true;
+        }
+
+        $hits = 0;
+        $kept = [];
+        $total = 0;
+
+        foreach (explode("\n", $raw) as $entry) {
+            $entry = trim($entry);
+
+            if ($entry === '') {
+                continue;
+            }
+
+            $total++;
+            $timestamp = (int) $entry;
+
+            if ($timestamp > $now - $windowSeconds) {
+                $hits++;
+                $kept[] = $timestamp;
+            }
+        }
+
+        // 顺手压缩过期记录（并发下偶尔互相覆盖无伤：最多少清掉几行旧记录）
+        if (count($kept) !== $total) {
+            @file_put_contents($file, $kept === [] ? '' : implode("\n", $kept) . "\n");
+        }
+
+        return $hits <= $maxAttempts;
     }
 
     public function clear(string $key): void

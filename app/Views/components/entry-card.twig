@@ -1,7 +1,8 @@
-<article class="card entry-card">
+{# 板块帖子卡片：整卡可点进详情（core/nav.ts 的 setupCardLinks 做委托，点内部按钮/链接不拦截）#}
+<article class="card entry-card" data-post-link="{{ entry.url }}">
     <div class="entry-card__head">
         {{ include('components/avatar.twig', { user: entry.author, size: 'sm' }) }}
-        <a class="entry-card__author" href="{{ entry.author.url }}">{{ entry.author.nickname }}</a>
+        <a class="entry-card__author" href="{{ entry.author.url }}">{{ entry.author.nickname }}{{ include('components/name-badge.twig', { user: entry.author }) }}</a>
         <time class="entry-card__time">{{ entry.time_ago }}</time>
     </div>
 

@@ -168,7 +168,8 @@ function tablesSection() {
   }
 
   const rows = [];
-  let total = 0;
+  let createdTotal = 0;
+  let droppedTotal = 0;
 
   for (const name of readdirSync(dir).sort()) {
     if (!name.endsWith('.sql')) {
@@ -176,21 +177,42 @@ function tablesSection() {
     }
 
     const sql = readFileSync(join(dir, name), 'utf8');
-    const tables = [...sql.matchAll(/CREATE TABLE(?:\s+IF NOT EXISTS)?\s+`?([A-Za-z0-9_]+)`?/gi)].map(
+    // 只统计 UP 段：-- @@DOWN 之后是回退语句，里面的 CREATE TABLE 不算新建表
+    const upSql = sql.split(/^[ \t]*--[ \t]*@@DOWN[ \t]*$/m)[0] ?? sql;
+    const created = [...upSql.matchAll(/CREATE TABLE(?:\s+IF NOT EXISTS)?\s+`?([A-Za-z0-9_]+)`?/gi)].map(
+      (match) => match[1],
+    );
+    const dropped = [...upSql.matchAll(/DROP TABLE(?:\s+IF EXISTS)?\s+`?([A-Za-z0-9_]+)`?/gi)].map(
       (match) => match[1],
     );
 
-    total += tables.length;
-    rows.push(
-      tables.length > 0
-        ? `| \`${name}\` | ${tables.map((table) => `\`${table}\``).join('、')} |`
-        : `| \`${name}\` | （结构 / 数据变更，无新表） |`,
-    );
+    createdTotal += created.length;
+    droppedTotal += dropped.length;
+
+    if (created.length === 0 && dropped.length === 0) {
+      rows.push(`| \`${name}\` | （结构 / 数据变更，无新表） |`);
+    } else {
+      const parts = [];
+
+      if (created.length > 0) {
+        parts.push(created.map((table) => `\`${table}\``).join('、'));
+      }
+
+      if (dropped.length > 0) {
+        parts.push(`删除：${dropped.map((table) => `\`${table}\``).join('、')}`);
+      }
+
+      rows.push(`| \`${name}\` | ${parts.join('；')} |`);
+    }
   }
 
-  return [`共 ${total} 张数据表，按迁移顺序创建。`, '', '| 迁移文件 | 创建的数据表 |', '| --- | --- |', ...rows].join(
-    '\n',
-  );
+  return [
+    `共创建 ${createdTotal} 张数据表（其中 ${droppedTotal} 张已在后续迁移中删除）。`,
+    '',
+    '| 迁移文件 | 创建的数据表 |',
+    '| --- | --- |',
+    ...rows,
+  ].join('\n');
 }
 
 /** src-client/main.ts → 前端页面模块表 */
@@ -229,8 +251,8 @@ const TREE_NOTES = {
   'src-client': '前端 TypeScript 源码',
   'src-client/core': '前端内核：API、状态、导航与全局交互',
   'src-client/modules': '页面级客户端模块（懒加载）',
-  'src-client/styles': '样式（基础 / 布局 / 页面）',
-  'src-client/theme': 'HCT 动态配色与主题引擎',
+  'src-client/styles': '样式（设计令牌 / 布局 / 页面 / 组件层）',
+  'src-client/theme': 'Light / Dark / System 外观引擎',
   storage: '运行时数据（日志 / 缓存，部署时需可写）',
   'storage/cache': '缓存（速率限制等）',
   'storage/logs': '应用与迁移日志',
@@ -288,17 +310,14 @@ function buildSection() {
 
   const classify = (name) => {
     if (name === 'manifest.json') return '构建清单（`ViteAssets` 读取）';
-    if (/^main-.*\.js$/.test(name)) return '应用入口 JS（含 M3E 组件与全站交互）';
-    if (/^main-.*\.css$/.test(name)) return '全站样式（含字体声明）';
-    if (/^theme-default\./.test(name)) return '默认主题产物（`ThemeBootstrap` 读取）';
+    if (/^main-.*\.js$/.test(name)) return '应用入口 JS（含 Swup 与全站交互）';
+    if (/^main-.*\.css$/.test(name)) return '全站样式（设计令牌 / 布局 / 组件）';
     if (/material-symbols/.test(name)) return '图标字体：Material Symbols';
-    if (/\.woff2?$/.test(name)) return '字体：Roboto';
     return '页面模块懒加载 chunk';
   };
   const weight = (name) => {
     if (/^main-.*\.(js|css)$/.test(name)) return 0;
     if (name === 'manifest.json') return 1;
-    if (/^theme-default\./.test(name)) return 2;
     if (/\.woff2?$/.test(name)) return 3;
     return 4;
   };
@@ -338,3 +357,4 @@ try {
 } catch (error) {
   log(`生成失败（不影响构建）：${error instanceof Error ? error.message : String(error)}`);
 }
+

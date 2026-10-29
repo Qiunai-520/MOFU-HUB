@@ -66,8 +66,11 @@
 
         <label class="settings-row">
             <span class="settings-row__text"><strong>报名需要审核</strong>开启后报名进入待审核，需你批准后才算报名成功</span>
-            <span class="switch">
-                <input type="checkbox" name="requires_approval" value="1" {{ values.requires_approval == '1' ? 'checked' : '' }}>
+            <span class="menu-field">
+                <select class="field__input" name="requires_approval" aria-label="是否审核报名">
+                    <option value="0" {{ values.requires_approval == '1' ? '' : 'selected' }}>关闭</option>
+                    <option value="1" {{ values.requires_approval == '1' ? 'selected' : '' }}>开启</option>
+                </select>
             </span>
         </label>
 
